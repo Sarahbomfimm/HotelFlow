@@ -1,17 +1,21 @@
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from './firebase';
 
-export async function createUserNotification(recipientUid, {
+export async function createUserNotification({
+    recipientUid = null,
+    recipientEmail = null,
+}, {
     message,
     type = 'info',
     relatedOrderId = null,
 }) {
-    if (!db || !recipientUid || !message) {
+    if (!db || (!recipientUid && !recipientEmail) || !message) {
         return null;
     }
 
     const payload = {
         recipientUid,
+        recipientEmail: recipientEmail?.toLowerCase() || null,
         message,
         type,
         lida: false,

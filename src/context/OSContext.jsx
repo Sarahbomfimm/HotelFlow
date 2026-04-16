@@ -26,12 +26,16 @@ function normalizeOrder(id, data) {
         descricao: data.descricao || '',
         departamento: data.departamento || '',
         responsavel_id: data.responsavel_id || '',
+        responsavel_uid: data.responsavel_uid || '',
+        responsavel_email: data.responsavel_email || '',
         responsavel_nome: data.responsavel_nome || '',
         prazo: data.prazo || new Date().toISOString(),
         status: data.status || StatusOS.ABERTO,
         historico: Array.isArray(data.historico) ? data.historico : [],
         criado_em: data.criado_em || new Date().toISOString(),
         criado_por_id: data.criado_por_id || '',
+        criado_por_uid: data.criado_por_uid || '',
+        criado_por_email: data.criado_por_email || '',
         criado_por_nome: data.criado_por_nome || '',
         imagem: data.imagem || null,
     };
@@ -85,6 +89,8 @@ export function OSProvider({ children }) {
             status: StatusOS.ABERTO,
             criado_em: new Date().toISOString(),
             criado_por_id: autor.id,
+            criado_por_uid: autor.firebaseUid || autor.id,
+            criado_por_email: autor.email?.toLowerCase() || '',
             criado_por_nome: autor.nome,
             historico: [
                 {
@@ -122,9 +128,12 @@ export function OSProvider({ children }) {
             throw new Error('Nao foi possivel salvar a solicitacao interna no Firestore. Verifique as regras do banco.');
         }
 
-        if (dados.responsavel_id) {
+        if (dados.responsavel_id || dados.responsavel_uid || dados.responsavel_email) {
             try {
-                await createUserNotification(dados.responsavel_id, {
+                await createUserNotification({
+                    recipientUid: dados.responsavel_uid || dados.responsavel_id,
+                    recipientEmail: dados.responsavel_email,
+                }, {
                     message: `Nova SI: "${dados.titulo}" atribuída a você (${dados.departamento}).`,
                     type: 'new_os',
                     relatedOrderId: orderRef.id,
@@ -172,12 +181,15 @@ export function OSProvider({ children }) {
         ));
         setError('');
 
-        if (usuario.role !== UserRole.DIRETORA && os.criado_por_id) {
+        if (usuario.role !== UserRole.DIRETORA && (os.criado_por_uid || os.criado_por_id || os.criado_por_email)) {
             const message = novoStatus === StatusOS.CONCLUIDO
                 ? `SI "${os.titulo}" concluída por ${usuario.nome} (${os.departamento}).`
                 : `SI "${os.titulo}" iniciada por ${usuario.nome} (${os.departamento}).`;
 
-            await createUserNotification(os.criado_por_id, {
+            await createUserNotification({
+                recipientUid: os.criado_por_uid || os.criado_por_id,
+                recipientEmail: os.criado_por_email,
+            }, {
                 message,
                 type: 'new_os',
                 relatedOrderId: os.id,

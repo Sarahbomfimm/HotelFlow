@@ -97,6 +97,7 @@ export function UsersProvider({ children }) {
             lider.departamentos.forEach((departamento) => {
                 mapping[departamento] = {
                     id: lider.id,
+                    firebaseUid: lider.firebaseUid || null,
                     nome: lider.nome,
                     email: lider.email,
                 };

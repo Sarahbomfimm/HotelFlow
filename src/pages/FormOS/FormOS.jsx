@@ -75,6 +75,8 @@ export default function FormOS() {
                     descricao: form.descricao.trim(),
                     departamento: form.departamento,
                     responsavel_id: liderInfo.id,
+                    responsavel_uid: liderInfo.firebaseUid || liderInfo.id,
+                    responsavel_email: liderInfo.email,
                     responsavel_nome: liderInfo.nome,
                     prazo: new Date(form.prazo).toISOString(),
                 },

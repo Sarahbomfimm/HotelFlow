@@ -28,6 +28,7 @@ export function NotificationProvider({ children }) {
     const playedChimesRef = useRef({});
 
     const currentUserId = user?.firebaseUid || user?.id || null;
+    const currentUserEmail = user?.email?.toLowerCase() || null;
 
     const scheduleToastDismiss = useCallback((id, createdAt) => {
         if (timeoutsRef.current[id]) {
@@ -55,19 +56,19 @@ export function NotificationProvider({ children }) {
             return undefined;
         }
 
-        if (!currentUserId) {
+        if (!currentUserId && !currentUserEmail) {
             setStoredNotifications([]);
             setError('');
             return undefined;
         }
 
-        const notificationsQuery = query(
-            collection(db, 'notifications'),
-            where('recipientUid', '==', currentUserId),
-        );
+        const unsubscribes = [];
+        const snapshotsBySource = { uid: [], email: [] };
 
-        const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
-            const items = snapshot.docs.map((notificationDoc) => {
+        const pushNotifications = () => {
+            const merged = new Map();
+
+            [...snapshotsBySource.uid, ...snapshotsBySource.email].forEach((notificationDoc) => {
                 const data = notificationDoc.data();
                 const createdAt = data.createdAt || new Date().toISOString();
 
@@ -78,7 +79,7 @@ export function NotificationProvider({ children }) {
                     playedChimesRef.current[notificationDoc.id] = true;
                 }
 
-                return {
+                merged.set(notificationDoc.id, {
                     id: notificationDoc.id,
                     persisted: true,
                     message: data.message,
@@ -87,18 +88,57 @@ export function NotificationProvider({ children }) {
                     toastDismissed: Boolean(dismissedToastIds[notificationDoc.id]),
                     criadoEm: createdAt,
                     relatedOrderId: data.relatedOrderId || null,
-                };
+                });
             });
+
+            const items = Array.from(merged.values())
+                .sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm));
 
             setStoredNotifications(items);
             setError('');
-        }, () => {
+        };
+
+        const handleError = () => {
             setStoredNotifications([]);
             setError('Nao foi possivel carregar as notificacoes do Firestore. Verifique as regras da colecao notifications.');
-        });
+        };
 
-        return unsubscribe;
-    }, [authReady, currentUserId, dismissedToastIds, scheduleToastDismiss]);
+        if (currentUserId) {
+            const notificationsByUid = query(
+                collection(db, 'notifications'),
+                where('recipientUid', '==', currentUserId),
+            );
+
+            unsubscribes.push(onSnapshot(notificationsByUid, (snapshot) => {
+                snapshotsBySource.uid = snapshot.docs;
+                pushNotifications();
+            }, handleError));
+        }
+
+        if (currentUserEmail) {
+            const notificationsByEmail = query(
+                collection(db, 'notifications'),
+                where('recipientEmail', '==', currentUserEmail),
+            );
+
+            unsubscribes.push(onSnapshot(notificationsByEmail, (snapshot) => {
+                snapshotsBySource.email = snapshot.docs;
+                pushNotifications();
+            }, handleError));
+        }
+
+        return () => {
+            unsubscribes.forEach((unsubscribe) => unsubscribe());
+        };
+    }, [authReady, currentUserEmail, currentUserId, dismissedToastIds, scheduleToastDismiss]);
+
+    useEffect(() => {
+        setLocalNotifications([]);
+        setStoredNotifications([]);
+        setDismissedToastIds({});
+        timeoutsRef.current = {};
+        playedChimesRef.current = {};
+    }, [currentUserEmail, currentUserId]);
 
     const addNotification = useCallback((message, type = 'info') => {
         const id = `local-${notifId++}`;
@@ -118,8 +158,12 @@ export function NotificationProvider({ children }) {
 
     const notifications = useMemo(
         () => [...localNotifications, ...storedNotifications]
+            .map((notification) => ({
+                ...notification,
+                toastDismissed: Boolean(dismissedToastIds[notification.id] || notification.toastDismissed),
+            }))
             .sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm)),
-        [localNotifications, storedNotifications],
+        [dismissedToastIds, localNotifications, storedNotifications],
     );
 
     const marcarLida = useCallback(async (id) => {
