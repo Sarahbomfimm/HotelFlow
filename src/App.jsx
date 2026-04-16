@@ -1,4 +1,4 @@
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { OSProvider } from './context/OSContext';
 import { NotificationProvider } from './context/NotificationContext';
@@ -8,7 +8,7 @@ import AppRouter from './router';
 
 export default function App() {
     return (
-        <BrowserRouter>
+        <HashRouter>
             <AuthProvider>
                 <UsersProvider>
                     <OSProvider>
@@ -19,6 +19,6 @@ export default function App() {
                     </OSProvider>
                 </UsersProvider>
             </AuthProvider>
-        </BrowserRouter>
+        </HashRouter>
     );
 }
