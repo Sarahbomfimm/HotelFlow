@@ -41,7 +41,7 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
                 </div>
 
                 <div className="px-6 pt-4 pb-2">
-                    <p className="text-xs text-hotel-gray-md font-body">OS em andamento:</p>
+                    <p className="text-xs text-hotel-gray-md font-body">SI em andamento:</p>
                     <p className="text-sm font-semibold text-hotel-blue font-body truncate">{os.titulo}</p>
                 </div>
 

@@ -101,10 +101,10 @@ export default function FormOS() {
         <AppLayout pageTitle="Nova Solicitação Interna">
             <div className="max-w-2xl mx-auto animate-fadeIn">
                 {/* Cabeçalho */}
-                <div className="flex items-center gap-3 mb-6">
+                <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
                     <button
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-hotel-blue text-white text-sm font-semibold font-body hover:bg-hotel-blue/90 transition-all shadow-sm"
+                        className="flex items-center gap-2 rounded-xl bg-hotel-blue px-4 py-2 text-sm font-semibold font-body text-white shadow-sm transition-all hover:bg-hotel-blue/90"
                         aria-label="Voltar"
                     >
                         <ArrowLeft size={18} /> Voltar
@@ -188,7 +188,7 @@ export default function FormOS() {
 
                     {/* Líder responsável (automático) */}
                     {liderInfo && (
-                        <div className="flex items-center gap-3 p-3 bg-hotel-light border border-hotel-gray rounded-lg animate-fadeIn">
+                        <div className="flex flex-col gap-3 rounded-lg border border-hotel-gray bg-hotel-light p-3 animate-fadeIn sm:flex-row sm:items-center">
                             <div className="w-9 h-9 rounded-full bg-hotel-gold flex items-center justify-center font-bold text-white text-sm">
                                 {liderInfo.nome[0].toUpperCase()}
                             </div>
@@ -196,16 +196,16 @@ export default function FormOS() {
                                 <p className="text-xs text-hotel-gray-md font-body">Responsável automático</p>
                                 <p className="text-sm font-semibold text-hotel-blue font-body">{liderInfo.nome}</p>
                             </div>
-                            <User size={16} className="ml-auto text-hotel-gold" />
+                            <User size={16} className="text-hotel-gold sm:ml-auto" />
                         </div>
                     )}
 
                     {/* Botões */}
-                    <div className="flex justify-end gap-3 pt-2">
-                        <button type="button" onClick={() => navigate(-1)} className="btn-secondary">
+                    <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+                        <button type="button" onClick={() => navigate(-1)} className="btn-secondary w-full sm:w-auto">
                             Cancelar
                         </button>
-                        <button type="submit" disabled={loading} className="btn-primary flex items-center gap-2">
+                        <button type="submit" disabled={loading} className="btn-primary flex w-full items-center justify-center gap-2 sm:w-auto">
                             {loading ? (
                                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                             ) : (

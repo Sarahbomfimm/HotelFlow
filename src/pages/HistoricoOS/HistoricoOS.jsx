@@ -36,8 +36,8 @@ export default function HistoricoOS() {
         <AppLayout pageTitle="Histórico de Alterações">
             <div className="animate-fadeIn">
                 <div className="mb-2">
-                    <h1 className="font-heading font-bold text-hotel-blue text-xl flex items-center gap-2">
-                        <History size={22} /> Histórico de OS
+                    <h1 className="flex items-center gap-2 font-heading text-xl font-bold text-hotel-blue">
+                        <History size={22} /> Histórico de SI
                     </h1>
                     <p className="text-hotel-gray-md text-sm font-body mt-0.5">
                         Todas as alterações e eventos registrados nas solicitações internas.
@@ -45,8 +45,8 @@ export default function HistoricoOS() {
                 </div>
 
                 {/* Filtros */}
-                <div className="flex flex-wrap gap-3 mb-5 mt-4">
-                    <div className="relative flex-1 min-w-[200px]">
+                <div className="mb-5 mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                    <div className="relative min-w-0 flex-1 sm:min-w-[200px]">
                         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-hotel-gray-md" />
                         <input
                             type="search"
@@ -59,7 +59,7 @@ export default function HistoricoOS() {
                     <select
                         value={filterLider}
                         onChange={(e) => setFilterLider(e.target.value)}
-                        className="input py-2 text-sm w-auto"
+                        className="input w-full py-2 text-sm sm:w-auto"
                     >
                         <option value="">Todos SI líderes</option>
                         {lideres.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
@@ -93,7 +93,7 @@ export default function HistoricoOS() {
                                     {/* Cabeçalho da SI */}
                                     <button
                                         onClick={() => setExpanded(isOpen ? null : os.id)}
-                                        className="w-full flex items-start gap-3 text-left"
+                                        className="flex w-full items-start gap-3 text-left"
                                     >
                                         <div className="flex-1 min-w-0">
                                             <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -118,7 +118,7 @@ export default function HistoricoOS() {
                                     {/* Timeline */}
                                     {isOpen && (
                                         <div className="mt-5 pt-4 border-t border-hotel-gray/50 animate-fadeIn">
-                                            <ol className="relative border-l-2 border-hotel-gray ml-3 space-y-5">
+                                            <ol className="relative ml-3 space-y-5 border-l-2 border-hotel-gray">
                                                 {[...os.historico].reverse().map((h, i) => (
                                                     <li key={i} className="ml-5 relative">
                                                         {/* Ponto da timeline */}

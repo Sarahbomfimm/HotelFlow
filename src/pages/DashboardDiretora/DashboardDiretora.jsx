@@ -17,7 +17,7 @@ function StatCard({ icon: Icon, label, value, colorClass, onClick }) {
     return (
         <button
             onClick={onClick}
-            className={`card flex items-center gap-4 hover:shadow-card-hover transition-shadow text-left
+            className={`card flex items-center gap-3 text-left transition-shadow hover:shadow-card-hover sm:gap-4
                   ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
         >
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
@@ -66,7 +66,7 @@ export default function DashboardDiretora() {
             )}
             {/* Saudação */}
             <div className="mb-6">
-                <h1 className="font-heading font-bold text-hotel-blue text-2xl">
+                <h1 className="font-heading text-xl font-bold text-hotel-blue sm:text-2xl">
                     Olá, {user?.nome}! 👋
                 </h1>
                 <p className="text-hotel-gray-md font-body text-sm mt-1">
@@ -75,7 +75,7 @@ export default function DashboardDiretora() {
             </div>
 
             {/* Cards de estatísticas */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+            <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
                 <StatCard icon={ClipboardList} label="Total de SI" value={stats.total} colorClass="bg-hotel-blue" onClick={() => navigate('/ordens', { state: {} })} />
                 <StatCard icon={AlertCircle} label="Abertas" value={stats.abertas} colorClass="bg-blue-500" onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.ABERTO } })} />
                 <StatCard icon={Clock} label="Em Andamento" value={stats.em_andamento} colorClass="bg-amber-500" onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.EM_ANDAMENTO } })} />
@@ -83,16 +83,16 @@ export default function DashboardDiretora() {
                 <StatCard icon={TrendingUp} label="Atrasadas" value={stats.atrasadas} colorClass="bg-red-500" onClick={() => navigate('/ordens', { state: { filterStatus: '' } })} />
             </div>
 
-            <div className="grid lg:grid-cols-3 gap-6">
+            <div className="grid gap-6 lg:grid-cols-3">
                 {/* OS Recentes com filtros */}
                 <div className="lg:col-span-2 card animate-fadeIn">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <h3 className="font-heading font-semibold text-hotel-blue text-base">
                             Solicitações Internas
                         </h3>
                         <button
                             onClick={() => navigate('/nova-os')}
-                            className="btn-primary text-xs py-2 px-3 flex items-center gap-1.5"
+                            className="btn-primary flex w-full items-center justify-center gap-1.5 px-3 py-2 text-xs sm:w-auto"
                         >
                             <Plus size={14} /> Nova SI
                         </button>
@@ -142,7 +142,7 @@ export default function DashboardDiretora() {
                                 return (
                                     <div
                                         key={os.id}
-                                        className={`flex items-center gap-3 p-3 rounded-lg border transition-colors hover:bg-hotel-light cursor-pointer
+                                        className={`flex flex-col gap-3 rounded-lg border p-3 transition-colors hover:bg-hotel-light cursor-pointer sm:flex-row sm:items-center
                                 ${atrasada ? 'border-red-200 bg-red-50/30' : 'border-hotel-gray/50'}`}
                                         onClick={() => navigate('/ordens', { state: { expandOsId: os.id } })}
                                     >
@@ -152,7 +152,7 @@ export default function DashboardDiretora() {
                                                 {os.departamento} · {os.responsavel_nome}
                                             </p>
                                         </div>
-                                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                                        <div className="flex flex-col gap-1.5 sm:items-end flex-shrink-0">
                                             <StatusBadge status={os.status} />
                                             <span className={`text-[11px] font-body ${atrasada ? 'text-red-500 font-semibold' : 'text-hotel-gray-md'}`}>
                                                 {atrasada ? '⚠ Atrasada' : format(parseISO(os.prazo), 'dd/MM/yyyy')}

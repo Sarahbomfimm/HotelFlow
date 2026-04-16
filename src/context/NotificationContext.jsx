@@ -26,23 +26,28 @@ export function NotificationProvider({ children }) {
     const [error, setError] = useState('');
     const timeoutsRef = useRef({});
     const playedChimesRef = useRef({});
+    const toastSeenAtRef = useRef({});
 
     const currentUserId = user?.firebaseUid || user?.id || null;
     const currentUserEmail = user?.email?.toLowerCase() || null;
 
-    const scheduleToastDismiss = useCallback((id, createdAt) => {
-        if (timeoutsRef.current[id]) {
+    const scheduleToastDismiss = useCallback((id) => {
+        if (timeoutsRef.current[id] || dismissedToastIds[id]) {
             return;
         }
 
-        const age = Date.now() - new Date(createdAt).getTime();
-        const delay = Math.max(0, TOAST_DURATION - age);
+        if (!toastSeenAtRef.current[id]) {
+            toastSeenAtRef.current[id] = Date.now();
+        }
+
+        const elapsed = Date.now() - toastSeenAtRef.current[id];
+        const delay = Math.max(0, TOAST_DURATION - elapsed);
 
         timeoutsRef.current[id] = setTimeout(() => {
             setDismissedToastIds((prev) => ({ ...prev, [id]: true }));
             delete timeoutsRef.current[id];
         }, delay);
-    }, []);
+    }, [dismissedToastIds]);
 
     useEffect(() => {
         if (!isFirebaseConfigured || !db) {
@@ -71,8 +76,11 @@ export function NotificationProvider({ children }) {
             [...snapshotsBySource.uid, ...snapshotsBySource.email].forEach((notificationDoc) => {
                 const data = notificationDoc.data();
                 const createdAt = data.createdAt || new Date().toISOString();
+                const isRead = Boolean(data.lida);
 
-                scheduleToastDismiss(notificationDoc.id, createdAt);
+                if (!isRead) {
+                    scheduleToastDismiss(notificationDoc.id);
+                }
 
                 if (!playedChimesRef.current[notificationDoc.id] && data.type === 'new_os') {
                     playChime();
@@ -84,8 +92,8 @@ export function NotificationProvider({ children }) {
                     persisted: true,
                     message: data.message,
                     type: data.type || 'info',
-                    lida: Boolean(data.lida),
-                    toastDismissed: Boolean(dismissedToastIds[notificationDoc.id]),
+                    lida: isRead,
+                    toastDismissed: isRead || Boolean(dismissedToastIds[notificationDoc.id]),
                     criadoEm: createdAt,
                     relatedOrderId: data.relatedOrderId || null,
                 });
@@ -133,11 +141,13 @@ export function NotificationProvider({ children }) {
     }, [authReady, currentUserEmail, currentUserId, dismissedToastIds, scheduleToastDismiss]);
 
     useEffect(() => {
+        Object.values(timeoutsRef.current).forEach((timeoutId) => clearTimeout(timeoutId));
         setLocalNotifications([]);
         setStoredNotifications([]);
         setDismissedToastIds({});
         timeoutsRef.current = {};
         playedChimesRef.current = {};
+        toastSeenAtRef.current = {};
     }, [currentUserEmail, currentUserId]);
 
     const addNotification = useCallback((message, type = 'info') => {
@@ -153,7 +163,7 @@ export function NotificationProvider({ children }) {
             toastDismissed: false,
             criadoEm: createdAt,
         }, ...prev]);
-        scheduleToastDismiss(id, createdAt);
+        scheduleToastDismiss(id);
     }, [scheduleToastDismiss]);
 
     const notifications = useMemo(

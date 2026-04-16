@@ -43,7 +43,7 @@ export default function StatusObservacaoModal({ isOpen, os, novoStatus, onConfir
                 </div>
 
                 <div className="px-6 pt-4 pb-2">
-                    <p className="text-xs text-hotel-gray-md font-body">OS:</p>
+                    <p className="text-xs text-hotel-gray-md font-body">SI:</p>
                     <p className="text-sm font-semibold text-hotel-blue font-body truncate">{os.titulo}</p>
                 </div>
 

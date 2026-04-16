@@ -116,14 +116,14 @@ export default function ListaOS() {
     const handleAdicionarObs = async (texto) => {
         const { os } = adicionarObsModal;
         await adicionarObservacao(os.id, texto, user);
-        addNotification(`Progresso registrado na OS “${os.titulo}”.`, 'info');
+        addNotification(`Progresso registrado na SI “${os.titulo}”.`, 'info');
         setAdicionarObsModal({ open: false, os: null });
     };
 
     const confirmDelete = async () => {
         if (!toDelete) return;
         await excluirOS(toDelete.id);
-        addNotification(`OS "${toDelete.titulo}" excluída.`, 'warning');
+        addNotification(`SI "${toDelete.titulo}" excluída.`, 'warning');
         setToDelete(null);
     };
 
@@ -134,7 +134,7 @@ export default function ListaOS() {
     const hasFilters = search || filterStatus || filterLider || filterDept || prazoInicio || prazoFim;
 
     return (
-        <AppLayout pageTitle={isDiretora ? 'Todas as Ordens de Serviço' : 'Minhas Ordens de Serviço'}>
+        <AppLayout pageTitle={isDiretora ? 'Todas as Solicitações Internas' : 'Minhas Solicitações Internas'}>
             <div className="animate-fadeIn">
                 {ordensError && (
                     <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-body text-red-700">
@@ -142,19 +142,19 @@ export default function ListaOS() {
                     </div>
                 )}
                 {/* Botão voltar */}
-                <div className="flex items-center gap-3 mb-4">
+                <div className="mb-4 flex items-center gap-3">
                     <button
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-hotel-blue text-white text-sm font-semibold font-body hover:bg-hotel-blue/90 transition-all shadow-sm"
+                        className="flex items-center gap-2 rounded-xl bg-hotel-blue px-4 py-2 text-sm font-semibold font-body text-white shadow-sm transition-all hover:bg-hotel-blue/90"
                     >
                         <ArrowLeft size={16} /> Voltar
                     </button>
                 </div>
 
                 {/* Barra de ações */}
-                <div className="flex flex-wrap items-center gap-3 mb-4">
+                <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
                     {/* Busca */}
-                    <div className="relative flex-1 min-w-[200px]">
+                    <div className="relative min-w-0 flex-1 lg:min-w-[220px]">
                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-hotel-gray-md" />
                         <input
                             type="search"
@@ -169,7 +169,7 @@ export default function ListaOS() {
                     <select
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value)}
-                        className="input py-2 text-sm w-auto"
+                        className="input w-full py-2 text-sm sm:w-auto"
                     >
                         <option value="">Todos os status</option>
                         {Object.entries(StatusLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -179,7 +179,7 @@ export default function ListaOS() {
                         <select
                             value={filterLider}
                             onChange={(e) => setFilterLider(e.target.value)}
-                            className="input py-2 text-sm w-auto"
+                            className="input w-full py-2 text-sm sm:w-auto"
                         >
                             <option value="">Todos os líderes</option>
                             {lideres.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
@@ -189,7 +189,7 @@ export default function ListaOS() {
                     <select
                         value={filterDept}
                         onChange={(e) => setFilterDept(e.target.value)}
-                        className="input py-2 text-sm w-auto"
+                        className="input w-full py-2 text-sm sm:w-auto"
                     >
                         <option value="">Todos os depto.</option>
                         {DEPARTAMENTOS.map((d) => <option key={d} value={d}>{d}</option>)}
@@ -197,7 +197,7 @@ export default function ListaOS() {
 
                     <button
                         onClick={() => setSortDir((v) => v === 'asc' ? 'desc' : 'asc')}
-                        className="btn-secondary py-2 px-3 text-sm flex items-center gap-1.5"
+                        className="btn-secondary flex w-full items-center justify-center gap-1.5 px-3 py-2 text-sm sm:w-auto"
                         title="Ordenar por prazo"
                     >
                         <Clock3 size={15} />
@@ -205,28 +205,28 @@ export default function ListaOS() {
                     </button>
 
                     {hasFilters && (
-                        <button onClick={clearFilters} className="text-sm text-hotel-gray-md hover:text-red-500 transition-colors">
+                        <button onClick={clearFilters} className="text-left text-sm text-hotel-gray-md transition-colors hover:text-red-500 sm:text-center">
                             Limpar filtros
                         </button>
                     )}
 
                     {isDiretora && (
-                        <button onClick={() => navigate('/nova-os')} className="btn-primary py-2 px-4 text-sm flex items-center gap-2">
+                        <button onClick={() => navigate('/nova-os')} className="btn-primary flex w-full items-center justify-center gap-2 px-4 py-2 text-sm sm:w-auto">
                             <Plus size={16} /> Nova SI
                         </button>
                     )}
                 </div>
 
                 {/* Filtro por período de prazo */}
-                <div className="flex flex-wrap items-center gap-3 mb-4 p-3 bg-white rounded-xl border border-hotel-gray/50">
-                    <span className="text-xs font-semibold text-hotel-blue font-body flex items-center gap-1.5">
+                <div className="mb-4 flex flex-col gap-3 rounded-xl border border-hotel-gray/50 bg-white p-3 sm:flex-row sm:flex-wrap sm:items-center">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-hotel-blue font-body">
                         <CalendarRange size={14} /> Período do Prazo:
                     </span>
                     <div className="flex items-center gap-2">
                         <label className="text-xs text-hotel-gray-md font-body">De</label>
                         <input
                             type="date"
-                            className="input py-1.5 text-xs w-auto"
+                            className="input w-full py-1.5 text-xs sm:w-auto"
                             value={prazoInicio}
                             onChange={(e) => setPrazoInicio(e.target.value)}
                         />
@@ -235,7 +235,7 @@ export default function ListaOS() {
                         <label className="text-xs text-hotel-gray-md font-body">Até</label>
                         <input
                             type="date"
-                            className="input py-1.5 text-xs w-auto"
+                            className="input w-full py-1.5 text-xs sm:w-auto"
                             min={prazoInicio || undefined}
                             value={prazoFim}
                             onChange={(e) => setPrazoFim(e.target.value)}
@@ -253,7 +253,7 @@ export default function ListaOS() {
 
                 {/* Contador */}
                 <p className="text-xs text-hotel-gray-md font-body mb-3">
-                    {filtered.length} ordem{filtered.length !== 1 ? 's' : ''} encontrada{filtered.length !== 1 ? 's' : ''}
+                    {filtered.length} solicita{filtered.length !== 1 ? 'ções' : 'ção'} interna{filtered.length !== 1 ? 's' : ''} encontrada{filtered.length !== 1 ? 's' : ''}
                 </p>
 
                 {/* Lista */}
@@ -262,7 +262,7 @@ export default function ListaOS() {
                         <div className="card flex flex-col items-center justify-center py-16 gap-3">
                             <Filter size={32} className="text-hotel-gray-md" />
                             <p className="text-hotel-gray-md font-body text-sm">
-                                Nenhuma OS encontrada. Tente ajustar os filtros.
+                                Nenhuma SI encontrada. Tente ajustar os filtros.
                             </p>
                         </div>
                     ) : (
@@ -277,7 +277,7 @@ export default function ListaOS() {
                                     className={`card transition-all duration-200 ${atrasada ? 'border-red-200' : ''}`}
                                 >
                                     {/* Linha principal */}
-                                    <div className="flex items-start gap-4">
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex flex-wrap items-center gap-2 mb-1.5">
                                                 <StatusBadge status={os.status} />
@@ -298,11 +298,11 @@ export default function ListaOS() {
                                         </div>
 
                                         {/* Ações */}
-                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-shrink-0 sm:justify-end">
                                             {podeAtualizar && (
                                                 <button
                                                     onClick={() => solicitarStatusChange(os, nextStatus[os.status])}
-                                                    className="btn-gold text-xs py-1.5 px-3"
+                                                    className="btn-gold flex-1 px-3 py-1.5 text-xs sm:flex-none"
                                                 >
                                                     {nextLabel[os.status]}
                                                 </button>
@@ -348,7 +348,7 @@ export default function ListaOS() {
                                                         <span className="text-xs font-semibold text-hotel-blue font-body flex-1">Imagem anexada</span>
                                                         <a
                                                             href={os.imagem}
-                                                            download={`OS-${os.id}.png`}
+                                                            download={`SI-${os.id}.png`}
                                                             className="flex items-center gap-1 text-hotel-blue text-xs font-semibold hover:text-hotel-gold transition-colors"
                                                             onClick={(e) => e.stopPropagation()}
                                                         >
@@ -357,7 +357,7 @@ export default function ListaOS() {
                                                     </div>
                                                     <img
                                                         src={os.imagem}
-                                                        alt="Imagem da OS"
+                                                        alt="Imagem da SI"
                                                         className="w-full max-h-64 object-cover cursor-pointer"
                                                         onClick={() => window.open(os.imagem, '_blank')}
                                                         title="Clique para abrir em tamanho completo"
@@ -381,7 +381,7 @@ export default function ListaOS() {
                                                 <div className="pt-1">
                                                     <button
                                                         onClick={() => setAdicionarObsModal({ open: true, os })}
-                                                        className="flex items-center gap-2 text-sm text-hotel-blue font-semibold font-body hover:bg-hotel-light px-3 py-2 rounded-lg transition-colors border border-hotel-blue/30"
+                                                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-hotel-blue/30 px-3 py-2 text-sm text-hotel-blue font-semibold font-body transition-colors hover:bg-hotel-light sm:w-auto"
                                                     >
                                                         <PlusCircle size={15} /> Registrar Progresso
                                                     </button>
@@ -437,7 +437,7 @@ export default function ListaOS() {
 
             <ConfirmModal
                 isOpen={!!toDelete}
-                title="Excluir Ordem de Serviço"
+                title="Excluir Solicitação Interna"
                 message={`Tem certeza que deseja excluir a SI "${toDelete?.titulo}"? Esta ação não pode ser desfeita.`}
                 onConfirm={confirmDelete}
                 onCancel={() => setToDelete(null)}

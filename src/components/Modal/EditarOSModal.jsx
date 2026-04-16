@@ -79,7 +79,7 @@ export default function EditarOSModal({ os, onClose }) {
             user,
         );
 
-        addNotification(`OS "${form.titulo.trim()}" foi editada com sucesso.`, 'success');
+        addNotification(`SI "${form.titulo.trim()}" foi editada com sucesso.`, 'success');
         setLoading(false);
         onClose();
     };
@@ -92,7 +92,7 @@ export default function EditarOSModal({ os, onClose }) {
             <div className="bg-white rounded-2xl shadow-card-hover w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto animate-fadeIn">
                 {/* Header */}
                 <div className="sticky top-0 bg-hotel-blue px-6 py-4 flex items-center gap-3 z-10">
-                    <h3 className="font-heading font-semibold text-white flex-1">Editar OS</h3>
+                    <h3 className="font-heading font-semibold text-white flex-1">Editar SI</h3>
                     <button onClick={onClose} className="text-white/60 hover:text-white transition-colors">
                         <X size={20} />
                     </button>

@@ -17,7 +17,7 @@ function StatCard({ icon: Icon, label, value, colorClass, onClick }) {
     return (
         <button
             onClick={onClick}
-            className={`card flex items-center gap-4 text-left transition-shadow
+            className={`card flex items-center gap-3 text-left transition-shadow sm:gap-4
                         ${onClick ? 'hover:shadow-card-hover cursor-pointer' : 'cursor-default'}`}
         >
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
@@ -100,7 +100,7 @@ export default function DashboardLider() {
                 )}
                 {/* Saudação */}
                 <div className="mb-6">
-                    <h1 className="font-heading font-bold text-hotel-blue text-2xl">Olá, {user?.nome}! 👋</h1>
+                    <h1 className="font-heading text-xl font-bold text-hotel-blue sm:text-2xl">Olá, {user?.nome}! 👋</h1>
                     <p className="text-hotel-gray-md font-body text-sm mt-1">
                         {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                         {' · '}
@@ -109,14 +109,14 @@ export default function DashboardLider() {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <StatCard icon={ClipboardList} label="Total" value={stats.total} colorClass="bg-hotel-blue" onClick={() => navigate('/ordens', { state: {} })} />
                     <StatCard icon={AlertCircle} label="Abertas" value={stats.abertas} colorClass="bg-blue-500" onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.ABERTO } })} />
                     <StatCard icon={Clock} label="Em Andamento" value={stats.em_andamento} colorClass="bg-amber-500" onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.EM_ANDAMENTO } })} />
                     <StatCard icon={CheckCircle2} label="Concluídas" value={stats.concluidas} colorClass="bg-emerald-500" onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.CONCLUIDO } })} />
                 </div>
 
-                <div className="grid lg:grid-cols-3 gap-6">
+                <div className="grid gap-6 lg:grid-cols-3">
                     {/* Todas as OS */}
                     <div className="lg:col-span-2 card animate-fadeIn">
                         <h3 className="font-heading font-semibold text-hotel-blue text-base mb-4 flex items-center gap-2">
@@ -125,7 +125,7 @@ export default function DashboardLider() {
                         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
                             {ordens.length === 0 ? (
                                 <p className="text-center text-hotel-gray-md text-sm py-10">
-                                    Nenhuma OS atribuída a você no momento.
+                                    Nenhuma SI atribuída a você no momento.
                                 </p>
                             ) : (
                                 ordens.map((os) => {
@@ -138,7 +138,7 @@ export default function DashboardLider() {
                                             className={`p-4 rounded-xl border transition-colors cursor-pointer
                                 ${atrasada ? 'border-red-200 bg-red-50/40 hover:bg-red-100/50' : 'border-hotel-gray/50 hover:bg-hotel-light'}`}
                                         >
-                                            <div className="flex items-start gap-3">
+                                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap mb-1">
                                                         <StatusBadge status={os.status} />
@@ -160,7 +160,7 @@ export default function DashboardLider() {
                                                 {podeAtualizar && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); solicitarStatus(os, nextStatus[os.status]); }}
-                                                        className="btn-gold text-xs py-1.5 px-3 flex-shrink-0 whitespace-nowrap w-24 text-center"
+                                                        className="btn-gold w-full flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-center text-xs sm:w-24"
                                                     >
                                                         {nextStatusLabel[os.status]}
                                                     </button>
@@ -182,7 +182,7 @@ export default function DashboardLider() {
                             <div className="flex flex-col items-center justify-center py-8 gap-3">
                                 <CheckCircle2 size={36} className="text-emerald-400" />
                                 <p className="text-sm text-hotel-gray-md font-body text-center">
-                                    Nenhuma OS urgente. Ótimo trabalho!
+                                    Nenhuma SI urgente. Ótimo trabalho!
                                 </p>
                             </div>
                         ) : (

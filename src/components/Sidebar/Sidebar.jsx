@@ -1,7 +1,7 @@
 ﻿import { NavLink, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, PlusCircle, History,
-    LogOut, ChevronLeft, ChevronRight,
+    LogOut, ChevronLeft, ChevronRight, X,
 } from 'lucide-react';
 import { useState } from 'react';
 import Logo from '../Logo/Logo';
@@ -19,15 +19,17 @@ const diretoraLinks = [
     { to: '/historico', label: 'Histórico', icon: History },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [collapsed, setCollapsed] = useState(false);
 
     const links = user?.role === UserRole.DIRETORA ? diretoraLinks : liderLinks;
+    const showLabels = !collapsed || mobileMenuOpen;
 
     const handleBrandClick = () => {
         navigate('/dashboard');
+        onCloseMobile?.();
         const mainContent = document.getElementById('app-main-content');
 
         if (mainContent) {
@@ -40,38 +42,47 @@ export default function Sidebar() {
 
     const handleLogout = () => {
         logout();
+        onCloseMobile?.();
         navigate('/login');
     };
 
     return (
         <aside
-            className={`relative flex flex-col h-screen bg-hotel-blue text-white transition-all duration-300
-                  ${collapsed ? 'w-16' : 'w-60'} flex-shrink-0`}
+            className={`fixed inset-y-0 left-0 z-40 flex h-screen w-72 max-w-[85vw] flex-col bg-hotel-blue text-white shadow-2xl transition-transform duration-300 lg:static lg:z-auto lg:max-w-none lg:translate-x-0 lg:shadow-none
+                  ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${collapsed ? 'lg:w-16' : 'lg:w-60'}`}
         >
             {/* Logo */}
-            <div className="flex items-center justify-between px-4 py-5 border-b border-white/10">
-                {!collapsed && (
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-5">
+                {showLabels && (
                     <button onClick={handleBrandClick} className="focus:outline-none hover:opacity-80 transition-opacity">
                         <Logo size={32} showText light />
                     </button>
                 )}
-                {collapsed && (
+                {!showLabels && (
                     <button onClick={handleBrandClick} className="focus:outline-none hover:opacity-80 transition-opacity">
                         <Logo size={32} showText={false} light />
                     </button>
                 )}
                 <button
                     onClick={() => setCollapsed((v) => !v)}
-                    className="p-1 rounded-lg hover:bg-white/10 transition-colors text-white/70 hover:text-white ml-auto"
+                    className="ml-auto hidden rounded-lg p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white lg:inline-flex"
                     aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
                 >
                     {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
                 </button>
+                <button
+                    type="button"
+                    onClick={() => onCloseMobile?.()}
+                    className="ml-auto inline-flex rounded-lg p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white lg:hidden"
+                    aria-label="Fechar menu"
+                >
+                    <X size={18} />
+                </button>
             </div>
 
             {/* Perfil do usuário */}
-            {!collapsed && (
-                <div className="px-4 py-4 border-b border-white/10">
+            {showLabels && (
+                <div className="border-b border-white/10 px-4 py-4">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-hotel-gold flex items-center justify-center
                             font-heading font-bold text-white text-sm flex-shrink-0">
@@ -86,31 +97,32 @@ export default function Sidebar() {
             )}
 
             {/* Navegação */}
-            <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+            <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4">
                 {links.map(({ to, label, icon: Icon }) => (
                     <NavLink
                         key={to}
                         to={to}
+                        onClick={() => onCloseMobile?.()}
                         className={({ isActive }) =>
-                            `sidebar-link ${isActive ? 'active' : ''} ${collapsed ? 'justify-center px-2' : ''}`
+                            `sidebar-link ${isActive ? 'active' : ''} ${collapsed ? 'lg:justify-center lg:px-2' : ''}`
                         }
-                        title={collapsed ? label : undefined}
+                        title={!showLabels ? label : undefined}
                     >
                         <Icon size={19} className="flex-shrink-0" />
-                        {!collapsed && <span className="truncate">{label}</span>}
+                        {showLabels && <span className="truncate">{label}</span>}
                     </NavLink>
                 ))}
             </nav>
 
             {/* Logout */}
-            <div className="px-2 pb-4 border-t border-white/10 pt-3">
+            <div className="border-t border-white/10 px-2 pb-4 pt-3">
                 <button
                     onClick={handleLogout}
-                    className={`sidebar-link w-full ${collapsed ? 'justify-center px-2' : ''}`}
-                    title={collapsed ? 'Sair' : undefined}
+                    className={`sidebar-link w-full ${collapsed ? 'lg:justify-center lg:px-2' : ''}`}
+                    title={!showLabels ? 'Sair' : undefined}
                 >
                     <LogOut size={19} className="flex-shrink-0 text-red-300" />
-                    {!collapsed && <span className="text-red-300">Sair</span>}
+                    {showLabels && <span className="text-red-300">Sair</span>}
                 </button>
             </div>
         </aside>
