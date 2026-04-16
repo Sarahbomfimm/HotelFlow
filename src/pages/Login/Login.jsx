@@ -51,7 +51,7 @@ export default function Login() {
                 <div className="w-full max-w-sm animate-fadeIn">
                     <h1 className="font-heading font-bold text-hotel-blue text-3xl mb-1">Bem-vindo</h1>
                     <p className="text-hotel-gray-md font-body text-sm mb-8">
-                        Acesse sua conta para gerenciar as ordens de servico.
+                        Acesse sua conta para gerenciar as solicitações internas.
                     </p>
 
                     <form onSubmit={handleSubmit} noValidate className="space-y-5">
@@ -112,21 +112,7 @@ export default function Login() {
                         </button>
                     </form>
 
-                    <details className="mt-8 text-xs text-hotel-gray-md font-body">
-                        <summary className="cursor-pointer hover:text-hotel-blue transition-colors select-none">
-                            Credenciais de referencia
-                        </summary>
-                        <div className="mt-3 space-y-1 bg-hotel-light border border-hotel-gray rounded-lg p-3">
-                            <p className="text-[11px] text-hotel-gray-md">
-                                Com Firebase ativo, use as contas criadas no Authentication com as senhas reais cadastradas no console.
-                            </p>
-                            <p><strong>Diretora:</strong> sofia@hotelflow.com / sofia123</p>
-                            <p><strong>Manutencao:</strong> mauricio@hotelflow.com / mauricio123</p>
-                            <p><strong>Controle/Qualidade:</strong> getulio@hotelflow.com / getulio123</p>
-                            <p><strong>Hospedagem:</strong> silvio@hotelflow.com / silvio123</p>
-                            <p><strong>Financeiro:</strong> cezar@hotelflow.com / cezar123</p>
-                        </div>
-                    </details>
+
                 </div>
             </div>
         </div>
