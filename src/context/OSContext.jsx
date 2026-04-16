@@ -1,0 +1,297 @@
+﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import {
+    collection,
+    deleteDoc,
+    doc,
+    onSnapshot,
+    orderBy,
+    query,
+    setDoc,
+    updateDoc,
+} from 'firebase/firestore';
+import { INITIAL_OS } from '../data/mockData';
+import { StatusOS, StatusLabel } from '../models/OrdemDeServico';
+import { UserRole } from '../models/User';
+import { db, isFirebaseConfigured } from '../services/firebase';
+import { createUserNotification } from '../services/notifications';
+import { deleteFileByUrl, uploadServiceOrderImage } from '../services/storage';
+import { useAuth } from './AuthContext';
+
+const OSContext = createContext(null);
+
+function normalizeOrder(id, data) {
+    return {
+        id,
+        titulo: data.titulo || '',
+        descricao: data.descricao || '',
+        departamento: data.departamento || '',
+        responsavel_id: data.responsavel_id || '',
+        responsavel_nome: data.responsavel_nome || '',
+        prazo: data.prazo || new Date().toISOString(),
+        status: data.status || StatusOS.ABERTO,
+        historico: Array.isArray(data.historico) ? data.historico : [],
+        criado_em: data.criado_em || new Date().toISOString(),
+        criado_por_id: data.criado_por_id || '',
+        criado_por_nome: data.criado_por_nome || '',
+        imagem: data.imagem || null,
+    };
+}
+
+export function OSProvider({ children }) {
+    const { user, authReady } = useAuth();
+    const [ordens, setOrdens] = useState(() => (isFirebaseConfigured && db ? [] : INITIAL_OS));
+    const [loading, setLoading] = useState(Boolean(isFirebaseConfigured && db));
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (!isFirebaseConfigured || !db) {
+            setOrdens(INITIAL_OS);
+            setLoading(false);
+            setError('');
+            return undefined;
+        }
+
+        if (!authReady) {
+            setLoading(true);
+            setError('');
+            return undefined;
+        }
+
+        if (!user) {
+            setOrdens([]);
+            setLoading(false);
+            setError('');
+            return undefined;
+        }
+
+        const ordersQuery = query(collection(db, 'serviceOrders'), orderBy('criado_em', 'desc'));
+        const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
+            setOrdens(snapshot.docs.map((orderDoc) => normalizeOrder(orderDoc.id, orderDoc.data())));
+            setLoading(false);
+            setError('');
+        }, () => {
+            setOrdens([]);
+            setLoading(false);
+            setError('Nao foi possivel carregar as solicitacoes internas do Firestore. Verifique as regras de leitura do banco.');
+        });
+
+        return unsubscribe;
+    }, [authReady, user]);
+
+    /** Cria uma nova OS */
+    const criarOS = useCallback(async (dados, autor) => {
+        const novaOS = {
+            ...dados,
+            status: StatusOS.ABERTO,
+            criado_em: new Date().toISOString(),
+            criado_por_id: autor.id,
+            criado_por_nome: autor.nome,
+            historico: [
+                {
+                    data: new Date().toISOString(),
+                    usuario_nome: autor.nome,
+                    descricao: 'Solicitação interna criada.',
+                },
+            ],
+        };
+
+        if (!isFirebaseConfigured || !db) {
+            const fallbackOrder = { ...novaOS, id: `os-${Date.now()}` };
+            setOrdens((prev) => [fallbackOrder, ...prev]);
+            setError('');
+            return fallbackOrder;
+        }
+
+        let imagem = null;
+        const orderRef = doc(collection(db, 'serviceOrders'));
+
+        if (dados.imagem) {
+            try {
+                imagem = await uploadServiceOrderImage(dados.imagem, orderRef.id);
+            } catch {
+                throw new Error('Nao foi possivel enviar a imagem da solicitacao. Verifique as regras do Storage.');
+            }
+        }
+
+        const orderPayload = { ...novaOS, imagem };
+        try {
+            await setDoc(orderRef, orderPayload);
+            setOrdens((prev) => [normalizeOrder(orderRef.id, orderPayload), ...prev.filter((item) => item.id !== orderRef.id)]);
+            setError('');
+        } catch {
+            throw new Error('Nao foi possivel salvar a solicitacao interna no Firestore. Verifique as regras do banco.');
+        }
+
+        if (dados.responsavel_id) {
+            try {
+                await createUserNotification(dados.responsavel_id, {
+                    message: `Nova SI: "${dados.titulo}" atribuída a você (${dados.departamento}).`,
+                    type: 'new_os',
+                    relatedOrderId: orderRef.id,
+                });
+            } catch {
+                // Nao impede a criacao da SI se a notificacao falhar.
+            }
+        }
+
+        return { ...orderPayload, id: orderRef.id };
+    }, []);
+
+    /** Atualiza o status de uma OS */
+    const atualizarStatus = useCallback(async (osId, novoStatus, usuario, observacao = '') => {
+        const os = ordens.find((item) => item.id === osId);
+        if (!os) return;
+
+        const base = `Status alterado de ${StatusLabel[os.status]} para ${StatusLabel[novoStatus]}.`;
+        const entrada = {
+            data: new Date().toISOString(),
+            usuario_nome: usuario.nome,
+            descricao: observacao ? `${base} Observação: ${observacao}` : base,
+        };
+
+        const historico = [...os.historico, entrada];
+
+        if (!isFirebaseConfigured || !db) {
+            setOrdens((prev) => prev.map((item) =>
+                item.id !== osId
+                    ? item
+                    : { ...item, status: novoStatus, historico },
+            ));
+            setError('');
+            return;
+        }
+
+        await updateDoc(doc(db, 'serviceOrders', osId), {
+            status: novoStatus,
+            historico,
+        });
+        setOrdens((prev) => prev.map((item) =>
+            item.id !== osId
+                ? item
+                : { ...item, status: novoStatus, historico },
+        ));
+        setError('');
+
+        if (usuario.role !== UserRole.DIRETORA && os.criado_por_id) {
+            const message = novoStatus === StatusOS.CONCLUIDO
+                ? `SI "${os.titulo}" concluída por ${usuario.nome} (${os.departamento}).`
+                : `SI "${os.titulo}" iniciada por ${usuario.nome} (${os.departamento}).`;
+
+            await createUserNotification(os.criado_por_id, {
+                message,
+                type: 'new_os',
+                relatedOrderId: os.id,
+            });
+        }
+    }, [ordens]);
+
+    /** Edita campos de uma OS (apenas pela diretora) */
+    const editarOS = useCallback(async (osId, atualizacoes, usuario) => {
+        const os = ordens.find((item) => item.id === osId);
+        if (!os) return;
+
+        const campos = Object.keys(atualizacoes)
+            .filter((campo) => !['imagem'].includes(campo))
+            .map((campo) => {
+                const labels = { titulo: 'Título', descricao: 'Descrição', departamento: 'Departamento', prazo: 'Prazo', responsavel_nome: 'Responsável' };
+                return labels[campo] || campo;
+            }).join(', ');
+
+        const entrada = {
+            data: new Date().toISOString(),
+            usuario_nome: usuario.nome,
+            descricao: `SI editada. Campo(s) alterado(s): ${campos || 'dados'}.`,
+        };
+
+        let imagem = os.imagem || null;
+        if (atualizacoes.imagem?.startsWith?.('data:')) {
+            if (os.imagem) {
+                await deleteFileByUrl(os.imagem);
+            }
+            imagem = await uploadServiceOrderImage(atualizacoes.imagem, osId);
+        } else if (atualizacoes.imagem === null && os.imagem) {
+            await deleteFileByUrl(os.imagem);
+            imagem = null;
+        }
+
+        const payload = {
+            ...atualizacoes,
+            imagem,
+            historico: [...os.historico, entrada],
+        };
+
+        if (!isFirebaseConfigured || !db) {
+            setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));
+            setError('');
+            return;
+        }
+
+        await updateDoc(doc(db, 'serviceOrders', osId), payload);
+        setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));
+        setError('');
+    }, [ordens]);
+
+    /** Adiciona observação de progresso sem alterar status */
+    const adicionarObservacao = useCallback(async (osId, texto, usuario) => {
+        const os = ordens.find((item) => item.id === osId);
+        if (!os) return;
+
+        const entrada = {
+            data: new Date().toISOString(),
+            usuario_nome: usuario.nome,
+            descricao: `Progresso: ${texto}`,
+        };
+
+        const historico = [...os.historico, entrada];
+
+        if (!isFirebaseConfigured || !db) {
+            setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, historico } : item));
+            setError('');
+            return;
+        }
+
+        await updateDoc(doc(db, 'serviceOrders', osId), { historico });
+        setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, historico } : item));
+        setError('');
+    }, [ordens]);
+
+    /** Remove uma OS (apenas pela diretora) */
+    const excluirOS = useCallback(async (osId) => {
+        const os = ordens.find((item) => item.id === osId);
+
+        if (!isFirebaseConfigured || !db) {
+            setOrdens((prev) => prev.filter((item) => item.id !== osId));
+            setError('');
+            return;
+        }
+
+        if (os?.imagem) {
+            await deleteFileByUrl(os.imagem);
+        }
+
+        await deleteDoc(doc(db, 'serviceOrders', osId));
+        setOrdens((prev) => prev.filter((item) => item.id !== osId));
+        setError('');
+    }, [ordens]);
+
+    /** Filtra OS pelo departamento do líder */
+    const getOSPorLider = useCallback(
+        (departamentos) =>
+            ordens.filter((os) => departamentos.includes(os.departamento)),
+        [ordens],
+    );
+
+    return (
+        <OSContext.Provider
+            value={{ ordens, criarOS, atualizarStatus, adicionarObservacao, editarOS, excluirOS, getOSPorLider, loading, error }}
+        >
+            {children}
+        </OSContext.Provider>
+    );
+}
+
+export function useOS() {
+    const ctx = useContext(OSContext);
+    if (!ctx) throw new Error('useOS deve ser usado dentro de OSProvider');
+    return ctx;
+}

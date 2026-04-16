@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #F5F7FA;
+        color: #1a2a38;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-family: 'Poppins', sans-serif;
+    }
+}
+
+@layer components {
+    .btn-primary {
+        @apply bg-hotel-blue text-white font-heading font-semibold px-5 py-2.5 rounded-lg hover:bg-hotel-blue-md active:bg-hotel-blue-dark transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-hotel-gold focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    }
+
+    .btn-secondary {
+        @apply bg-white text-hotel-blue font-heading font-semibold px-5 py-2.5 rounded-lg border border-hotel-gray hover:bg-hotel-light active:bg-hotel-gray transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-hotel-blue focus:ring-offset-2;
+    }
+
+    .btn-gold {
+        @apply bg-hotel-gold text-white font-heading font-semibold px-5 py-2.5 rounded-lg hover:bg-hotel-gold-lt active:bg-hotel-gold-dk transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-hotel-gold focus:ring-offset-2;
+    }
+
+    .card {
+        @apply bg-white rounded-xl shadow-card p-5 border border-hotel-gray/40;
+    }
+
+    .input {
+        @apply w-full px-4 py-2.5 border border-hotel-gray rounded-lg text-sm font-body focus:outline-none focus:ring-2 focus:ring-hotel-blue/30 focus:border-hotel-blue placeholder-hotel-gray-md transition-colors duration-200;
+    }
+
+    .label {
+        @apply block text-sm font-semibold font-body text-hotel-blue mb-1.5;
+    }
+
+    .status-aberto {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800;
+    }
+
+    .status-em_andamento {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800;
+    }
+
+    .status-concluido {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800;
+    }
+
+    .sidebar-link {
+        @apply flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold font-body text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200 cursor-pointer;
+    }
+
+    .sidebar-link.active {
+        @apply text-white bg-white/15 border-l-4 border-hotel-gold pl-3;
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #F5F7FA;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #C49A6C;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a07c50;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.animate-slideIn {
+    animation: slideIn 0.2s ease-out;
+}
+
+@keyframes progressShrink {
+    from {
+        width: 100%;
+    }
+
+    to {
+        width: 0%;
+    }
+}
+
+.toast-progress {
+    animation: progressShrink linear forwards;
+}
