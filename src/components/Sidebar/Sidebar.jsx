@@ -11,6 +11,7 @@ import { UserRole } from '../../models/User';
 const liderLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/ordens', label: 'Minhas SI', icon: ClipboardList },
+    { to: '/nova-os', label: 'Nova SI', icon: PlusCircle },
 ];
 const diretoraLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -26,6 +27,9 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
 
     const links = user?.role === UserRole.DIRETORA ? diretoraLinks : liderLinks;
     const showLabels = !collapsed || mobileMenuOpen;
+    const profileSubtitle = user?.role === UserRole.DIRETORA
+        ? 'Diretora - Financeiro'
+        : user?.role;
 
     const handleBrandClick = () => {
         navigate('/dashboard');
@@ -90,7 +94,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
                         </div>
                         <div className="min-w-0">
                             <p className="text-sm font-semibold font-heading truncate">{user?.nome}</p>
-                            <p className="text-xs text-white/60 font-body capitalize">{user?.role}</p>
+                            <p className="text-xs text-white/60 font-body capitalize">{profileSubtitle}</p>
                         </div>
                     </div>
                 </div>

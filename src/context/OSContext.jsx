@@ -10,7 +10,7 @@ import {
     updateDoc,
 } from 'firebase/firestore';
 import { INITIAL_OS } from '../data/mockData';
-import { StatusOS, StatusLabel } from '../models/OrdemDeServico';
+import { StatusOS, StatusLabel, PDCAStep } from '../models/OrdemDeServico';
 import { UserRole } from '../models/User';
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { createUserNotification } from '../services/notifications';
@@ -31,6 +31,7 @@ function normalizeOrder(id, data) {
         responsavel_nome: data.responsavel_nome || '',
         prazo: data.prazo || new Date().toISOString(),
         status: data.status || StatusOS.ABERTO,
+        etapa_pdca: data.etapa_pdca || PDCAStep.PLAN,
         historico: Array.isArray(data.historico) ? data.historico : [],
         criado_em: data.criado_em || new Date().toISOString(),
         criado_por_id: data.criado_por_id || '',
@@ -112,10 +113,18 @@ export function OSProvider({ children }) {
         const orderRef = doc(collection(db, 'serviceOrders'));
 
         if (dados.imagem) {
-            try {
-                imagem = await uploadServiceOrderImage(dados.imagem, orderRef.id);
-            } catch {
-                throw new Error('Nao foi possivel enviar a imagem da solicitacao. Verifique as regras do Storage.');
+            const isExternalUrl = typeof dados.imagem === 'string' && /^https?:\/\//i.test(dados.imagem);
+
+            if (isExternalUrl) {
+                // Quando a imagem ja foi enviada para um provedor externo (ex.: Cloudinary),
+                // salvamos apenas a URL na OS e nao tentamos enviar ao Firebase Storage.
+                imagem = dados.imagem;
+            } else {
+                try {
+                    imagem = await uploadServiceOrderImage(dados.imagem, orderRef.id);
+                } catch {
+                    throw new Error('Nao foi possivel enviar a imagem da solicitacao. Verifique as regras do Storage.');
+                }
             }
         }
 
@@ -151,7 +160,15 @@ export function OSProvider({ children }) {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
+        // Apenas o responsável designado pode alterar o status da SI
+        const isResponsavel = usuario.id === os.responsavel_id || usuario.firebaseUid === os.responsavel_uid;
+
+        if (!isResponsavel) {
+            throw new Error('Apenas o responsável designado pode alterar o status desta SI.');
+        }
+
         const base = `Status alterado de ${StatusLabel[os.status]} para ${StatusLabel[novoStatus]}.`;
+        const etapaPdca = novoStatus === StatusOS.CONCLUIDO ? PDCAStep.ACT : os.etapa_pdca;
         const entrada = {
             data: new Date().toISOString(),
             usuario_nome: usuario.nome,
@@ -164,7 +181,7 @@ export function OSProvider({ children }) {
             setOrdens((prev) => prev.map((item) =>
                 item.id !== osId
                     ? item
-                    : { ...item, status: novoStatus, historico },
+                    : { ...item, status: novoStatus, etapa_pdca: etapaPdca, historico },
             ));
             setError('');
             return;
@@ -172,12 +189,13 @@ export function OSProvider({ children }) {
 
         await updateDoc(doc(db, 'serviceOrders', osId), {
             status: novoStatus,
+            etapa_pdca: etapaPdca,
             historico,
         });
         setOrdens((prev) => prev.map((item) =>
             item.id !== osId
                 ? item
-                : { ...item, status: novoStatus, historico },
+                : { ...item, status: novoStatus, etapa_pdca: etapaPdca, historico },
         ));
         setError('');
 
@@ -205,7 +223,7 @@ export function OSProvider({ children }) {
         const campos = Object.keys(atualizacoes)
             .filter((campo) => !['imagem'].includes(campo))
             .map((campo) => {
-                const labels = { titulo: 'Título', descricao: 'Descrição', departamento: 'Departamento', prazo: 'Prazo', responsavel_nome: 'Responsável' };
+                const labels = { titulo: 'Título', descricao: 'Descrição', departamento: 'Departamento', prazo: 'Prazo', responsavel_nome: 'Responsável', etapa_pdca: 'Etapa PDCA' };
                 return labels[campo] || campo;
             }).join(', ');
 
@@ -244,26 +262,30 @@ export function OSProvider({ children }) {
     }, [ordens]);
 
     /** Adiciona observação de progresso sem alterar status */
-    const adicionarObservacao = useCallback(async (osId, texto, usuario) => {
+    const adicionarObservacao = useCallback(async (osId, texto, usuario, etapaPdca) => {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
         const entrada = {
             data: new Date().toISOString(),
             usuario_nome: usuario.nome,
-            descricao: `Progresso: ${texto}`,
+            descricao: `Progresso${etapaPdca ? ` [${etapaPdca}]` : ''}: ${texto}`,
         };
 
         const historico = [...os.historico, entrada];
+        const payload = {
+            historico,
+            etapa_pdca: etapaPdca || os.etapa_pdca,
+        };
 
         if (!isFirebaseConfigured || !db) {
-            setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, historico } : item));
+            setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));
             setError('');
             return;
         }
 
-        await updateDoc(doc(db, 'serviceOrders', osId), { historico });
-        setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, historico } : item));
+        await updateDoc(doc(db, 'serviceOrders', osId), payload);
+        setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));
         setError('');
     }, [ordens]);
 
@@ -288,8 +310,11 @@ export function OSProvider({ children }) {
 
     /** Filtra OS pelo departamento do líder */
     const getOSPorLider = useCallback(
-        (departamentos) =>
-            ordens.filter((os) => departamentos.includes(os.departamento)),
+        (departamentos, usuario) =>
+            ordens.filter((os) =>
+                departamentos.includes(os.departamento) ||
+                (usuario && (os.criado_por_id === usuario.id || os.criado_por_id === usuario.firebaseUid))
+            ),
         [ordens],
     );
 

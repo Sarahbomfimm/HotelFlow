@@ -85,27 +85,61 @@ export function UsersProvider({ children }) {
         return unsubscribe;
     }, [authReady, user]);
 
+    const normalizedUsers = useMemo(() => {
+        const diretora = users.find((item) => item.role === UserRole.DIRETORA);
+
+        return users
+            .map((item) => {
+                if (item.role === UserRole.DIRETORA) {
+                    const departamentos = Array.isArray(item.departamentos) ? item.departamentos : [];
+                    return departamentos.includes('Financeiro')
+                        ? item
+                        : { ...item, departamentos: [...departamentos, 'Financeiro'] };
+                }
+
+                if (item.role === UserRole.LIDER) {
+                    return {
+                        ...item,
+                        departamentos: (item.departamentos || []).filter((departamento) => departamento !== 'Financeiro'),
+                    };
+                }
+
+                return item;
+            })
+            .filter((item) => {
+                if (item.role !== UserRole.LIDER) {
+                    return true;
+                }
+
+                return (item.departamentos || []).length > 0 || item.id !== diretora?.id;
+            });
+    }, [users]);
+
     const lideres = useMemo(
-        () => users.filter((user) => user.role === UserRole.LIDER),
-        [users],
+        () => normalizedUsers.filter((item) => item.role === UserRole.LIDER && (item.departamentos || []).length > 0),
+        [normalizedUsers],
     );
 
     const deptLeaderMap = useMemo(() => {
         const mapping = {};
 
-        lideres.forEach((lider) => {
-            lider.departamentos.forEach((departamento) => {
+        normalizedUsers.forEach((responsavel) => {
+            if (!Array.isArray(responsavel.departamentos) || responsavel.departamentos.length === 0) {
+                return;
+            }
+
+            responsavel.departamentos.forEach((departamento) => {
                 mapping[departamento] = {
-                    id: lider.id,
-                    firebaseUid: lider.firebaseUid || null,
-                    nome: lider.nome,
-                    email: lider.email,
+                    id: responsavel.id,
+                    firebaseUid: responsavel.firebaseUid || null,
+                    nome: responsavel.nome,
+                    email: responsavel.email,
                 };
             });
         });
 
         return mapping;
-    }, [lideres]);
+    }, [normalizedUsers]);
 
     const getLeaderByDepartment = useCallback(
         (departamento) => deptLeaderMap[departamento] || null,
@@ -113,7 +147,7 @@ export function UsersProvider({ children }) {
     );
 
     return (
-        <UsersContext.Provider value={{ users, lideres, deptLeaderMap, getLeaderByDepartment, loading }}>
+        <UsersContext.Provider value={{ users: normalizedUsers, lideres, deptLeaderMap, getLeaderByDepartment, loading }}>
             {children}
         </UsersContext.Provider>
     );

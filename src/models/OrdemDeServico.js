@@ -11,6 +11,20 @@ export const StatusLabel = {
     concluido: 'Concluído',
 };
 
+export const PDCAStep = {
+    PLAN: 'P',
+    DO: 'D',
+    CHECK: 'C',
+    ACT: 'A',
+};
+
+export const PDCALabel = {
+    P: 'Planejar',
+    D: 'Executar',
+    C: 'Checar',
+    A: 'Agir',
+};
+
 export const DEPARTAMENTOS = [
     'Manutenção',
     'Controle',
@@ -43,6 +57,7 @@ export const DEPARTAMENTOS = [
  * @property {string} responsavel_nome
  * @property {string} prazo              - ISO date string
  * @property {'aberto'|'em_andamento'|'concluido'} status
+ * @property {'P'|'D'|'C'|'A'} etapa_pdca
  * @property {HistoricoItem[]} historico
  * @property {string} criado_em          - ISO datetime string
  * @property {string} criado_por_id
@@ -57,6 +72,7 @@ export function createOrdemDeServico({
     responsavel_nome,
     prazo,
     status = StatusOS.ABERTO,
+    etapa_pdca = PDCAStep.PLAN,
     historico = [],
     criado_em = new Date().toISOString(),
     criado_por_id,
@@ -65,7 +81,7 @@ export function createOrdemDeServico({
     return {
         id, titulo, descricao, departamento,
         responsavel_id, responsavel_nome,
-        prazo, status, historico,
+        prazo, status, etapa_pdca, historico,
         criado_em, criado_por_id, criado_por_nome,
     };
 }

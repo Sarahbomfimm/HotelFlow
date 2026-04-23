@@ -1,14 +1,15 @@
 ﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, ArrowLeft, CalendarDays, User, Building2, FileText } from 'lucide-react';
+import { Send, ArrowLeft, CalendarDays, User, Building2, FileText, Upload, X, Loader } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import OSCreatedAlert from '../../components/OSCreatedAlert/OSCreatedAlert';
 import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
-import { DEPARTAMENTOS } from '../../models/OrdemDeServico';
+import { DEPARTAMENTOS, PDCAStep, PDCALabel } from '../../models/OrdemDeServico';
 import { format } from 'date-fns';
+import { UserRole } from '../../models/User';
 
 export default function FormOS() {
     const { criarOS } = useOS();
@@ -16,15 +17,22 @@ export default function FormOS() {
     const { addNotification } = useNotification();
     const { getLeaderByDepartment } = useUsers();
     const navigate = useNavigate();
+    const isDiretora = user?.role === UserRole.DIRETORA;
+    const cloudinaryCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim();
+    const cloudinaryUploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET?.trim();
+    const isCloudinaryConfigured = Boolean(cloudinaryCloudName && cloudinaryUploadPreset);
 
     const [form, setForm] = useState({
         titulo: '',
         descricao: '',
         departamento: '',
+        etapa_pdca: PDCAStep.PLAN,
         prazo: '',
+        imagem: null,
     });
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
     const [osCriada, setOsCriada] = useState(null);
     const [showAlert, setShowAlert] = useState(false);
     const [submitError, setSubmitError] = useState('');
@@ -36,21 +44,80 @@ export default function FormOS() {
         if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
         if (submitError) setSubmitError('');
     };
+    const toLocalEndOfDayISO = (dateString) => {
+        const date = new Date(`${dateString}T23:59:59`);
+        return date.toISOString();
+    };
+
+    const uploadImageToCloudinary = async (file) => {
+        if (!isCloudinaryConfigured) {
+            addNotification(
+                'Cloudinary não configurado. Defina VITE_CLOUDINARY_CLOUD_NAME e VITE_CLOUDINARY_UPLOAD_PRESET no .env e reinicie o npm run dev.',
+                'error',
+            );
+            return;
+        }
+
+        try {
+            setUploadingImage(true);
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', cloudinaryUploadPreset);
+
+            const response = await fetch(
+                `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`,
+                { method: 'POST', body: formData },
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                const cloudinaryMessage = data?.error?.message || 'Erro ao fazer upload da imagem.';
+                throw new Error(cloudinaryMessage);
+            }
+
+            setForm((prev) => ({ ...prev, imagem: data.secure_url }));
+            addNotification('Imagem anexada com sucesso!', 'success');
+        } catch (error) {
+            addNotification(`Erro ao enviar imagem: ${error.message}`, 'error');
+            console.error(error);
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
+    const handleImageFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Validar tamanho (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                addNotification('Imagem muito grande. Máximo 5MB.', 'error');
+                return;
+            }
+            uploadImageToCloudinary(file);
+        }
+    };
+
+    const removeImage = () => {
+        setForm((prev) => ({ ...prev, imagem: null }));
+    };
 
     const validate = () => {
         const e = {};
+        const hoje = format(new Date(), 'yyyy-MM-dd');
         if (!form.titulo.trim()) e.titulo = 'Título é obrigatório.';
         if (!form.descricao.trim()) e.descricao = 'Descrição é obrigatória.';
         if (!form.departamento) e.departamento = 'Selecione um departamento.';
+        if (!form.etapa_pdca) e.etapa_pdca = 'Selecione a etapa PDCA.';
         if (!form.prazo) e.prazo = 'Prazo é obrigatório.';
-        else if (new Date(form.prazo) < new Date(new Date().toDateString())) {
+        else if (form.prazo < hoje) {
             e.prazo = 'O prazo não pode ser no passado.';
         }
         return e;
     };
 
     const resetForm = () => {
-        setForm({ titulo: '', descricao: '', departamento: '', prazo: '' });
+        setForm({ titulo: '', descricao: '', departamento: '', etapa_pdca: PDCAStep.PLAN, prazo: '', imagem: null });
         setErrors({});
         setSubmitError('');
     };
@@ -69,22 +136,26 @@ export default function FormOS() {
         try {
             await new Promise((r) => setTimeout(r, 400));
 
+            const responsavel = liderInfo;
+
             const nova = await criarOS(
                 {
                     titulo: form.titulo.trim(),
                     descricao: form.descricao.trim(),
                     departamento: form.departamento,
-                    responsavel_id: liderInfo.id,
-                    responsavel_uid: liderInfo.firebaseUid || liderInfo.id,
-                    responsavel_email: liderInfo.email,
-                    responsavel_nome: liderInfo.nome,
-                    prazo: new Date(form.prazo).toISOString(),
+                    etapa_pdca: form.etapa_pdca,
+                    responsavel_id: responsavel.id,
+                    responsavel_uid: responsavel.firebaseUid || responsavel.id,
+                    responsavel_email: responsavel.email,
+                    responsavel_nome: responsavel.nome,
+                    prazo: toLocalEndOfDayISO(form.prazo),
+                    imagem: form.imagem,
                 },
                 user,
             );
 
             addNotification(
-                `Nova SI: "${form.titulo.trim()}" criada e atribuída a ${liderInfo.nome} (${form.departamento}).`,
+                `Nova SI: "${form.titulo.trim()}" criada${isDiretora ? ` e atribuída a ${responsavel.nome} (${form.departamento})` : ''}.`,
                 'new_os',
             );
 
@@ -169,6 +240,23 @@ export default function FormOS() {
                             {errors.departamento && <p className="text-red-500 text-xs mt-1">{errors.departamento}</p>}
                         </div>
 
+                        <div>
+                            <label className="label" htmlFor="etapa-pdca">
+                                <User size={14} className="inline mr-1.5" />Etapa PDCA
+                            </label>
+                            <select
+                                id="etapa-pdca"
+                                className={`input ${errors.etapa_pdca ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                value={form.etapa_pdca}
+                                onChange={set('etapa_pdca')}
+                            >
+                                {[PDCAStep.PLAN, PDCAStep.DO, PDCAStep.CHECK].map((etapa) => (
+                                    <option key={etapa} value={etapa}>{etapa} - {PDCALabel[etapa]}</option>
+                                ))}
+                            </select>
+                            {errors.etapa_pdca && <p className="text-red-500 text-xs mt-1">{errors.etapa_pdca}</p>}
+                        </div>
+
                         {/* Prazo */}
                         <div>
                             <label className="label" htmlFor="prazo">
@@ -186,6 +274,61 @@ export default function FormOS() {
                         </div>
                     </div>
 
+                    {/* Upload de Imagem com Cloudinary */}
+                    <div>
+                        <label className="label">
+                            <Upload size={14} className="inline mr-1.5" />Anexar Foto <span className="text-hotel-gray-md font-normal">(opcional)</span>
+                        </label>
+                        {form.imagem ? (
+                            <div className="relative">
+                                <img
+                                    src={form.imagem}
+                                    alt="Preview SI"
+                                    className="w-full max-h-40 object-cover rounded-lg border border-hotel-gray"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={removeImage}
+                                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        ) : (
+                            <label className={`w-full border-2 border-dashed rounded-lg p-6 text-center transition-colors block ${
+                                isCloudinaryConfigured
+                                    ? 'border-hotel-gray hover:border-hotel-blue hover:bg-hotel-light/50 cursor-pointer'
+                                    : 'border-red-200 bg-red-50 cursor-not-allowed'
+                            }`}>
+                                {uploadingImage ? (
+                                    <>
+                                        <Loader size={24} className="mx-auto mb-2 text-hotel-blue animate-spin" />
+                                        <p className="text-sm font-semibold text-hotel-blue font-body">Enviando...</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Upload size={24} className={`mx-auto mb-2 ${isCloudinaryConfigured ? 'text-hotel-gray-md' : 'text-red-400'}`} />
+                                        <p className={`text-sm font-semibold font-body ${isCloudinaryConfigured ? 'text-hotel-blue' : 'text-red-600'}`}>
+                                            {isCloudinaryConfigured ? 'Clique para enviar uma foto' : 'Cloudinary não configurado'}
+                                        </p>
+                                        <p className="text-xs text-hotel-gray-md font-body mt-1">
+                                            {isCloudinaryConfigured
+                                                ? 'ou arraste um arquivo'
+                                                : 'Adicione VITE_CLOUDINARY_CLOUD_NAME e VITE_CLOUDINARY_UPLOAD_PRESET no .env'}
+                                        </p>
+                                    </>
+                                )}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageFileChange}
+                                    disabled={uploadingImage || !isCloudinaryConfigured}
+                                    className="hidden"
+                                />
+                            </label>
+                        )}
+                    </div>
+
                     {/* Líder responsável (automático) */}
                     {liderInfo && (
                         <div className="flex flex-col gap-3 rounded-lg border border-hotel-gray bg-hotel-light p-3 animate-fadeIn sm:flex-row sm:items-center">
@@ -193,7 +336,7 @@ export default function FormOS() {
                                 {liderInfo.nome[0].toUpperCase()}
                             </div>
                             <div>
-                                <p className="text-xs text-hotel-gray-md font-body">Responsável automático</p>
+                                <p className="text-xs text-hotel-gray-md font-body">Responsável {isDiretora ? 'automático' : ''}</p>
                                 <p className="text-sm font-semibold text-hotel-blue font-body">{liderInfo.nome}</p>
                             </div>
                             <User size={16} className="text-hotel-gold sm:ml-auto" />

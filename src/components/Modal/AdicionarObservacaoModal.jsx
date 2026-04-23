@@ -1,28 +1,32 @@
 ﻿import { useState, useEffect, useRef } from 'react';
-import { PlusCircle, X, ArrowRight } from 'lucide-react';
+import { X, ArrowRight } from 'lucide-react';
+import PDCABadge from '../Badge/PDCABadge';
+import { PDCALabel, PDCAStep } from '../../models/OrdemDeServico';
 
 /**
  * Modal para registrar progresso sem alterar o status da OS.
  */
 export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCancel }) {
     const [obs, setObs] = useState('');
+    const [etapaPdca, setEtapaPdca] = useState(PDCAStep.PLAN);
     const textRef = useRef(null);
 
     useEffect(() => {
         if (isOpen) {
             setObs('');
+            setEtapaPdca(os?.etapa_pdca || PDCAStep.PLAN);
             setTimeout(() => textRef.current?.focus(), 80);
             const handler = (e) => { if (e.key === 'Escape') onCancel(); };
             window.addEventListener('keydown', handler);
             return () => window.removeEventListener('keydown', handler);
         }
-    }, [isOpen, onCancel]);
+    }, [isOpen, onCancel, os]);
 
     if (!isOpen || !os) return null;
 
     const handleConfirm = () => {
         if (!obs.trim()) return;
-        onConfirm(obs.trim());
+        onConfirm(obs.trim(), etapaPdca);
         setObs('');
     };
 
@@ -30,7 +34,7 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fadeIn">
             <div className="bg-white rounded-2xl shadow-card-hover w-full max-w-md mx-4 overflow-hidden animate-fadeIn">
                 <div className="bg-hotel-blue px-6 py-4 flex items-center gap-3">
-                    <PlusCircle size={20} className="text-hotel-gold" />
+                    <PDCABadge etapa={etapaPdca} status={os?.status} />
                     <div className="flex-1">
                         <h3 className="font-heading font-semibold text-white">Registrar Progresso</h3>
                         <p className="text-white/60 text-xs font-body">Adicione uma atualizacao sem alterar o status</p>
@@ -46,6 +50,20 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
                 </div>
 
                 <div className="px-6 pb-5">
+                    <label className="label mt-3" htmlFor="progresso-etapa-pdca">
+                        Etapa PDCA atual
+                    </label>
+                    <select
+                        id="progresso-etapa-pdca"
+                        className="input"
+                        value={etapaPdca}
+                        onChange={(e) => setEtapaPdca(e.target.value)}
+                    >
+                        {[PDCAStep.PLAN, PDCAStep.DO, PDCAStep.CHECK].map((etapa) => (
+                            <option key={etapa} value={etapa}>{etapa} - {PDCALabel[etapa]}</option>
+                        ))}
+                    </select>
+
                     <label className="label mt-3">
                         O que foi feito / progresso atual
                     </label>

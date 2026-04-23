@@ -67,7 +67,7 @@ export default function StatusObservacaoModal({ isOpen, os, novoStatus, onConfir
                 <div className="px-6 pb-5 flex justify-end gap-3">
                     <button onClick={onCancel} className="btn-secondary text-sm">Cancelar</button>
                     <button onClick={handleConfirm} className="btn-primary text-sm flex items-center gap-2">
-                        Confirmar <ArrowRight size={14} />
+                        Salvar <ArrowRight size={14} />
                     </button>
                 </div>
             </div>

@@ -1,6 +1,7 @@
 ﻿import { useMemo, useState } from 'react';
 import { History, Search, User, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
+import PDCABadge from '../../components/Badge/PDCABadge';
 import StatusBadge from '../../components/Badge/StatusBadge';
 import { useOS } from '../../context/OSContext';
 import { useUsers } from '../../context/UsersContext';
@@ -98,6 +99,7 @@ export default function HistoricoOS() {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex flex-wrap items-center gap-2 mb-1">
                                                 <StatusBadge status={os.status} />
+                                                <PDCABadge etapa={os.etapa_pdca} status={os.status} compact />
                                                 <span className="text-xs bg-hotel-gray text-hotel-blue px-2 py-0.5 rounded-full font-body font-medium">
                                                     {os.departamento}
                                                 </span>

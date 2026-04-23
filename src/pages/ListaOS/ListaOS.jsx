@@ -3,9 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, ChevronDown, ChevronUp, Trash2,
     Edit3, Clock3, Plus, ArrowLeft, CalendarRange, Image as ImageIcon,
-    Download, PlusCircle,
+    Download,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
+import PDCABadge from '../../components/Badge/PDCABadge';
 import StatusBadge from '../../components/Badge/StatusBadge';
 import ConfirmModal from '../../components/Modal/ConfirmModal';
 import EditarOSModal from '../../components/Modal/EditarOSModal';
@@ -16,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
-import { StatusOS, StatusLabel, DEPARTAMENTOS } from '../../models/OrdemDeServico';
+import { StatusOS, StatusLabel, DEPARTAMENTOS, PDCAStep, PDCALabel } from '../../models/OrdemDeServico';
 import { format, isPast, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -43,6 +44,7 @@ export default function ListaOS() {
 
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState(locState.filterStatus || '');
+    const [filterPdca, setFilterPdca] = useState(locState.filterPdca || '');
     const [filterLider, setFilterLider] = useState(locState.filterLider || '');
     const [filterDept, setFilterDept] = useState('');
     const [prazoInicio, setPrazoInicio] = useState('');
@@ -56,15 +58,20 @@ export default function ListaOS() {
     const [adicionarObsModal, setAdicionarObsModal] = useState({ open: false, os: null });
 
     const base = useMemo(() =>
-        isDiretora ? ordens : getOSPorLider(user?.departamentos || []),
+        isDiretora ? ordens : getOSPorLider(user?.departamentos || [], user),
         [isDiretora, ordens, getOSPorLider, user],
     );
 
     const filtered = useMemo(() => {
         return base
             .filter((o) => !filterStatus || o.status === filterStatus)
+            .filter((o) => !filterPdca || o.etapa_pdca === filterPdca)
             .filter((o) => !filterLider || o.responsavel_id === filterLider)
             .filter((o) => !filterDept || o.departamento === filterDept)
+            .filter((o) => {
+                if (!locState.onlyMine) return true;
+                return o.responsavel_id === user?.id || o.responsavel_uid === user?.firebaseUid;
+            })
             .filter((o) => {
                 if (!prazoInicio) return true;
                 return new Date(o.prazo) >= new Date(prazoInicio);
@@ -90,7 +97,7 @@ export default function ListaOS() {
                 const diff = new Date(a.prazo) - new Date(b.prazo);
                 return sortDir === 'asc' ? diff : -diff;
             });
-    }, [base, filterStatus, filterLider, filterDept, prazoInicio, prazoFim, search, sortDir]);
+    }, [base, filterStatus, filterPdca, filterLider, filterDept, prazoInicio, prazoFim, search, sortDir, locState.onlyMine, user]);
 
     // Abre modal de observação antes de confirmar mudança de status
     const solicitarStatusChange = async (os, status) => {
@@ -105,17 +112,17 @@ export default function ListaOS() {
 
     const confirmarStatusChange = async (observacao) => {
         const { os, novoStatus } = obsModal;
+        setObsModal({ open: false, os: null, novoStatus: null });
         await atualizarStatus(os.id, novoStatus, user, observacao);
         addNotification(
             `SI "${os.titulo}" atualizada para ${StatusLabel[novoStatus]}.`,
             novoStatus === StatusOS.CONCLUIDO ? 'success' : 'info',
         );
-        setObsModal({ open: false, os: null, novoStatus: null });
     };
 
-    const handleAdicionarObs = async (texto) => {
+    const handleAdicionarObs = async (texto, etapaPdca) => {
         const { os } = adicionarObsModal;
-        await adicionarObservacao(os.id, texto, user);
+        await adicionarObservacao(os.id, texto, user, etapaPdca);
         addNotification(`Progresso registrado na SI “${os.titulo}”.`, 'info');
         setAdicionarObsModal({ open: false, os: null });
     };
@@ -128,10 +135,10 @@ export default function ListaOS() {
     };
 
     const clearFilters = () => {
-        setSearch(''); setFilterStatus(''); setFilterLider('');
+        setSearch(''); setFilterStatus(''); setFilterPdca(''); setFilterLider('');
         setFilterDept(''); setPrazoInicio(''); setPrazoFim('');
     };
-    const hasFilters = search || filterStatus || filterLider || filterDept || prazoInicio || prazoFim;
+    const hasFilters = search || filterStatus || filterPdca || filterLider || filterDept || prazoInicio || prazoFim;
 
     return (
         <AppLayout pageTitle={isDiretora ? 'Todas as Solicitações Internas' : 'Minhas Solicitações Internas'}>
@@ -173,6 +180,15 @@ export default function ListaOS() {
                     >
                         <option value="">Todos os status</option>
                         {Object.entries(StatusLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+
+                    <select
+                        value={filterPdca}
+                        onChange={(e) => setFilterPdca(e.target.value)}
+                        className="input w-full py-2 text-sm sm:w-auto"
+                    >
+                        <option value="">Todas as etapas PDCA</option>
+                        {Object.entries(PDCALabel).map(([k, v]) => <option key={k} value={k}>{k} - {v}</option>)}
                     </select>
 
                     {isDiretora && (
@@ -269,7 +285,8 @@ export default function ListaOS() {
                         filtered.map((os) => {
                             const atrasada = os.status !== StatusOS.CONCLUIDO && isPast(parseISO(os.prazo));
                             const isExpanded = expanded === os.id;
-                            const podeAtualizar = os.status !== StatusOS.CONCLUIDO;
+                            const isResponsavel = user?.id === os.responsavel_id || user?.firebaseUid === os.responsavel_uid;
+                            const podeAtualizar = os.status !== StatusOS.CONCLUIDO && isResponsavel;
 
                             return (
                                 <div
@@ -281,6 +298,7 @@ export default function ListaOS() {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex flex-wrap items-center gap-2 mb-1.5">
                                                 <StatusBadge status={os.status} />
+                                                <PDCABadge etapa={os.etapa_pdca} status={os.status} compact />
                                                 <span className="text-xs font-body bg-hotel-gray text-hotel-blue px-2 py-0.5 rounded-full font-medium">
                                                     {os.departamento}
                                                 </span>
@@ -299,6 +317,9 @@ export default function ListaOS() {
 
                                         {/* Ações */}
                                         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-shrink-0 sm:justify-end">
+                                            {podeAtualizar && nextStatus[os.status] === StatusOS.CONCLUIDO && (
+                                                <PDCABadge etapa={os.etapa_pdca} status={os.status} />
+                                            )}
                                             {podeAtualizar && (
                                                 <button
                                                     onClick={() => solicitarStatusChange(os, nextStatus[os.status])}
@@ -374,6 +395,10 @@ export default function ListaOS() {
                                                     <span className="font-semibold text-hotel-blue">Responsável:</span>{' '}
                                                     {os.responsavel_nome}
                                                 </div>
+                                                <div>
+                                                    <span className="font-semibold text-hotel-blue">Etapa PDCA:</span>{' '}
+                                                    {os.etapa_pdca || PDCAStep.PLAN}
+                                                </div>
                                             </div>
 
                                             {/* Registrar progresso — disponível enquanto em andamento */}
@@ -383,7 +408,7 @@ export default function ListaOS() {
                                                         onClick={() => setAdicionarObsModal({ open: true, os })}
                                                         className="flex w-full items-center justify-center gap-2 rounded-lg border border-hotel-blue/30 px-3 py-2 text-sm text-hotel-blue font-semibold font-body transition-colors hover:bg-hotel-light sm:w-auto"
                                                     >
-                                                        <PlusCircle size={15} /> Registrar Progresso
+                                                        <PDCABadge etapa={os.etapa_pdca} status={os.status} compact /> Registrar Progresso
                                                     </button>
                                                 </div>
                                             )}
@@ -406,26 +431,7 @@ export default function ListaOS() {
                                                     </div>
                                                 </div>
                                             )}
-                                            {/* Alterar status manual — diretora */}
-                                            {isDiretora && (
-                                                <div className="flex flex-wrap items-center gap-2 pt-1">
-                                                    <span className="text-xs font-semibold text-hotel-blue">Alterar status:</span>
-                                                    {Object.entries(StatusLabel).map(([k, v]) => (
-                                                        <button
-                                                            key={k}
-                                                            disabled={os.status === k}
-                                                            onClick={() => solicitarStatusChange(os, k)}
-                                                            className={`text-xs px-3 py-1 rounded-full border font-semibold transition-colors
-                                                                ${os.status === k
-                                                                    ? 'bg-hotel-blue text-white border-hotel-blue cursor-default'
-                                                                    : 'border-hotel-gray text-hotel-gray-md hover:border-hotel-blue hover:text-hotel-blue'
-                                                                }`}
-                                                        >
-                                                            {v}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
+
                                         </div>
                                     )}
                                 </div>

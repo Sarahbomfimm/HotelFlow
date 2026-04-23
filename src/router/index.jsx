@@ -42,11 +42,11 @@ export default function AppRouter() {
                 }
             />
 
-            {/* Apenas diretora */}
+            {/* Diretora e Líderes */}
             <Route
                 path="/nova-os"
                 element={
-                    <ProtectedRoute allowedRoles={[UserRole.DIRETORA]}>
+                    <ProtectedRoute allowedRoles={[UserRole.DIRETORA, UserRole.LIDER]}>
                         <FormOS />
                     </ProtectedRoute>
                 }

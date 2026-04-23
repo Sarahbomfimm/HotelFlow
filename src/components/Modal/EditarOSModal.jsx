@@ -4,7 +4,7 @@ import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
-import { DEPARTAMENTOS } from '../../models/OrdemDeServico';
+import { DEPARTAMENTOS, PDCAStep, PDCALabel, StatusOS } from '../../models/OrdemDeServico';
 import { format, parseISO } from 'date-fns';
 
 export default function EditarOSModal({ os, onClose }) {
@@ -17,6 +17,7 @@ export default function EditarOSModal({ os, onClose }) {
         titulo: '',
         descricao: '',
         departamento: '',
+        etapa_pdca: PDCAStep.PLAN,
         prazo: '',
     });
     const [errors, setErrors] = useState({});
@@ -28,6 +29,7 @@ export default function EditarOSModal({ os, onClose }) {
                 titulo: os.titulo,
                 descricao: os.descricao,
                 departamento: os.departamento,
+                etapa_pdca: os.etapa_pdca || PDCAStep.PLAN,
                 prazo: format(parseISO(os.prazo), 'yyyy-MM-dd'),
             });
             setErrors({});
@@ -42,6 +44,11 @@ export default function EditarOSModal({ os, onClose }) {
 
     if (!os) return null;
 
+    const toLocalEndOfDayISO = (dateString) => {
+        const date = new Date(`${dateString}T23:59:59`);
+        return date.toISOString();
+    };
+
     const set = (field) => (e) => {
         setForm((prev) => ({ ...prev, [field]: e.target.value }));
         if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
@@ -52,6 +59,7 @@ export default function EditarOSModal({ os, onClose }) {
         if (!form.titulo.trim()) e.titulo = 'Título é obrigatório.';
         if (!form.descricao.trim()) e.descricao = 'Descrição é obrigatória.';
         if (!form.departamento) e.departamento = 'Selecione um departamento.';
+        if (!form.etapa_pdca) e.etapa_pdca = 'Selecione a etapa PDCA.';
         if (!form.prazo) e.prazo = 'Prazo é obrigatório.';
         return e;
     };
@@ -72,7 +80,8 @@ export default function EditarOSModal({ os, onClose }) {
                 titulo: form.titulo.trim(),
                 descricao: form.descricao.trim(),
                 departamento: form.departamento,
-                prazo: new Date(form.prazo).toISOString(),
+                etapa_pdca: os.status === StatusOS.CONCLUIDO ? PDCAStep.ACT : form.etapa_pdca,
+                prazo: toLocalEndOfDayISO(form.prazo),
                 responsavel_id: liderInfo.id,
                 responsavel_nome: liderInfo.nome,
             },
@@ -148,6 +157,24 @@ export default function EditarOSModal({ os, onClose }) {
                                 ))}
                             </select>
                             {errors.departamento && <p className="text-red-500 text-xs mt-1">{errors.departamento}</p>}
+                        </div>
+
+                        <div>
+                            <label className="label" htmlFor="edit-etapa-pdca">
+                                <Building2 size={13} className="inline mr-1.5" />Etapa PDCA
+                            </label>
+                            <select
+                                id="edit-etapa-pdca"
+                                className={`input ${errors.etapa_pdca ? 'border-red-400' : ''}`}
+                                value={os.status === StatusOS.CONCLUIDO ? PDCAStep.ACT : form.etapa_pdca}
+                                onChange={set('etapa_pdca')}
+                                disabled={os.status === StatusOS.CONCLUIDO}
+                            >
+                                {[PDCAStep.PLAN, PDCAStep.DO, PDCAStep.CHECK, PDCAStep.ACT].map((etapa) => (
+                                    <option key={etapa} value={etapa}>{etapa} - {PDCALabel[etapa]}</option>
+                                ))}
+                            </select>
+                            {errors.etapa_pdca && <p className="text-red-500 text-xs mt-1">{errors.etapa_pdca}</p>}
                         </div>
 
                         {/* Prazo */}

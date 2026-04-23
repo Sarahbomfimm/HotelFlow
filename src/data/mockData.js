@@ -10,7 +10,7 @@ export const USERS = [
         email: 'sofia@hotelflow.com',
         senha: 'sofia123',
         role: UserRole.DIRETORA,
-        departamentos: [],
+        departamentos: ['Financeiro'],
     },
     {
         id: 'u2',
@@ -75,14 +75,6 @@ export const USERS = [
         senha: 'suellen123',
         role: UserRole.LIDER,
         departamentos: ['Compras e Suprimentos'],
-    },
-    {
-        id: 'u10',
-        nome: 'Cézar',
-        email: 'cezar@hotelflow.com',
-        senha: 'cezar123',
-        role: UserRole.LIDER,
-        departamentos: ['Financeiro'],
     },
 ];
 
@@ -295,8 +287,9 @@ export const INITIAL_OS = [
         titulo: 'Fechamento financeiro — Março',
         descricao: 'Concluir o fechamento financeiro do mês de março e preparar relatório para a diretoria.',
         departamento: 'Financeiro',
-        responsavel_id: 'u10',
-        responsavel_nome: 'Cézar',
+        responsavel_id: 'u1',
+        responsavel_uid: '49eOS1J4RqXKsoSC5tktxQwSTRy1',
+        responsavel_nome: 'Sofia',
         prazo: addDays(today, 1),
         status: StatusOS.EM_ANDAMENTO,
         criado_em: addDays(today, -6),
@@ -310,7 +303,7 @@ export const INITIAL_OS = [
             },
             {
                 data: addDays(today, -4),
-                usuario_nome: 'Cézar',
+                usuario_nome: 'Sofia',
                 descricao: 'Status alterado de Aberto para Em Andamento.',
             },
         ],
