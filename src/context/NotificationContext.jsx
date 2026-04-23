@@ -31,6 +31,14 @@ export function NotificationProvider({ children }) {
     const currentUserId = user?.firebaseUid || user?.id || null;
     const currentUserEmail = user?.email?.toLowerCase() || null;
 
+    // Solicita permissão de notificação nativa do navegador quando o usuário faz login
+    useEffect(() => {
+        if (!currentUserId) return;
+        if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }, [currentUserId]);
+
     const scheduleToastDismiss = useCallback((id) => {
         if (timeoutsRef.current[id] || dismissedToastIds[id]) {
             return;
@@ -85,6 +93,18 @@ export function NotificationProvider({ children }) {
                 if (!playedChimesRef.current[notificationDoc.id] && data.type === 'new_os') {
                     playChime();
                     playedChimesRef.current[notificationDoc.id] = true;
+                    // Notificação nativa do navegador/SO (funciona com janela minimizada)
+                    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+                        try {
+                            new Notification('Nova Solicitação Interna', {
+                                body: data.message,
+                                icon: '/favicon.ico',
+                                tag: notificationDoc.id,
+                            });
+                        } catch {
+                            // Navegador pode bloquear silenciosamente em alguns contextos
+                        }
+                    }
                 }
 
                 merged.set(notificationDoc.id, {
