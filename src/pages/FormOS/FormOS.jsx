@@ -7,7 +7,7 @@ import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
-import { DEPARTAMENTOS, PDCAStep, PDCALabel } from '../../models/OrdemDeServico';
+import { DEPARTAMENTOS } from '../../models/OrdemDeServico';
 import { format } from 'date-fns';
 import { UserRole } from '../../models/User';
 
@@ -26,7 +26,6 @@ export default function FormOS() {
         titulo: '',
         descricao: '',
         departamento: '',
-        etapa_pdca: PDCAStep.PLAN,
         prazo: '',
         imagem: null,
     });
@@ -108,7 +107,6 @@ export default function FormOS() {
         if (!form.titulo.trim()) e.titulo = 'Título é obrigatório.';
         if (!form.descricao.trim()) e.descricao = 'Descrição é obrigatória.';
         if (!form.departamento) e.departamento = 'Selecione um departamento.';
-        if (!form.etapa_pdca) e.etapa_pdca = 'Selecione a etapa PDCA.';
         if (!form.prazo) e.prazo = 'Prazo é obrigatório.';
         else if (form.prazo < hoje) {
             e.prazo = 'O prazo não pode ser no passado.';
@@ -117,7 +115,7 @@ export default function FormOS() {
     };
 
     const resetForm = () => {
-        setForm({ titulo: '', descricao: '', departamento: '', etapa_pdca: PDCAStep.PLAN, prazo: '', imagem: null });
+        setForm({ titulo: '', descricao: '', departamento: '', prazo: '', imagem: null });
         setErrors({});
         setSubmitError('');
     };
@@ -143,7 +141,6 @@ export default function FormOS() {
                     titulo: form.titulo.trim(),
                     descricao: form.descricao.trim(),
                     departamento: form.departamento,
-                    etapa_pdca: form.etapa_pdca,
                     responsavel_id: responsavel.id,
                     responsavel_uid: responsavel.firebaseUid || responsavel.id,
                     responsavel_email: responsavel.email,
@@ -238,23 +235,6 @@ export default function FormOS() {
                                 ))}
                             </select>
                             {errors.departamento && <p className="text-red-500 text-xs mt-1">{errors.departamento}</p>}
-                        </div>
-
-                        <div>
-                            <label className="label" htmlFor="etapa-pdca">
-                                <User size={14} className="inline mr-1.5" />Etapa PDCA
-                            </label>
-                            <select
-                                id="etapa-pdca"
-                                className={`input ${errors.etapa_pdca ? 'border-red-400 ring-1 ring-red-300' : ''}`}
-                                value={form.etapa_pdca}
-                                onChange={set('etapa_pdca')}
-                            >
-                                {[PDCAStep.PLAN, PDCAStep.DO, PDCAStep.CHECK].map((etapa) => (
-                                    <option key={etapa} value={etapa}>{etapa} - {PDCALabel[etapa]}</option>
-                                ))}
-                            </select>
-                            {errors.etapa_pdca && <p className="text-red-500 text-xs mt-1">{errors.etapa_pdca}</p>}
                         </div>
 
                         {/* Prazo */}

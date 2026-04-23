@@ -18,7 +18,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
 import { StatusOS, StatusLabel, DEPARTAMENTOS, PDCAStep, PDCALabel } from '../../models/OrdemDeServico';
-import { format, isPast, parseISO } from 'date-fns';
+import { format, isPast, parseISO, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const nextStatus = {
@@ -41,9 +41,12 @@ export default function ListaOS() {
 
     // Inicializa filtros a partir de state passado pelo dashboard
     const locState = location.state || {};
+    const isPdcaOnlyNavigation = Boolean(locState.pdcaOnly && locState.filterPdca);
+    const shouldShowOnlyOverdue = Boolean(locState.onlyOverdue);
+    const shouldShowOnlyCurrentMonth = Boolean(locState.onlyCurrentMonth);
 
     const [search, setSearch] = useState('');
-    const [filterStatus, setFilterStatus] = useState(locState.filterStatus || '');
+    const [filterStatus, setFilterStatus] = useState(isPdcaOnlyNavigation ? '' : (locState.filterStatus || ''));
     const [filterPdca, setFilterPdca] = useState(locState.filterPdca || '');
     const [filterLider, setFilterLider] = useState(locState.filterLider || '');
     const [filterDept, setFilterDept] = useState('');
@@ -64,13 +67,21 @@ export default function ListaOS() {
 
     const filtered = useMemo(() => {
         return base
-            .filter((o) => !filterStatus || o.status === filterStatus)
-            .filter((o) => !filterPdca || o.etapa_pdca === filterPdca)
+            .filter((o) => isPdcaOnlyNavigation || !filterStatus || o.status === filterStatus)
+            .filter((o) => !filterPdca || (o.status !== StatusOS.ABERTO && o.etapa_pdca === filterPdca))
             .filter((o) => !filterLider || o.responsavel_id === filterLider)
             .filter((o) => !filterDept || o.departamento === filterDept)
             .filter((o) => {
                 if (!locState.onlyMine) return true;
                 return o.responsavel_id === user?.id || o.responsavel_uid === user?.firebaseUid;
+            })
+            .filter((o) => {
+                if (!shouldShowOnlyCurrentMonth) return true;
+                return o.criado_em && isSameMonth(parseISO(o.criado_em), new Date());
+            })
+            .filter((o) => {
+                if (!shouldShowOnlyOverdue) return true;
+                return o.status !== StatusOS.CONCLUIDO && isPast(parseISO(o.prazo));
             })
             .filter((o) => {
                 if (!prazoInicio) return true;
@@ -97,7 +108,22 @@ export default function ListaOS() {
                 const diff = new Date(a.prazo) - new Date(b.prazo);
                 return sortDir === 'asc' ? diff : -diff;
             });
-    }, [base, filterStatus, filterPdca, filterLider, filterDept, prazoInicio, prazoFim, search, sortDir, locState.onlyMine, user]);
+    }, [
+        base,
+        filterStatus,
+        filterPdca,
+        filterLider,
+        filterDept,
+        prazoInicio,
+        prazoFim,
+        search,
+        sortDir,
+        locState.onlyMine,
+        isPdcaOnlyNavigation,
+        shouldShowOnlyCurrentMonth,
+        shouldShowOnlyOverdue,
+        user,
+    ]);
 
     // Abre modal de observação antes de confirmar mudança de status
     const solicitarStatusChange = async (os, status) => {

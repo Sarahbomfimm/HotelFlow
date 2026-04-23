@@ -101,10 +101,10 @@ export default function DashboardLider() {
     }), [minhasSIs]);
 
     const pdcaStats = useMemo(() => ({
-        [PDCAStep.PLAN]: minhasSIs.filter((o) => o.etapa_pdca === PDCAStep.PLAN && o.status !== StatusOS.ABERTO).length,
-        [PDCAStep.DO]: minhasSIs.filter((o) => o.etapa_pdca === PDCAStep.DO && o.status !== StatusOS.ABERTO).length,
-        [PDCAStep.CHECK]: minhasSIs.filter((o) => o.etapa_pdca === PDCAStep.CHECK && o.status !== StatusOS.ABERTO).length,
-        [PDCAStep.ACT]: minhasSIs.filter((o) => o.etapa_pdca === PDCAStep.ACT).length,
+        [PDCAStep.PLAN]: minhasSIs.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.PLAN).length,
+        [PDCAStep.DO]: minhasSIs.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.DO).length,
+        [PDCAStep.CHECK]: minhasSIs.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.CHECK).length,
+        [PDCAStep.ACT]: minhasSIs.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.ACT).length,
     }), [minhasSIs]);
 
     // OS urgentes (prazo em até 2 dias, não concluídas)
@@ -166,17 +166,41 @@ export default function DashboardLider() {
 
                 {/* Stats */}
                 <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <StatCard icon={ClipboardList} label="Total este mês" value={stats.total} colorClass="bg-hotel-blue" onClick={() => navigate('/ordens', { state: { onlyMine: true } })} />
-                    <StatCard icon={AlertCircle} label="Abertas este mês" value={stats.abertas} colorClass="bg-blue-500" onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.ABERTO, onlyMine: true } })} />
-                    <StatCard icon={Clock} label="Em Andamento" value={stats.em_andamento} colorClass="bg-amber-500" onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.EM_ANDAMENTO, onlyMine: true } })} />
-                    <StatCard icon={CheckCircle2} label="Concluídas este mês" value={stats.concluidas} colorClass="bg-emerald-500" onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.CONCLUIDO, onlyMine: true } })} />
+                    <StatCard
+                        icon={ClipboardList}
+                        label="Total este mês"
+                        value={stats.total}
+                        colorClass="bg-hotel-blue"
+                        onClick={() => navigate('/ordens', { state: { onlyMine: true, onlyCurrentMonth: true } })}
+                    />
+                    <StatCard
+                        icon={AlertCircle}
+                        label="Abertas este mês"
+                        value={stats.abertas}
+                        colorClass="bg-blue-500"
+                        onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.ABERTO, onlyMine: true, onlyCurrentMonth: true } })}
+                    />
+                    <StatCard
+                        icon={Clock}
+                        label="Em Andamento"
+                        value={stats.em_andamento}
+                        colorClass="bg-amber-500"
+                        onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.EM_ANDAMENTO, onlyMine: true, onlyCurrentMonth: true } })}
+                    />
+                    <StatCard
+                        icon={CheckCircle2}
+                        label="Concluídas este mês"
+                        value={stats.concluidas}
+                        colorClass="bg-emerald-500"
+                        onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.CONCLUIDO, onlyMine: true, onlyCurrentMonth: true } })}
+                    />
                 </div>
 
                 <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <PDCAStatCard etapa={PDCAStep.PLAN} total={pdcaStats[PDCAStep.PLAN]} onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.PLAN, onlyMine: true } })} />
-                    <PDCAStatCard etapa={PDCAStep.DO} total={pdcaStats[PDCAStep.DO]} onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.DO, onlyMine: true } })} />
-                    <PDCAStatCard etapa={PDCAStep.CHECK} total={pdcaStats[PDCAStep.CHECK]} onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.CHECK, onlyMine: true } })} />
-                    <PDCAStatCard etapa={PDCAStep.ACT} total={pdcaStats[PDCAStep.ACT]} onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.ACT, onlyMine: true } })} />
+                    <PDCAStatCard etapa={PDCAStep.PLAN} total={pdcaStats[PDCAStep.PLAN]} onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.PLAN, pdcaOnly: true, onlyMine: true, onlyCurrentMonth: true } })} />
+                    <PDCAStatCard etapa={PDCAStep.DO} total={pdcaStats[PDCAStep.DO]} onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.DO, pdcaOnly: true, onlyMine: true, onlyCurrentMonth: true } })} />
+                    <PDCAStatCard etapa={PDCAStep.CHECK} total={pdcaStats[PDCAStep.CHECK]} onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.CHECK, pdcaOnly: true, onlyMine: true, onlyCurrentMonth: true } })} />
+                    <PDCAStatCard etapa={PDCAStep.ACT} total={pdcaStats[PDCAStep.ACT]} onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.ACT, pdcaOnly: true, onlyMine: true, onlyCurrentMonth: true } })} />
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-3">

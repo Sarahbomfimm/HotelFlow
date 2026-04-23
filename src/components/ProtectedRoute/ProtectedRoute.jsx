@@ -1,11 +1,35 @@
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import AppLoadingScreen from '../Loading/AppLoadingScreen';
+
+let initialLoadingCompleted = false;
 
 export default function ProtectedRoute({ children, allowedRoles }) {
     const { user, authReady } = useAuth();
+    const [loadingGraceDone, setLoadingGraceDone] = useState(initialLoadingCompleted);
 
-    if (!authReady) {
-        return <div className="min-h-screen flex items-center justify-center bg-hotel-light text-hotel-blue font-body">Carregando...</div>;
+    useEffect(() => {
+        if (initialLoadingCompleted) {
+            setLoadingGraceDone(true);
+            return;
+        }
+
+        if (!authReady) {
+            setLoadingGraceDone(false);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            initialLoadingCompleted = true;
+            setLoadingGraceDone(true);
+        }, 750);
+
+        return () => clearTimeout(timer);
+    }, [authReady]);
+
+    if (!authReady || !loadingGraceDone) {
+        return <AppLoadingScreen />;
     }
 
     if (!user) {

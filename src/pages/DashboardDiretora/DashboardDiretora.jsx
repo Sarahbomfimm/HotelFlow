@@ -93,10 +93,10 @@ export default function DashboardDiretora() {
     const pdcaBase = tab === 'minhas' ? minhasSIs : ordensMes;
 
     const pdcaStats = useMemo(() => ({
-        [PDCAStep.PLAN]: pdcaBase.filter((o) => o.etapa_pdca === PDCAStep.PLAN && o.status !== StatusOS.ABERTO).length,
-        [PDCAStep.DO]: pdcaBase.filter((o) => o.etapa_pdca === PDCAStep.DO && o.status !== StatusOS.ABERTO).length,
-        [PDCAStep.CHECK]: pdcaBase.filter((o) => o.etapa_pdca === PDCAStep.CHECK && o.status !== StatusOS.ABERTO).length,
-        [PDCAStep.ACT]: pdcaBase.filter((o) => o.etapa_pdca === PDCAStep.ACT).length,
+        [PDCAStep.PLAN]: pdcaBase.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.PLAN).length,
+        [PDCAStep.DO]: pdcaBase.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.DO).length,
+        [PDCAStep.CHECK]: pdcaBase.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.CHECK).length,
+        [PDCAStep.ACT]: pdcaBase.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.ACT).length,
     }), [pdcaBase]);
 
     const base = tab === 'minhas' ? minhasSIs : ordensMes;
@@ -127,18 +127,64 @@ export default function DashboardDiretora() {
 
             {/* Cards de estatísticas */}
             <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-                <StatCard icon={ClipboardList} label="Total este mês" value={stats.total} colorClass="bg-hotel-blue" onClick={() => navigate('/ordens', { state: {} })} />
-                <StatCard icon={AlertCircle} label="Abertas este mês" value={stats.abertas} colorClass="bg-blue-500" onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.ABERTO } })} />
-                <StatCard icon={Clock} label="Em Andamento" value={stats.em_andamento} colorClass="bg-amber-500" onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.EM_ANDAMENTO } })} />
-                <StatCard icon={CheckCircle2} label="Concluídas este mês" value={stats.concluidas} colorClass="bg-emerald-500" onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.CONCLUIDO } })} />
-                <StatCard icon={TrendingUp} label="Atrasadas este mês" value={stats.atrasadas} colorClass="bg-red-500" onClick={() => navigate('/ordens', { state: { filterStatus: '' } })} />
+                <StatCard
+                    icon={ClipboardList}
+                    label="Total este mês"
+                    value={stats.total}
+                    colorClass="bg-hotel-blue"
+                    onClick={() => navigate('/ordens', { state: { onlyCurrentMonth: true } })}
+                />
+                <StatCard
+                    icon={AlertCircle}
+                    label="Abertas este mês"
+                    value={stats.abertas}
+                    colorClass="bg-blue-500"
+                    onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.ABERTO, onlyCurrentMonth: true } })}
+                />
+                <StatCard
+                    icon={Clock}
+                    label="Em Andamento"
+                    value={stats.em_andamento}
+                    colorClass="bg-amber-500"
+                    onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.EM_ANDAMENTO, onlyCurrentMonth: true } })}
+                />
+                <StatCard
+                    icon={CheckCircle2}
+                    label="Concluídas este mês"
+                    value={stats.concluidas}
+                    colorClass="bg-emerald-500"
+                    onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.CONCLUIDO, onlyCurrentMonth: true } })}
+                />
+                <StatCard
+                    icon={TrendingUp}
+                    label="Atrasadas este mês"
+                    value={stats.atrasadas}
+                    colorClass="bg-red-500"
+                    onClick={() => navigate('/ordens', { state: { onlyOverdue: true, onlyCurrentMonth: true } })}
+                />
             </div>
 
             <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-                <PDCAStatCard etapa={PDCAStep.PLAN} total={pdcaStats[PDCAStep.PLAN]} onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.PLAN, filterLider: tab === 'minhas' ? user?.id : '' } })} />
-                <PDCAStatCard etapa={PDCAStep.DO} total={pdcaStats[PDCAStep.DO]} onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.DO, filterLider: tab === 'minhas' ? user?.id : '' } })} />
-                <PDCAStatCard etapa={PDCAStep.CHECK} total={pdcaStats[PDCAStep.CHECK]} onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.CHECK, filterLider: tab === 'minhas' ? user?.id : '' } })} />
-                <PDCAStatCard etapa={PDCAStep.ACT} total={pdcaStats[PDCAStep.ACT]} onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.ACT, filterLider: tab === 'minhas' ? user?.id : '' } })} />
+                <PDCAStatCard
+                    etapa={PDCAStep.PLAN}
+                    total={pdcaStats[PDCAStep.PLAN]}
+                    onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.PLAN, pdcaOnly: true, onlyCurrentMonth: true, onlyMine: tab === 'minhas' } })}
+                />
+                <PDCAStatCard
+                    etapa={PDCAStep.DO}
+                    total={pdcaStats[PDCAStep.DO]}
+                    onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.DO, pdcaOnly: true, onlyCurrentMonth: true, onlyMine: tab === 'minhas' } })}
+                />
+                <PDCAStatCard
+                    etapa={PDCAStep.CHECK}
+                    total={pdcaStats[PDCAStep.CHECK]}
+                    onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.CHECK, pdcaOnly: true, onlyCurrentMonth: true, onlyMine: tab === 'minhas' } })}
+                />
+                <PDCAStatCard
+                    etapa={PDCAStep.ACT}
+                    total={pdcaStats[PDCAStep.ACT]}
+                    onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.ACT, pdcaOnly: true, onlyCurrentMonth: true, onlyMine: tab === 'minhas' } })}
+                />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
