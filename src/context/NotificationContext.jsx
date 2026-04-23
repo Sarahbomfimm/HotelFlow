@@ -31,6 +31,43 @@ export function NotificationProvider({ children }) {
     const currentUserId = user?.firebaseUid || user?.id || null;
     const currentUserEmail = user?.email?.toLowerCase() || null;
 
+    const showSystemNotification = useCallback(async (title, body, tag) => {
+        if (typeof window !== 'undefined' && window.electronAPI?.notify) {
+            try {
+                await window.electronAPI.notify({ title, body });
+                return;
+            } catch {
+                // Segue para fallback do navegador.
+            }
+        }
+
+        if (typeof Notification === 'undefined') {
+            return;
+        }
+
+        let permission = Notification.permission;
+        if (permission === 'default') {
+            try {
+                permission = await Notification.requestPermission();
+            } catch {
+                return;
+            }
+        }
+
+        if (permission !== 'granted') {
+            return;
+        }
+
+        try {
+            new Notification(title, {
+                body,
+                tag,
+            });
+        } catch {
+            // Navegador pode bloquear silenciosamente em alguns contextos.
+        }
+    }, []);
+
     // Solicita permissão de notificação nativa do navegador quando o usuário faz login
     useEffect(() => {
         if (!currentUserId) return;
@@ -93,18 +130,7 @@ export function NotificationProvider({ children }) {
                 if (!playedChimesRef.current[notificationDoc.id] && data.type === 'new_os') {
                     playChime();
                     playedChimesRef.current[notificationDoc.id] = true;
-                    // Notificação nativa do navegador/SO (funciona com janela minimizada)
-                    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-                        try {
-                            new Notification('Nova Solicitação Interna', {
-                                body: data.message,
-                                icon: '/favicon.ico',
-                                tag: notificationDoc.id,
-                            });
-                        } catch {
-                            // Navegador pode bloquear silenciosamente em alguns contextos
-                        }
-                    }
+                    showSystemNotification('Nova Solicitacao Interna', data.message, notificationDoc.id);
                 }
 
                 merged.set(notificationDoc.id, {
@@ -158,7 +184,14 @@ export function NotificationProvider({ children }) {
         return () => {
             unsubscribes.forEach((unsubscribe) => unsubscribe());
         };
-    }, [authReady, currentUserEmail, currentUserId, dismissedToastIds, scheduleToastDismiss]);
+    }, [
+        authReady,
+        currentUserEmail,
+        currentUserId,
+        dismissedToastIds,
+        scheduleToastDismiss,
+        showSystemNotification,
+    ]);
 
     useEffect(() => {
         Object.values(timeoutsRef.current).forEach((timeoutId) => clearTimeout(timeoutId));
