@@ -7,9 +7,9 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const fromNumber = process.env.WHATSAPP_PHONE_NUMBER;
+    const accountSid = process.env.TWILIO_ACCOUNT_SID || process.env.VITE_TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN || process.env.VITE_WHATSAPP_API_TOKEN;
+    const fromNumber = process.env.WHATSAPP_PHONE_NUMBER || process.env.VITE_WHATSAPP_PHONE_NUMBER;
 
     if (!accountSid || !authToken || !fromNumber) {
         return res.status(500).json({ error: 'Credenciais Twilio não configuradas no servidor.' });
