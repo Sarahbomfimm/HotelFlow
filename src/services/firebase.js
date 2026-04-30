@@ -3,6 +3,7 @@ import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 import { useEffect, useState } from 'react';
 
 const firebaseConfig = {
@@ -24,6 +25,7 @@ export const firebaseApp = isFirebaseConfigured
 export const auth = firebaseApp ? getAuth(firebaseApp) : null;
 export const db = firebaseApp ? getFirestore(firebaseApp) : null;
 export const storage = firebaseApp ? getStorage(firebaseApp) : null;
+export const functions = firebaseApp ? getFunctions(firebaseApp) : null;
 
 export function useFirebaseAnalytics() {
     const [analytics, setAnalytics] = useState(null);

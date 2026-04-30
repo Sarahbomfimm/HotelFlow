@@ -155,9 +155,13 @@ export default function ListaOS() {
 
     const confirmDelete = async () => {
         if (!toDelete) return;
-        await excluirOS(toDelete.id);
-        addNotification(`SI "${toDelete.titulo}" excluída.`, 'warning');
-        setToDelete(null);
+        try {
+            await excluirOS(toDelete.id, user);
+            addNotification(`SI "${toDelete.titulo}" excluída.`, 'warning');
+            setToDelete(null);
+        } catch (error) {
+            addNotification(error.message, 'error');
+        }
     };
 
     const clearFilters = () => {

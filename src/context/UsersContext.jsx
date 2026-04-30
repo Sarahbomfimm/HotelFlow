@@ -134,6 +134,7 @@ export function UsersProvider({ children }) {
                     firebaseUid: responsavel.firebaseUid || null,
                     nome: responsavel.nome,
                     email: responsavel.email,
+                    telefone: responsavel.telefone || null,
                 };
             });
         });

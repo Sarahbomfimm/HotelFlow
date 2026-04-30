@@ -145,6 +145,7 @@ export default function FormOS() {
                     responsavel_uid: responsavel.firebaseUid || responsavel.id,
                     responsavel_email: responsavel.email,
                     responsavel_nome: responsavel.nome,
+                    responsavel_telefone: responsavel.telefone || null,
                     prazo: toLocalEndOfDayISO(form.prazo),
                     imagem: form.imagem,
                 },

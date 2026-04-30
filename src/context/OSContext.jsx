@@ -14,6 +14,7 @@ import { StatusOS, StatusLabel, PDCAStep } from '../models/OrdemDeServico';
 import { UserRole } from '../models/User';
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { createUserNotification } from '../services/notifications';
+import { enviarNotificacaoWhatsApp } from '../services/whatsappService';
 import { deleteFileByUrl, uploadServiceOrderImage } from '../services/storage';
 import { useAuth } from './AuthContext';
 
@@ -85,6 +86,7 @@ export function OSProvider({ children }) {
 
     /** Cria uma nova OS */
     const criarOS = useCallback(async (dados, autor) => {
+        console.log('[criarOS] chamado com dados:', dados);
         const novaOS = {
             ...dados,
             status: StatusOS.ABERTO,
@@ -149,6 +151,28 @@ export function OSProvider({ children }) {
                 });
             } catch {
                 // Nao impede a criacao da SI se a notificacao falhar.
+            }
+
+            // Envia notificação via WhatsApp (se configurado e se o telefone estiver disponível)
+            try {
+                if (dados.responsavel_telefone) {
+                    await enviarNotificacaoWhatsApp(
+                        {
+                            nome: dados.responsavel_nome,
+                            telefone: dados.responsavel_telefone,
+                        },
+                        {
+                            titulo: dados.titulo,
+                            descricao: dados.descricao,
+                            departamento: dados.departamento,
+                            prazo: dados.prazo,
+                            criado_em: new Date().toISOString(),
+                        }
+                    );
+                }
+            } catch (error) {
+                // Nao impede a criacao da SI se o WhatsApp falhar
+                console.warn('Erro ao enviar notificação WhatsApp:', error.message);
             }
         }
 
@@ -220,6 +244,11 @@ export function OSProvider({ children }) {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
+        // Validação de segurança: apenas Diretora pode editar
+        if (usuario.role !== UserRole.DIRETORA) {
+            throw new Error('Apenas a Diretora pode editar uma solicitação interna.');
+        }
+
         const campos = Object.keys(atualizacoes)
             .filter((campo) => !['imagem'].includes(campo))
             .map((campo) => {
@@ -290,8 +319,13 @@ export function OSProvider({ children }) {
     }, [ordens]);
 
     /** Remove uma OS (apenas pela diretora) */
-    const excluirOS = useCallback(async (osId) => {
+    const excluirOS = useCallback(async (osId, usuario) => {
         const os = ordens.find((item) => item.id === osId);
+
+        // Validação de segurança: apenas Diretora pode deletar
+        if (usuario?.role !== UserRole.DIRETORA) {
+            throw new Error('Apenas a Diretora pode deletar uma solicitação interna.');
+        }
 
         if (!isFirebaseConfigured || !db) {
             setOrdens((prev) => prev.filter((item) => item.id !== osId));
