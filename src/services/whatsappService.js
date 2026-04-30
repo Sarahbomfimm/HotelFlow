@@ -1,11 +1,16 @@
 /**
- * Serviço de Integração WhatsApp via Twilio (chamada direta)
- * Usa a API REST do Twilio diretamente do frontend.
+ * Serviço de Integração WhatsApp via Twilio.
+ * - Dev local: usa proxy do Vite (/twilio-api) para evitar CORS
+ * - Vercel / produção: usa serverless function (/api/whatsapp)
+ * - Electron: chama Twilio diretamente (sem CORS)
  */
 
 const TWILIO_ACCOUNT_SID = import.meta.env.VITE_TWILIO_ACCOUNT_SID?.trim();
 const TWILIO_AUTH_TOKEN = import.meta.env.VITE_WHATSAPP_API_TOKEN?.trim();
 const WHATSAPP_FROM = import.meta.env.VITE_WHATSAPP_PHONE_NUMBER?.trim();
+
+const isDev = import.meta.env.DEV;
+const isElectron = typeof window !== 'undefined' && window.navigator.userAgent.includes('Electron');
 
 /**
  * Envia uma mensagem via WhatsApp para o usuário quando uma nova SI é atribuída
@@ -16,55 +21,87 @@ export async function enviarNotificacaoWhatsApp(responsavel, os) {
         return { success: false, message: 'Telefone não configurado' };
     }
 
-    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !WHATSAPP_FROM) {
-        console.warn('Credenciais Twilio não configuradas no .env');
-        return { success: false, message: 'Credenciais Twilio ausentes' };
-    }
-
     try {
         const telefoneFormatado = formatarTelefone(responsavel.telefone);
         const mensagem = montarMensagem(responsavel.nome, os);
 
-        const body = new URLSearchParams({
-            From: `whatsapp:${WHATSAPP_FROM}`,
-            To: `whatsapp:${telefoneFormatado}`,
-            Body: mensagem,
-        });
-
-        const credentials = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
-
-        const isElectron = typeof window !== 'undefined' && window.navigator.userAgent.includes('Electron');
-        const baseUrl = isElectron ? `https://api.twilio.com` : `/twilio-api`;
-        const url = `${baseUrl}/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Basic ${credentials}`,
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: body.toString(),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || `Erro Twilio: ${response.status}`);
+        // Electron: chama Twilio diretamente (sem restrição de CORS)
+        if (isElectron) {
+            return await enviarViaTwilioDireto(telefoneFormatado, mensagem);
         }
 
-        return {
-            success: true,
-            message: 'Mensagem enviada com sucesso',
-            messageId: data.sid,
-            timestamp: new Date().toISOString(),
-        };
+        // Vercel (produção): usa serverless function — credenciais ficam no servidor
+        if (!isDev) {
+            return await enviarViaServerless(telefoneFormatado, mensagem);
+        }
+
+        // Dev local: usa proxy do Vite
+        return await enviarViaProxyDev(telefoneFormatado, mensagem);
+
     } catch (error) {
         console.error('Erro ao enviar WhatsApp:', error);
-        return {
-            success: false,
-            message: error.message || 'Erro ao enviar WhatsApp',
-        };
+        return { success: false, message: error.message || 'Erro ao enviar WhatsApp' };
     }
+}
+
+async function enviarViaServerless(telefone, mensagem) {
+    const response = await fetch('/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: telefone, body: mensagem }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `Erro serverless: ${response.status}`);
+    return { success: true, messageId: data.sid, timestamp: new Date().toISOString() };
+}
+
+async function enviarViaProxyDev(telefone, mensagem) {
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !WHATSAPP_FROM) {
+        console.warn('Credenciais Twilio não configuradas no .env');
+        return { success: false, message: 'Credenciais Twilio ausentes' };
+    }
+    const body = new URLSearchParams({
+        From: `whatsapp:${WHATSAPP_FROM}`,
+        To: `whatsapp:${telefone}`,
+        Body: mensagem,
+    });
+    const credentials = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
+    const url = `/twilio-api/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Basic ${credentials}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: body.toString(),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || `Erro Twilio: ${response.status}`);
+    return { success: true, messageId: data.sid, timestamp: new Date().toISOString() };
+}
+
+async function enviarViaTwilioDireto(telefone, mensagem) {
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !WHATSAPP_FROM) {
+        return { success: false, message: 'Credenciais Twilio ausentes' };
+    }
+    const body = new URLSearchParams({
+        From: `whatsapp:${WHATSAPP_FROM}`,
+        To: `whatsapp:${telefone}`,
+        Body: mensagem,
+    });
+    const credentials = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Basic ${credentials}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: body.toString(),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || `Erro Twilio: ${response.status}`);
+    return { success: true, messageId: data.sid, timestamp: new Date().toISOString() };
 }
 
 /**
