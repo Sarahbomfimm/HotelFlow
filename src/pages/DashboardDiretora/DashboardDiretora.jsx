@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
     ClipboardList, CheckCircle2, Clock, AlertCircle,
-    Users, TrendingUp, ArrowRight,
+    Users, TrendingUp, ArrowRight, Send,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
@@ -10,6 +10,7 @@ import StatusBadge from '../../components/Badge/StatusBadge';
 import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUsers } from '../../context/UsersContext';
+import { useNotification } from '../../context/NotificationContext';
 import { StatusOS, StatusLabel, PDCAStep } from '../../models/OrdemDeServico';
 import { format, isPast, parseISO, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -60,12 +61,20 @@ function PDCAStatCard({ etapa, total, onClick }) {
 export default function DashboardDiretora() {
     const { ordens, error: ordensError } = useOS();
     const { user } = useAuth();
-    const { lideres } = useUsers();
+    const { lideres, currentUserProfile, updateTelegramChatId } = useUsers();
     const navigate = useNavigate();
 
     const [filterLider, setFilterLider] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [tab, setTab] = useState('todas'); // 'todas' ou 'minhas'
+    const [telegramInput, setTelegramInput] = useState('');
+    const [telegramSaving, setTelegramSaving] = useState(false);
+    const [showTelegramForm, setShowTelegramForm] = useState(false);
+
+    const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'HotelFloww_Bot';
+    const telegramBotLink = `https://t.me/${telegramBotUsername}`;
+
+    const { addNotification } = useNotification();
 
     const hoje = new Date();
 
@@ -128,6 +137,86 @@ export default function DashboardDiretora() {
                     {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                 </p>
             </div>
+
+            {/* Banner Conectar Telegram */}
+            {!currentUserProfile?.telegram_chat_id && (
+                <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-3">
+                            <Send size={20} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-semibold font-body text-blue-800 text-sm">Receba notificações pelo Telegram</p>
+                                <p className="text-blue-600 font-body text-xs mt-0.5">
+                                    Conecte seu Telegram para receber alertas instantaneamente.
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowTelegramForm((v) => !v)}
+                            className="flex-shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold font-body text-white hover:bg-blue-700 transition-colors"
+                        >
+                            {showTelegramForm ? 'Cancelar' : 'Conectar Telegram'}
+                        </button>
+                    </div>
+                    {showTelegramForm && (
+                        <div className="mt-4 border-t border-blue-200 pt-4 space-y-3">
+                            <p className="text-blue-700 font-body text-xs font-semibold">Siga os passos:</p>
+                            <ol className="list-decimal list-inside text-blue-700 font-body text-xs space-y-1">
+                                <li>
+                                    Abra o bot:{' '}
+                                    <a href={telegramBotLink} target="_blank" rel="noopener noreferrer" className="underline font-semibold">
+                                        @{telegramBotUsername}
+                                    </a>
+                                </li>
+                                <li>Envie <strong>/start</strong> para o bot</li>
+                                <li>Copie o número que ele responder</li>
+                                <li>Cole abaixo e clique em Salvar</li>
+                            </ol>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={telegramInput}
+                                    onChange={(e) => setTelegramInput(e.target.value.replace(/\D/g, ''))}
+                                    placeholder="Cole seu ID aqui (ex: 123456789)"
+                                    className="flex-1 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-body text-hotel-blue focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                />
+                                <button
+                                    onClick={async () => {
+                                        const chatId = telegramInput.trim();
+                                        if (!chatId || !/^\d+$/.test(chatId)) {
+                                            addNotification('ID inválido. Cole apenas os números que o bot enviou.', 'error');
+                                            return;
+                                        }
+                                        setTelegramSaving(true);
+                                        try {
+                                            await updateTelegramChatId(chatId);
+                                            addNotification('Telegram conectado com sucesso! 🎉', 'success');
+                                            setShowTelegramForm(false);
+                                            setTelegramInput('');
+                                        } catch {
+                                            addNotification('Erro ao salvar ID do Telegram. Tente novamente.', 'error');
+                                        } finally {
+                                            setTelegramSaving(false);
+                                        }
+                                    }}
+                                    disabled={telegramSaving || !telegramInput}
+                                    className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold font-body text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                >
+                                    {telegramSaving ? 'Salvando...' : 'Salvar'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+            {currentUserProfile?.telegram_chat_id && (
+                <div className="mb-6 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <Send size={16} className="text-emerald-500" />
+                    <p className="text-emerald-700 font-body text-xs font-semibold">
+                        Telegram conectado — você receberá notificações de novas SIs ✓
+                    </p>
+                </div>
+            )}
 
             {/* Cards de estatísticas */}
             <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
