@@ -1,7 +1,7 @@
 ﻿import { NavLink, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, PlusCircle, History, ChartNoAxesCombined,
-    LogOut, ChevronLeft, ChevronRight, X,
+    LogOut, ChevronLeft, ChevronRight, X, Settings,
 } from 'lucide-react';
 import { useState } from 'react';
 import Logo from '../Logo/Logo';
@@ -23,17 +23,26 @@ const diretoraLinks = [
     { to: '/nova-os', label: 'Nova SI', icon: PlusCircle },
     { to: '/historico', label: 'Histórico', icon: History },
 ];
+const adminLinks = [
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/admin', label: 'Gerenciamento', icon: Settings },
+    { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
+    { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
+    { to: '/nova-os', label: 'Nova SI', icon: PlusCircle },
+];
 
 export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [collapsed, setCollapsed] = useState(false);
 
-    const links = user?.role === UserRole.DIRETORA ? diretoraLinks : liderLinks;
+    const links = user?.role === UserRole.ADMIN ? adminLinks : user?.role === UserRole.DIRETORA ? diretoraLinks : liderLinks;
     const showLabels = !collapsed || mobileMenuOpen;
-    const profileSubtitle = user?.role === UserRole.DIRETORA
-        ? 'Diretora - Financeiro'
-        : user?.role;
+    const profileSubtitle = user?.role === UserRole.ADMIN
+        ? 'Admin'
+        : user?.role === UserRole.DIRETORA
+            ? 'Diretora - Financeiro'
+            : user?.role;
 
     const handleBrandClick = () => {
         navigate('/dashboard');

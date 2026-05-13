@@ -4,6 +4,16 @@ import { StatusOS } from '../models/OrdemDeServico';
 // ─── Usuários (senha fictícia para desenvolvimento) ────────────────────────
 export const USERS = [
     {
+        id: 'u0',
+        firebaseUid: 'sarah_admin_uid',
+        nome: 'Sarah',
+        email: 'sarah@hotelflow.com',
+        telefone: '+558288736580',
+        senha: 'sarah123',
+        role: UserRole.ADMIN,
+        departamentos: [],
+    },
+    {
         id: 'u1',
         firebaseUid: '49eOS1J4RqXKsoSC5tktxQwSTRy1',
         nome: 'Sofia',

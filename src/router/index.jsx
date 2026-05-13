@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import Login from '../pages/Login/Login';
 import DashboardDiretora from '../pages/DashboardDiretora/DashboardDiretora';
 import DashboardLider from '../pages/DashboardLider/DashboardLider';
+import AdminPanel from '../pages/AdminPanel/AdminPanel';
 import FormOS from '../pages/FormOS/FormOS';
 import ListaOS from '../pages/ListaOS/ListaOS';
 import HistoricoOS from '../pages/HistoricoOS/HistoricoOS';
@@ -14,6 +15,7 @@ import PDCAVisualPage from '../pages/PDCAVisualPage/PDCAVisualPage';
 function DashboardRouter() {
     const { user } = useAuth();
     if (!user) return <Navigate to="/login" replace />;
+    if (user.role === UserRole.ADMIN) return <DashboardDiretora />;
     return user.role === UserRole.DIRETORA
         ? <DashboardDiretora />
         : <DashboardLider />;
@@ -73,6 +75,16 @@ export default function AppRouter() {
                 element={
                     <ProtectedRoute allowedRoles={[UserRole.DIRETORA]}>
                         <HistoricoOS />
+                    </ProtectedRoute>
+                }
+            />
+
+            {/* Admin */}
+            <Route
+                path="/admin"
+                element={
+                    <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                        <AdminPanel />
                     </ProtectedRoute>
                 }
             />

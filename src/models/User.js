@@ -1,5 +1,6 @@
 // Modelo de dados: Usuário
 export const UserRole = {
+    ADMIN: 'admin',
     DIRETORA: 'diretora',
     LIDER: 'lider',
 };
@@ -10,7 +11,7 @@ export const UserRole = {
  * @property {string} nome
  * @property {string} email
  * @property {string} senha
- * @property {'diretora'|'lider'} role
+ * @property {'admin'|'diretora'|'lider'} role
  * @property {string[]} departamentos  - departamentos sob responsabilidade do líder
  */
 export function createUser({ id, nome, email, senha, role, departamentos = [] }) {
