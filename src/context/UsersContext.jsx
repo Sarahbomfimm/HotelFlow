@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query, setDoc, updateDoc } from 'firebase/firestore';
 import { USERS } from '../data/mockData';
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { UserRole } from '../models/User';
@@ -29,6 +29,7 @@ function mergeUsersWithFallback(firebaseUsers) {
             id: user.id,
             firebaseUid: user.firebaseUid || user.id,
             telefone: user.telefone || fallbackUser?.telefone || null,
+            telegram_chat_id: user.telegram_chat_id || fallbackUser?.telegram_chat_id || null,
             departamentos: Array.isArray(user.departamentos)
                 ? user.departamentos
                 : fallbackUser?.departamentos || [],
@@ -136,6 +137,7 @@ export function UsersProvider({ children }) {
                     nome: responsavel.nome,
                     email: responsavel.email,
                     telefone: responsavel.telefone || null,
+                    telegram_chat_id: responsavel.telegram_chat_id || null,
                 };
             });
         });
@@ -148,8 +150,36 @@ export function UsersProvider({ children }) {
         [deptLeaderMap],
     );
 
+    const currentUserProfile = useMemo(
+        () => normalizedUsers.find((u) => u.email?.toLowerCase() === user?.email?.toLowerCase()) || null,
+        [normalizedUsers, user],
+    );
+
+    const updateTelegramChatId = useCallback(async (chatId) => {
+        // Atualiza estado local imediatamente
+        setUsers((prev) =>
+            prev.map((u) =>
+                u.email?.toLowerCase() === user?.email?.toLowerCase()
+                    ? { ...u, telegram_chat_id: chatId }
+                    : u,
+            ),
+        );
+
+        if (!isFirebaseConfigured || !db || !user) return;
+
+        const docId = user.firebaseUid || user.id;
+        if (!docId) return;
+
+        try {
+            await updateDoc(doc(db, 'users', docId), { telegram_chat_id: chatId });
+        } catch {
+            // Se doc não existe, cria com merge
+            await setDoc(doc(db, 'users', docId), { telegram_chat_id: chatId }, { merge: true });
+        }
+    }, [user]);
+
     return (
-        <UsersContext.Provider value={{ users: normalizedUsers, lideres, deptLeaderMap, getLeaderByDepartment, loading }}>
+        <UsersContext.Provider value={{ users: normalizedUsers, lideres, deptLeaderMap, getLeaderByDepartment, currentUserProfile, updateTelegramChatId, loading }}>
             {children}
         </UsersContext.Provider>
     );

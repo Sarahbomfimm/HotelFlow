@@ -161,6 +161,7 @@ export default function FormOS() {
                     responsavel_email: responsavel.email,
                     responsavel_nome: responsavel.nome,
                     responsavel_telefone: responsavel.telefone || null,
+                    responsavel_telegram_chat_id: responsavel.telegram_chat_id || null,
                     prazo: toLocalEndOfDayISO(form.prazo),
                     imagem: form.imagem,
                 },

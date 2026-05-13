@@ -15,6 +15,7 @@ import { UserRole } from '../models/User';
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { createUserNotification } from '../services/notifications';
 import { enviarNotificacaoWhatsApp } from '../services/whatsappService';
+import { enviarNotificacaoTelegram } from '../services/telegramService';
 import { deleteFileByUrl, uploadServiceOrderImage } from '../services/storage';
 import { useAuth } from './AuthContext';
 
@@ -195,6 +196,26 @@ export function OSProvider({ children }) {
             } catch (error) {
                 // Nao impede a criacao da SI se o WhatsApp falhar
                 console.warn('Erro ao enviar notificação WhatsApp:', error.message);
+            }
+
+            // Envia notificação via Telegram (se o chat_id estiver configurado)
+            try {
+                if (dados.responsavel_telegram_chat_id) {
+                    await enviarNotificacaoTelegram(
+                        dados.responsavel_telegram_chat_id,
+                        {
+                            titulo: dados.titulo,
+                            descricao: dados.descricao,
+                            departamento: dados.departamento,
+                            prazo: dados.prazo,
+                            criado_em: new Date().toISOString(),
+                        },
+                        dados.responsavel_nome,
+                    );
+                }
+            } catch (error) {
+                // Nao impede a criacao da SI se o Telegram falhar
+                console.warn('Erro ao enviar notificação Telegram:', error.message);
             }
         }
 
