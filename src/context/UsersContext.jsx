@@ -28,6 +28,7 @@ function mergeUsersWithFallback(firebaseUsers) {
             ...user,
             id: user.id,
             firebaseUid: user.firebaseUid || user.id,
+            telefone: user.telefone || fallbackUser?.telefone || null,
             departamentos: Array.isArray(user.departamentos)
                 ? user.departamentos
                 : fallbackUser?.departamentos || [],

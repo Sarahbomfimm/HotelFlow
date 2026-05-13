@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
     ClipboardList, CheckCircle2, Clock, AlertCircle,
-    Users, TrendingUp, Plus, ArrowRight,
+    Users, TrendingUp, ArrowRight,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
@@ -87,16 +87,20 @@ export default function DashboardDiretora() {
 
     // SIs designadas para Sofia no mês atual
     const minhasSIs = useMemo(() => {
-        return ordensMes.filter((os) => os.responsavel_id === user?.id || os.responsavel_uid === user?.firebaseUid);
+        return ordensMes.filter((os) =>
+            os.responsavel_id === user?.id
+            || os.responsavel_uid === user?.firebaseUid
+            || (user?.email && os.responsavel_email?.toLowerCase() === user.email.toLowerCase())
+        );
     }, [ordensMes, user]);
 
     const pdcaBase = tab === 'minhas' ? minhasSIs : ordensMes;
 
     const pdcaStats = useMemo(() => ({
-        [PDCAStep.PLAN]: pdcaBase.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.PLAN).length,
-        [PDCAStep.DO]: pdcaBase.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.DO).length,
-        [PDCAStep.CHECK]: pdcaBase.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.CHECK).length,
-        [PDCAStep.ACT]: pdcaBase.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.ACT).length,
+        [PDCAStep.PLAN]: pdcaBase.filter((o) => o.etapa_pdca === PDCAStep.PLAN).length,
+        [PDCAStep.DO]: pdcaBase.filter((o) => o.etapa_pdca === PDCAStep.DO).length,
+        [PDCAStep.CHECK]: pdcaBase.filter((o) => o.etapa_pdca === PDCAStep.CHECK).length,
+        [PDCAStep.ACT]: pdcaBase.filter((o) => o.etapa_pdca === PDCAStep.ACT).length,
     }), [pdcaBase]);
 
     const base = tab === 'minhas' ? minhasSIs : ordensMes;
@@ -190,16 +194,10 @@ export default function DashboardDiretora() {
             <div className="grid gap-6 lg:grid-cols-3">
                 {/* OS Recentes com filtros */}
                 <div className="lg:col-span-2 card animate-fadeIn">
-                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="mb-4">
                         <h3 className="font-heading font-semibold text-hotel-blue text-base">
                             Solicitações Internas
                         </h3>
-                        <button
-                            onClick={() => navigate('/nova-os')}
-                            className="btn-primary flex w-full items-center justify-center gap-1.5 px-3 py-2 text-xs sm:w-auto"
-                        >
-                            <Plus size={14} /> Nova SI
-                        </button>
                     </div>
 
                     {/* Abas */}
@@ -272,22 +270,30 @@ export default function DashboardDiretora() {
                                 return (
                                     <div
                                         key={os.id}
-                                        className={`flex flex-col gap-3 rounded-lg border p-3 transition-colors hover:bg-hotel-light cursor-pointer sm:flex-row sm:items-center
-                                ${atrasada ? 'border-red-200 bg-red-50/30' : 'border-hotel-gray/50'}`}
+                                        className={`p-4 rounded-xl border transition-colors cursor-pointer
+                                ${atrasada ? 'border-red-200 bg-red-50/40 hover:bg-red-100/50' : 'border-hotel-gray/50 hover:bg-hotel-light'}`}
                                         onClick={() => navigate('/ordens', { state: { expandOsId: os.id } })}
                                     >
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold font-body text-hotel-blue truncate">{os.titulo}</p>
-                                            <p className="text-xs text-hotel-gray-md font-body mt-0.5">
-                                                {os.departamento} · {os.responsavel_nome}
-                                            </p>
-                                        </div>
-                                        <div className="flex flex-col gap-1.5 sm:items-end flex-shrink-0">
-                                            <StatusBadge status={os.status} />
-                                            <PDCABadge etapa={os.etapa_pdca} status={os.status} compact />
-                                            <span className={`text-[11px] font-body ${atrasada ? 'text-red-500 font-semibold' : 'text-hotel-gray-md'}`}>
-                                                {atrasada ? '⚠ Atrasada' : format(parseISO(os.prazo), 'dd/MM/yyyy')}
-                                            </span>
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                                    <StatusBadge status={os.status} />
+                                                    <PDCABadge etapa={os.etapa_pdca} status={os.status} compact />
+                                                    <span className="text-xs text-hotel-gray-md font-body bg-hotel-gray px-2 py-0.5 rounded-full">
+                                                        {os.departamento}
+                                                    </span>
+                                                    {atrasada && (
+                                                        <span className="text-xs text-red-600 font-semibold">⚠ Atrasada</span>
+                                                    )}
+                                                </div>
+
+                                                <p className="font-semibold font-body text-hotel-blue text-sm mt-1">{os.titulo}</p>
+                                                <p className="text-xs text-hotel-gray-md font-body mt-2">
+                                                    Prazo: <strong className={atrasada ? 'text-red-500' : 'text-hotel-blue'}>
+                                                        {format(parseISO(os.prazo), 'dd/MM/yyyy')}
+                                                    </strong>
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                 );
@@ -306,11 +312,11 @@ export default function DashboardDiretora() {
                 </div>
 
                 {/* Resumo por líder */}
-                <div className="card animate-fadeIn">
+                <div className="card animate-fadeIn flex h-full min-h-0 flex-col">
                     <h3 className="font-heading font-semibold text-hotel-blue text-base mb-4 flex items-center gap-2">
                         <Users size={18} /> Resumo por Líder
                     </h3>
-                    <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                    <div className="space-y-3 flex-1 overflow-y-auto pr-1 min-h-0">
                         {lideres.map((lider) => {
                             const total = ordens.filter((o) => o.responsavel_id === lider.id).length;
                             const concl = ordens.filter((o) => o.responsavel_id === lider.id && o.status === StatusOS.CONCLUIDO).length;

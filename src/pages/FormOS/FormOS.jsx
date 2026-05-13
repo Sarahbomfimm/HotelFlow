@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Send, ArrowLeft, CalendarDays, User, Building2, FileText, Upload, X, Loader } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
@@ -35,6 +35,7 @@ export default function FormOS() {
     const [osCriada, setOsCriada] = useState(null);
     const [showAlert, setShowAlert] = useState(false);
     const [submitError, setSubmitError] = useState('');
+    const prazoInputRef = useRef(null);
 
     const liderInfo = form.departamento ? getLeaderByDepartment(form.departamento) : null;
 
@@ -42,6 +43,20 @@ export default function FormOS() {
         setForm((prev) => ({ ...prev, [field]: e.target.value }));
         if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
         if (submitError) setSubmitError('');
+    };
+
+    const abrirSeletorPrazo = () => {
+        const input = prazoInputRef.current;
+        if (!input) return;
+
+        input.focus();
+
+        if (typeof input.showPicker === 'function') {
+            input.showPicker();
+            return;
+        }
+
+        input.click();
     };
     const toLocalEndOfDayISO = (dateString) => {
         const date = new Date(`${dateString}T23:59:59`);
@@ -226,7 +241,7 @@ export default function FormOS() {
                             </label>
                             <select
                                 id="departamento"
-                                className={`input ${errors.departamento ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                className={`input cursor-pointer ${errors.departamento ? 'border-red-400 ring-1 ring-red-300' : ''}`}
                                 value={form.departamento}
                                 onChange={set('departamento')}
                             >
@@ -239,14 +254,15 @@ export default function FormOS() {
                         </div>
 
                         {/* Prazo */}
-                        <div>
+                        <div onClick={abrirSeletorPrazo} className="cursor-pointer">
                             <label className="label" htmlFor="prazo">
                                 <CalendarDays size={14} className="inline mr-1.5" />Prazo
                             </label>
                             <input
+                                ref={prazoInputRef}
                                 id="prazo"
                                 type="date"
-                                className={`input ${errors.prazo ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                className={`input cursor-pointer ${errors.prazo ? 'border-red-400 ring-1 ring-red-300' : ''}`}
                                 min={format(new Date(), 'yyyy-MM-dd')}
                                 value={form.prazo}
                                 onChange={set('prazo')}

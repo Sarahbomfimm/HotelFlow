@@ -1,6 +1,6 @@
 ﻿import { NavLink, useNavigate } from 'react-router-dom';
 import {
-    LayoutDashboard, ClipboardList, PlusCircle, History,
+    LayoutDashboard, ClipboardList, PlusCircle, History, ChartNoAxesCombined,
     LogOut, ChevronLeft, ChevronRight, X,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -11,11 +11,15 @@ import { UserRole } from '../../models/User';
 const liderLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/ordens', label: 'Minhas SI', icon: ClipboardList },
+    { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
+    { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/nova-os', label: 'Nova SI', icon: PlusCircle },
 ];
 const diretoraLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
+    { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
+    { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/nova-os', label: 'Nova SI', icon: PlusCircle },
     { to: '/historico', label: 'Histórico', icon: History },
 ];
@@ -106,6 +110,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
                     <NavLink
                         key={to}
                         to={to}
+                        end={to === '/ordens'}
                         onClick={() => onCloseMobile?.()}
                         className={({ isActive }) =>
                             `sidebar-link ${isActive ? 'active' : ''} ${collapsed ? 'lg:justify-center lg:px-2' : ''}`

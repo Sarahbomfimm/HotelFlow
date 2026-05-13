@@ -80,13 +80,21 @@ export default function DashboardLider() {
     );
 
     const minhasSIs = useMemo(
-        () => ordensMes.filter((o) => o.responsavel_id === user?.id || o.responsavel_uid === user?.firebaseUid),
+        () => ordensMes.filter((o) =>
+            o.responsavel_id === user?.id
+            || o.responsavel_uid === user?.firebaseUid
+            || (user?.email && o.responsavel_email?.toLowerCase() === user.email.toLowerCase())
+        ),
         [ordensMes, user],
     );
 
     const abertosPorMim = useMemo(
         () => ordensMes.filter(
-            (o) => (o.criado_por_id === user?.id || o.criado_por_id === user?.firebaseUid)
+            (o) => (
+                o.criado_por_id === user?.id
+                || o.criado_por_uid === user?.firebaseUid
+                || (user?.email && o.criado_por_email?.toLowerCase() === user.email.toLowerCase())
+            )
                 && o.responsavel_id !== user?.id
                 && o.responsavel_uid !== user?.firebaseUid,
         ),
@@ -101,10 +109,10 @@ export default function DashboardLider() {
     }), [minhasSIs]);
 
     const pdcaStats = useMemo(() => ({
-        [PDCAStep.PLAN]: minhasSIs.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.PLAN).length,
-        [PDCAStep.DO]: minhasSIs.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.DO).length,
-        [PDCAStep.CHECK]: minhasSIs.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.CHECK).length,
-        [PDCAStep.ACT]: minhasSIs.filter((o) => o.status !== StatusOS.ABERTO && o.etapa_pdca === PDCAStep.ACT).length,
+        [PDCAStep.PLAN]: minhasSIs.filter((o) => o.etapa_pdca === PDCAStep.PLAN).length,
+        [PDCAStep.DO]: minhasSIs.filter((o) => o.etapa_pdca === PDCAStep.DO).length,
+        [PDCAStep.CHECK]: minhasSIs.filter((o) => o.etapa_pdca === PDCAStep.CHECK).length,
+        [PDCAStep.ACT]: minhasSIs.filter((o) => o.etapa_pdca === PDCAStep.ACT).length,
     }), [minhasSIs]);
 
     // OS urgentes (prazo em até 2 dias, não concluídas)
@@ -248,7 +256,10 @@ export default function DashboardLider() {
                                             return (
                                                 <div
                                                     key={os.id}
-                                                    onClick={() => navigate('/ordens', { state: { expandOsId: os.id } })}
+                                                    onClick={() => navigate(
+                                                        tab === 'minhas' ? '/ordens' : '/ordens/abertas-por-mim',
+                                                        { state: { expandOsId: os.id, onlyMine: tab === 'minhas', onlyCreatedByMe: tab === 'abertas' } },
+                                                    )}
                                                     className={`p-4 rounded-xl border transition-colors cursor-pointer
                                         ${atrasada ? 'border-red-200 bg-red-50/40 hover:bg-red-100/50' : 'border-hotel-gray/50 hover:bg-hotel-light'}`}
                                                 >
@@ -260,26 +271,17 @@ export default function DashboardLider() {
                                                                 <span className="text-xs text-hotel-gray-md font-body bg-hotel-gray px-2 py-0.5 rounded-full">
                                                                     {os.departamento}
                                                                 </span>
-                                                                {tab === 'abertas' && (
-                                                                    <span className="text-xs text-hotel-gray-md font-body">
-                                                                        → {os.responsavel_nome}
-                                                                    </span>
-                                                                )}
                                                                 {atrasada && (
                                                                     <span className="text-xs text-red-600 font-semibold">⚠ Atrasada</span>
                                                                 )}
                                                             </div>
                                                             <p className="font-semibold font-body text-hotel-blue text-sm mt-1">{os.titulo}</p>
-                                                            <p className="text-xs text-hotel-gray-md font-body mt-1 line-clamp-2">{os.descricao}</p>
                                                             <p className="text-xs text-hotel-gray-md font-body mt-2">
                                                                 Prazo: <strong className={atrasada ? 'text-red-500' : 'text-hotel-blue'}>
                                                                     {format(parseISO(os.prazo), 'dd/MM/yyyy')}
                                                                 </strong>
                                                             </p>
                                                         </div>
-                                                        {podeAtualizar && nextStatus[os.status] === StatusOS.CONCLUIDO && (
-                                                            <PDCABadge etapa={os.etapa_pdca} status={os.status} />
-                                                        )}
                                                         {podeAtualizar && (
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); solicitarStatus(os, nextStatus[os.status]); }}
@@ -318,7 +320,7 @@ export default function DashboardLider() {
                                     return (
                                         <button
                                             key={os.id}
-                                            onClick={() => navigate('/ordens', { state: { expandOsId: os.id } })}
+                                            onClick={() => navigate('/ordens', { state: { expandOsId: os.id, onlyMine: true } })}
                                             className={`w-full text-left p-3 rounded-lg border-l-4 transition-all hover:shadow-card cursor-pointer
                                                     ${atrasada ? 'border-red-400 bg-red-50 hover:bg-red-100' : 'border-amber-400 bg-amber-50 hover:bg-amber-100'}`}
                                         >

@@ -8,7 +8,7 @@ const classes = {
 };
 
 export default function PDCABadge({ etapa, status, compact = false }) {
-    if (!etapa || status === 'aberto') return null;
+    if (!etapa) return null;
 
     return (
         <span

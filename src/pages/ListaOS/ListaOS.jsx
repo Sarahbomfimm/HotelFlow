@@ -1,8 +1,8 @@
-﻿import { useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-    Search, Filter, ChevronDown, ChevronUp, Trash2,
-    Edit3, Clock3, Plus, ArrowLeft, CalendarRange, Image as ImageIcon,
+    Search, Filter, ChevronDown, ChevronUp, Trash2, X,
+    Edit3, Clock3, ArrowLeft, CalendarRange, Image as ImageIcon,
     Download,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
@@ -20,6 +20,107 @@ import { UserRole } from '../../models/User';
 import { StatusOS, StatusLabel, DEPARTAMENTOS, PDCAStep, PDCALabel } from '../../models/OrdemDeServico';
 import { format, isPast, parseISO, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+
+function MultiSelectFilter({
+    title,
+    selectedValues,
+    options,
+    onToggle,
+    onClear,
+}) {
+    const [open, setOpen] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        if (!open) {
+            return undefined;
+        }
+
+        const handlePointerDown = (event) => {
+            if (!containerRef.current?.contains(event.target)) {
+                setOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handlePointerDown);
+        document.addEventListener('touchstart', handlePointerDown);
+
+        return () => {
+            document.removeEventListener('mousedown', handlePointerDown);
+            document.removeEventListener('touchstart', handlePointerDown);
+        };
+    }, [open]);
+
+    const selectedLabels = options
+        .filter((option) => selectedValues.includes(option.value))
+        .map((option) => option.label);
+
+    const buttonLabel = selectedLabels.length === 0
+        ? title
+        : selectedLabels.length === 1
+            ? selectedLabels[0]
+            : `${selectedLabels.length} selecionados`;
+
+    return (
+        <div ref={containerRef} className="relative w-full sm:w-auto">
+            <button
+                type="button"
+                onClick={() => setOpen((value) => !value)}
+                className="input w-full cursor-pointer py-2 text-sm sm:w-auto min-w-[190px] text-left"
+            >
+                <div className="flex items-center justify-between gap-2">
+                    <span className="truncate">{buttonLabel}</span>
+                    <ChevronDown size={14} className={`flex-shrink-0 text-hotel-gray-md transition-transform ${open ? 'rotate-180' : ''}`} />
+                </div>
+            </button>
+
+            {open && (
+                <div className="absolute z-30 mt-1 max-h-64 w-full min-w-[230px] overflow-auto rounded-xl border border-hotel-gray/60 bg-white p-2 shadow-card">
+                    <div className="mb-1 flex items-center justify-between px-1">
+                        <span className="text-[11px] font-semibold text-hotel-blue font-body">Marque uma ou mais opções</span>
+                        <button
+                            type="button"
+                            onClick={() => setOpen(false)}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full text-hotel-gray-md transition-colors hover:bg-red-50 hover:text-red-500"
+                            aria-label="Fechar filtro"
+                        >
+                            <X size={12} />
+                        </button>
+                    </div>
+                    <div className="mb-1 px-1">
+                        {selectedValues.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={onClear}
+                                className="text-[11px] text-hotel-gray-md transition-colors hover:text-red-500"
+                            >
+                                Limpar seleção
+                            </button>
+                        )}
+                    </div>
+                    <div className="space-y-1">
+                        {options.map((option) => (
+                            <label
+                                key={option.value}
+                                className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-body text-hotel-blue hover:bg-hotel-light"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedValues.includes(option.value)}
+                                    onChange={() => onToggle(option.value)}
+                                    className="h-3.5 w-3.5 rounded border-hotel-gray"
+                                />
+                                <span>{option.label}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 const nextStatus = {
     [StatusOS.ABERTO]: StatusOS.EM_ANDAMENTO,
@@ -38,27 +139,49 @@ export default function ListaOS() {
     const navigate = useNavigate();
     const location = useLocation();
     const isDiretora = user?.role === UserRole.DIRETORA;
+    const isAbertasPorMimRoute = location.pathname === '/ordens/abertas-por-mim';
 
     // Inicializa filtros a partir de state passado pelo dashboard
     const locState = location.state || {};
     const isPdcaOnlyNavigation = Boolean(locState.pdcaOnly && locState.filterPdca);
     const shouldShowOnlyOverdue = Boolean(locState.onlyOverdue);
     const shouldShowOnlyCurrentMonth = Boolean(locState.onlyCurrentMonth);
+    const shouldShowOnlyCreatedByMe = Boolean(locState.onlyCreatedByMe || isAbertasPorMimRoute);
 
     const [search, setSearch] = useState('');
-    const [filterStatus, setFilterStatus] = useState(isPdcaOnlyNavigation ? '' : (locState.filterStatus || ''));
-    const [filterPdca, setFilterPdca] = useState(locState.filterPdca || '');
-    const [filterLider, setFilterLider] = useState(locState.filterLider || '');
-    const [filterDept, setFilterDept] = useState('');
-    const [prazoInicio, setPrazoInicio] = useState('');
-    const [prazoFim, setPrazoFim] = useState('');
+    const [filterStatus, setFilterStatus] = useState(isPdcaOnlyNavigation ? [] : (locState.filterStatus ? [locState.filterStatus] : []));
+    const [filterPdca, setFilterPdca] = useState(locState.filterPdca ? [locState.filterPdca] : []);
+    const [filterLider, setFilterLider] = useState(
+        Array.isArray(locState.filterLider)
+            ? locState.filterLider
+            : (locState.filterLider ? [locState.filterLider] : []),
+    );
+    const [filterDept, setFilterDept] = useState([]);
+    const [prazoRange, setPrazoRange] = useState([null, null]);
+    const [prazoInicio, prazoFim] = prazoRange;
     const [expanded, setExpanded] = useState(locState.expandOsId || null);
     const [toDelete, setToDelete] = useState(null);
     const [toEdit, setToEdit] = useState(null);
-    const [sortDir, setSortDir] = useState('asc');
+    const cardRefs = useRef({});
     // Modal de observação ao mudar status
     const [obsModal, setObsModal] = useState({ open: false, os: null, novoStatus: null });
     const [adicionarObsModal, setAdicionarObsModal] = useState({ open: false, os: null });
+
+    useEffect(() => {
+        if (!locState.expandOsId) {
+            return;
+        }
+
+        // Ao abrir uma SI específica vinda de cards, limpa filtros antigos
+        // para garantir que o item clicado fique visível e expandido.
+        setSearch('');
+        setFilterStatus([]);
+        setFilterPdca([]);
+        setFilterLider([]);
+        setFilterDept([]);
+        setPrazoRange([null, null]);
+        setExpanded(locState.expandOsId);
+    }, [locState.expandOsId]);
 
     const base = useMemo(() =>
         isDiretora ? ordens : getOSPorLider(user?.departamentos || [], user),
@@ -67,13 +190,21 @@ export default function ListaOS() {
 
     const filtered = useMemo(() => {
         return base
-            .filter((o) => isPdcaOnlyNavigation || !filterStatus || o.status === filterStatus)
-            .filter((o) => !filterPdca || (o.status !== StatusOS.ABERTO && o.etapa_pdca === filterPdca))
-            .filter((o) => !filterLider || o.responsavel_id === filterLider)
-            .filter((o) => !filterDept || o.departamento === filterDept)
+            .filter((o) => isPdcaOnlyNavigation || filterStatus.length === 0 || filterStatus.includes(o.status))
+            .filter((o) => filterPdca.length === 0 || filterPdca.includes(o.etapa_pdca))
+            .filter((o) => filterLider.length === 0 || filterLider.includes(o.responsavel_id))
+            .filter((o) => filterDept.length === 0 || filterDept.includes(o.departamento))
             .filter((o) => {
                 if (!locState.onlyMine) return true;
-                return o.responsavel_id === user?.id || o.responsavel_uid === user?.firebaseUid;
+                return o.responsavel_id === user?.id
+                    || o.responsavel_uid === user?.firebaseUid
+                    || (user?.email && o.responsavel_email?.toLowerCase() === user.email.toLowerCase());
+            })
+            .filter((o) => {
+                if (!shouldShowOnlyCreatedByMe) return true;
+                return o.criado_por_id === user?.id
+                    || o.criado_por_uid === user?.firebaseUid
+                    || (user?.email && o.criado_por_email?.toLowerCase() === user.email.toLowerCase());
             })
             .filter((o) => {
                 if (!shouldShowOnlyCurrentMonth) return true;
@@ -85,11 +216,10 @@ export default function ListaOS() {
             })
             .filter((o) => {
                 if (!prazoInicio) return true;
-                return new Date(o.prazo) >= new Date(prazoInicio);
+                return new Date(o.prazo) >= prazoInicio;
             })
             .filter((o) => {
                 if (!prazoFim) return true;
-                // Inclui o dia inteiro do fim
                 const fim = new Date(prazoFim);
                 fim.setHours(23, 59, 59, 999);
                 return new Date(o.prazo) <= fim;
@@ -105,8 +235,7 @@ export default function ListaOS() {
                 );
             })
             .sort((a, b) => {
-                const diff = new Date(a.prazo) - new Date(b.prazo);
-                return sortDir === 'asc' ? diff : -diff;
+                return new Date(a.prazo) - new Date(b.prazo);
             });
     }, [
         base,
@@ -117,13 +246,35 @@ export default function ListaOS() {
         prazoInicio,
         prazoFim,
         search,
-        sortDir,
         locState.onlyMine,
         isPdcaOnlyNavigation,
         shouldShowOnlyCurrentMonth,
+        shouldShowOnlyCreatedByMe,
         shouldShowOnlyOverdue,
         user,
     ]);
+
+    useEffect(() => {
+        if (!expanded) {
+            return;
+        }
+
+        const target = cardRefs.current[expanded];
+        if (!target) {
+            return;
+        }
+
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, [expanded, filtered]);
+
+    const toggleInFilter = (setter, currentValues, value) => {
+        if (currentValues.includes(value)) {
+            setter(currentValues.filter((item) => item !== value));
+            return;
+        }
+
+        setter([...currentValues, value]);
+    };
 
     // Abre modal de observação antes de confirmar mudança de status
     const solicitarStatusChange = async (os, status) => {
@@ -165,13 +316,17 @@ export default function ListaOS() {
     };
 
     const clearFilters = () => {
-        setSearch(''); setFilterStatus(''); setFilterPdca(''); setFilterLider('');
-        setFilterDept(''); setPrazoInicio(''); setPrazoFim('');
+        setSearch(''); setFilterStatus([]); setFilterPdca([]); setFilterLider([]);
+        setFilterDept([]); setPrazoRange([null, null]);
     };
-    const hasFilters = search || filterStatus || filterPdca || filterLider || filterDept || prazoInicio || prazoFim;
+    const hasFilters = search || filterStatus.length > 0 || filterPdca.length > 0 || filterLider.length > 0 || filterDept.length > 0 || prazoInicio || prazoFim;
+
+    const pageTitle = isDiretora
+        ? 'Todas as Solicitações Internas'
+        : (shouldShowOnlyCreatedByMe ? 'SIs Abertas por Mim' : 'Minhas Solicitações Internas');
 
     return (
-        <AppLayout pageTitle={isDiretora ? 'Todas as Solicitações Internas' : 'Minhas Solicitações Internas'}>
+        <AppLayout pageTitle={pageTitle}>
             <div className="animate-fadeIn">
                 {ordensError && (
                     <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-body text-red-700">
@@ -203,62 +358,46 @@ export default function ListaOS() {
                     </div>
 
                     {/* Filtros — somente diretora vê filtro por líder */}
-                    <select
-                        value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value)}
-                        className="input w-full py-2 text-sm sm:w-auto"
-                    >
-                        <option value="">Todos os status</option>
-                        {Object.entries(StatusLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                    </select>
+                    <MultiSelectFilter
+                        title="Todos os status"
+                        selectedValues={filterStatus}
+                        options={Object.entries(StatusLabel).map(([k, v]) => ({ value: k, label: v }))}
+                        onToggle={(value) => toggleInFilter(setFilterStatus, filterStatus, value)}
+                        onClear={() => setFilterStatus([])}
+                    />
 
-                    <select
-                        value={filterPdca}
-                        onChange={(e) => setFilterPdca(e.target.value)}
-                        className="input w-full py-2 text-sm sm:w-auto"
-                    >
-                        <option value="">Todas as etapas PDCA</option>
-                        {Object.entries(PDCALabel).map(([k, v]) => <option key={k} value={k}>{k} - {v}</option>)}
-                    </select>
+                    <MultiSelectFilter
+                        title="Todas as etapas PDCA"
+                        selectedValues={filterPdca}
+                        options={Object.entries(PDCALabel).map(([k, v]) => ({ value: k, label: `${k} - ${v}` }))}
+                        onToggle={(value) => toggleInFilter(setFilterPdca, filterPdca, value)}
+                        onClear={() => setFilterPdca([])}
+                    />
 
                     {isDiretora && (
-                        <select
-                            value={filterLider}
-                            onChange={(e) => setFilterLider(e.target.value)}
-                            className="input w-full py-2 text-sm sm:w-auto"
-                        >
-                            <option value="">Todos os líderes</option>
-                            {lideres.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
-                        </select>
+                        <MultiSelectFilter
+                            title="Todos os líderes"
+                            selectedValues={filterLider}
+                            options={lideres.map((lider) => ({ value: lider.id, label: lider.nome }))}
+                            onToggle={(value) => toggleInFilter(setFilterLider, filterLider, value)}
+                            onClear={() => setFilterLider([])}
+                        />
                     )}
 
-                    <select
-                        value={filterDept}
-                        onChange={(e) => setFilterDept(e.target.value)}
-                        className="input w-full py-2 text-sm sm:w-auto"
-                    >
-                        <option value="">Todos os depto.</option>
-                        {DEPARTAMENTOS.map((d) => <option key={d} value={d}>{d}</option>)}
-                    </select>
-
-                    <button
-                        onClick={() => setSortDir((v) => v === 'asc' ? 'desc' : 'asc')}
-                        className="btn-secondary flex w-full items-center justify-center gap-1.5 px-3 py-2 text-sm sm:w-auto"
-                        title="Ordenar por prazo"
-                    >
-                        <Clock3 size={15} />
-                        {sortDir === 'asc' ? 'Prazo ↑' : 'Prazo ↓'}
-                    </button>
+                    <MultiSelectFilter
+                        title="Todos os depto."
+                        selectedValues={filterDept}
+                        options={DEPARTAMENTOS.map((departamento) => ({ value: departamento, label: departamento }))}
+                        onToggle={(value) => toggleInFilter(setFilterDept, filterDept, value)}
+                        onClear={() => setFilterDept([])}
+                    />
 
                     {hasFilters && (
-                        <button onClick={clearFilters} className="text-left text-sm text-hotel-gray-md transition-colors hover:text-red-500 sm:text-center">
+                        <button
+                            onClick={clearFilters}
+                            className="inline-flex items-center justify-center rounded-full border border-hotel-gray/70 bg-hotel-light px-3 py-1.5 text-xs font-semibold text-hotel-blue transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+                        >
                             Limpar filtros
-                        </button>
-                    )}
-
-                    {isDiretora && (
-                        <button onClick={() => navigate('/nova-os')} className="btn-primary flex w-full items-center justify-center gap-2 px-4 py-2 text-sm sm:w-auto">
-                            <Plus size={16} /> Nova SI
                         </button>
                     )}
                 </div>
@@ -268,29 +407,21 @@ export default function ListaOS() {
                     <span className="flex items-center gap-1.5 text-xs font-semibold text-hotel-blue font-body">
                         <CalendarRange size={14} /> Período do Prazo:
                     </span>
-                    <div className="flex items-center gap-2">
-                        <label className="text-xs text-hotel-gray-md font-body">De</label>
-                        <input
-                            type="date"
-                            className="input w-full py-1.5 text-xs sm:w-auto"
-                            value={prazoInicio}
-                            onChange={(e) => setPrazoInicio(e.target.value)}
-                        />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <label className="text-xs text-hotel-gray-md font-body">Até</label>
-                        <input
-                            type="date"
-                            className="input w-full py-1.5 text-xs sm:w-auto"
-                            min={prazoInicio || undefined}
-                            value={prazoFim}
-                            onChange={(e) => setPrazoFim(e.target.value)}
-                        />
-                    </div>
+                    <DatePicker
+                        selectsRange
+                        startDate={prazoInicio}
+                        endDate={prazoFim}
+                        onChange={(update) => setPrazoRange(update)}
+                        isClearable
+                        dateFormat="dd/MM/yyyy"
+                        locale={ptBR}
+                        className="input w-full py-1.5 text-xs sm:w-[260px]"
+                        placeholderText="Selecione o período do prazo"
+                    />
                     {(prazoInicio || prazoFim) && (
                         <button
-                            onClick={() => { setPrazoInicio(''); setPrazoFim(''); }}
-                            className="text-xs text-hotel-gray-md hover:text-red-500 transition-colors"
+                            onClick={() => setPrazoRange([null, null])}
+                            className="inline-flex items-center justify-center rounded-full border border-hotel-gray/70 bg-hotel-light px-3 py-1.5 text-xs font-semibold text-hotel-blue transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500"
                         >
                             Limpar período
                         </button>
@@ -317,10 +448,21 @@ export default function ListaOS() {
                             const isExpanded = expanded === os.id;
                             const isResponsavel = user?.id === os.responsavel_id || user?.firebaseUid === os.responsavel_uid;
                             const podeAtualizar = os.status !== StatusOS.CONCLUIDO && isResponsavel;
+                            const isCriador =
+                                user?.id === os.criado_por_id
+                                || user?.firebaseUid === os.criado_por_uid
+                                || user?.email?.toLowerCase() === os.criado_por_email?.toLowerCase();
+                            const podeEditar = isDiretora || isCriador;
+                            const podeExcluir = isCriador;
 
                             return (
                                 <div
                                     key={os.id}
+                                    ref={(element) => {
+                                        if (element) {
+                                            cardRefs.current[os.id] = element;
+                                        }
+                                    }}
                                     className={`card transition-all duration-200 ${atrasada ? 'border-red-200' : ''}`}
                                 >
                                     {/* Linha principal */}
@@ -347,9 +489,6 @@ export default function ListaOS() {
 
                                         {/* Ações */}
                                         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-shrink-0 sm:justify-end">
-                                            {podeAtualizar && nextStatus[os.status] === StatusOS.CONCLUIDO && (
-                                                <PDCABadge etapa={os.etapa_pdca} status={os.status} />
-                                            )}
                                             {podeAtualizar && (
                                                 <button
                                                     onClick={() => solicitarStatusChange(os, nextStatus[os.status])}
@@ -358,7 +497,7 @@ export default function ListaOS() {
                                                     {nextLabel[os.status]}
                                                 </button>
                                             )}
-                                            {isDiretora && (
+                                            {podeEditar && (
                                                 <button
                                                     onClick={() => setToEdit(os)}
                                                     className="p-1.5 rounded-lg text-hotel-gray-md hover:text-hotel-blue hover:bg-hotel-light transition-colors"
@@ -367,7 +506,7 @@ export default function ListaOS() {
                                                     <Edit3 size={15} />
                                                 </button>
                                             )}
-                                            {isDiretora && (
+                                            {podeExcluir && (
                                                 <button
                                                     onClick={() => setToDelete(os)}
                                                     className="p-1.5 rounded-lg text-hotel-gray-md hover:text-red-500 hover:bg-red-50 transition-colors"

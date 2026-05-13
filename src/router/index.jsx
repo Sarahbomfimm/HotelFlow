@@ -9,6 +9,7 @@ import DashboardLider from '../pages/DashboardLider/DashboardLider';
 import FormOS from '../pages/FormOS/FormOS';
 import ListaOS from '../pages/ListaOS/ListaOS';
 import HistoricoOS from '../pages/HistoricoOS/HistoricoOS';
+import PDCAVisualPage from '../pages/PDCAVisualPage/PDCAVisualPage';
 
 function DashboardRouter() {
     const { user } = useAuth();
@@ -38,6 +39,22 @@ export default function AppRouter() {
                 element={
                     <ProtectedRoute>
                         <ListaOS />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/ordens/abertas-por-mim"
+                element={
+                    <ProtectedRoute>
+                        <ListaOS />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/pdca-visual"
+                element={
+                    <ProtectedRoute>
+                        <PDCAVisualPage />
                     </ProtectedRoute>
                 }
             />

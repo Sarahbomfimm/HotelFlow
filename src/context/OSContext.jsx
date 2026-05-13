@@ -20,6 +20,26 @@ import { useAuth } from './AuthContext';
 
 const OSContext = createContext(null);
 
+function toIsoDate(value) {
+    if (!value) {
+        return new Date().toISOString();
+    }
+
+    if (typeof value === 'string') {
+        return value;
+    }
+
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+
+    if (typeof value?.toDate === 'function') {
+        return value.toDate().toISOString();
+    }
+
+    return new Date(value).toISOString();
+}
+
 function normalizeOrder(id, data) {
     return {
         id,
@@ -30,11 +50,13 @@ function normalizeOrder(id, data) {
         responsavel_uid: data.responsavel_uid || '',
         responsavel_email: data.responsavel_email || '',
         responsavel_nome: data.responsavel_nome || '',
-        prazo: data.prazo || new Date().toISOString(),
+        prazo: toIsoDate(data.prazo),
         status: data.status || StatusOS.ABERTO,
         etapa_pdca: data.etapa_pdca || PDCAStep.PLAN,
-        historico: Array.isArray(data.historico) ? data.historico : [],
-        criado_em: data.criado_em || new Date().toISOString(),
+        historico: Array.isArray(data.historico)
+            ? data.historico.map((entry) => ({ ...entry, data: toIsoDate(entry?.data) }))
+            : [],
+        criado_em: toIsoDate(data.criado_em),
         criado_por_id: data.criado_por_id || '',
         criado_por_uid: data.criado_por_uid || '',
         criado_por_email: data.criado_por_email || '',
@@ -86,10 +108,10 @@ export function OSProvider({ children }) {
 
     /** Cria uma nova OS */
     const criarOS = useCallback(async (dados, autor) => {
-        console.log('[criarOS] chamado com dados:', dados);
         const novaOS = {
             ...dados,
             status: StatusOS.ABERTO,
+            etapa_pdca: PDCAStep.PLAN,
             criado_em: new Date().toISOString(),
             criado_por_id: autor.id,
             criado_por_uid: autor.firebaseUid || autor.id,
@@ -244,13 +266,19 @@ export function OSProvider({ children }) {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
-        // Validação de segurança: apenas Diretora pode editar
-        if (usuario.role !== UserRole.DIRETORA) {
-            throw new Error('Apenas a Diretora pode editar uma solicitação interna.');
+        // Diretora pode editar qualquer SI; demais usuários apenas as criadas por si mesmos.
+        const isDiretora = usuario?.role === UserRole.DIRETORA;
+        const isCriador =
+            usuario?.id === os.criado_por_id
+            || usuario?.firebaseUid === os.criado_por_uid
+            || usuario?.email?.toLowerCase() === os.criado_por_email?.toLowerCase();
+
+        if (!isDiretora && !isCriador) {
+            throw new Error('Apenas a Diretora ou quem criou esta SI pode editá-la.');
         }
 
         const campos = Object.keys(atualizacoes)
-            .filter((campo) => !['imagem'].includes(campo))
+            .filter((campo) => !['imagem', 'responsavel_id', 'responsavel_uid', 'responsavel_email'].includes(campo))
             .map((campo) => {
                 const labels = { titulo: 'Título', descricao: 'Descrição', departamento: 'Departamento', prazo: 'Prazo', responsavel_nome: 'Responsável', etapa_pdca: 'Etapa PDCA' };
                 return labels[campo] || campo;
@@ -322,9 +350,16 @@ export function OSProvider({ children }) {
     const excluirOS = useCallback(async (osId, usuario) => {
         const os = ordens.find((item) => item.id === osId);
 
-        // Validação de segurança: apenas Diretora pode deletar
-        if (usuario?.role !== UserRole.DIRETORA) {
-            throw new Error('Apenas a Diretora pode deletar uma solicitação interna.');
+        if (!os) return;
+
+        // Validação de segurança: apenas quem criou pode excluir
+        const isCriador =
+            usuario?.id === os.criado_por_id
+            || usuario?.firebaseUid === os.criado_por_uid
+            || usuario?.email?.toLowerCase() === os.criado_por_email?.toLowerCase();
+
+        if (!isCriador) {
+            throw new Error('Apenas quem criou esta SI pode excluí-la.');
         }
 
         if (!isFirebaseConfigured || !db) {
@@ -347,7 +382,14 @@ export function OSProvider({ children }) {
         (departamentos, usuario) =>
             ordens.filter((os) =>
                 departamentos.includes(os.departamento) ||
-                (usuario && (os.criado_por_id === usuario.id || os.criado_por_id === usuario.firebaseUid))
+                (usuario && (
+                    os.criado_por_id === usuario.id
+                    || os.criado_por_uid === usuario.firebaseUid
+                    || (usuario.email && os.criado_por_email?.toLowerCase() === usuario.email.toLowerCase())
+                    || os.responsavel_id === usuario.id
+                    || os.responsavel_uid === usuario.firebaseUid
+                    || (usuario.email && os.responsavel_email?.toLowerCase() === usuario.email.toLowerCase())
+                ))
             ),
         [ordens],
     );
