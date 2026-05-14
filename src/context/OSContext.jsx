@@ -200,9 +200,19 @@ export function OSProvider({ children }) {
 
             // Envia notificação via Telegram (se o chat_id estiver configurado)
             try {
+                const telegramDestinos = new Set();
                 if (dados.responsavel_telegram_chat_id) {
+                    telegramDestinos.add(dados.responsavel_telegram_chat_id);
+                }
+
+                // Regra de teste: SIs do departamento "Teste" também notificam quem criou.
+                if (dados.departamento === 'Teste' && dados.criado_por_telegram_chat_id) {
+                    telegramDestinos.add(dados.criado_por_telegram_chat_id);
+                }
+
+                for (const chatId of telegramDestinos) {
                     await enviarNotificacaoTelegram(
-                        dados.responsavel_telegram_chat_id,
+                        chatId,
                         {
                             titulo: dados.titulo,
                             descricao: dados.descricao,
