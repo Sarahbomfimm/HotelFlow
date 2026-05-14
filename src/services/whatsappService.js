@@ -5,6 +5,8 @@
  * - Electron: chama Twilio diretamente (sem CORS)
  */
 
+import { auth } from './firebase';
+
 const TWILIO_ACCOUNT_SID = import.meta.env.VITE_TWILIO_ACCOUNT_SID?.trim();
 const TWILIO_AUTH_TOKEN = import.meta.env.VITE_WHATSAPP_API_TOKEN?.trim();
 const WHATSAPP_FROM = import.meta.env.VITE_WHATSAPP_PHONE_NUMBER?.trim();
@@ -45,9 +47,19 @@ export async function enviarNotificacaoWhatsApp(responsavel, os) {
 }
 
 async function enviarViaServerless(telefone, mensagem) {
+    let idToken = null;
+    try {
+        idToken = await auth?.currentUser?.getIdToken();
+    } catch {
+        idToken = null;
+    }
+
     const response = await fetch('/api/whatsapp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
         body: JSON.stringify({ to: telefone, body: mensagem }),
     });
     const data = await response.json();

@@ -5,6 +5,7 @@
  */
 
 const TELEGRAM_BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN?.trim();
+import { auth } from './firebase';
 
 const isDev = import.meta.env.DEV;
 const isElectron = typeof window !== 'undefined' && window.navigator.userAgent.includes('Electron');
@@ -53,9 +54,19 @@ async function enviarDireto(chatId, text) {
 }
 
 async function enviarViaServerless(chatId, text) {
+    let idToken = null;
+    try {
+        idToken = await auth?.currentUser?.getIdToken();
+    } catch {
+        idToken = null;
+    }
+
     const response = await fetch('/api/telegram-send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
         body: JSON.stringify({ chat_id: chatId, text }),
     });
 
