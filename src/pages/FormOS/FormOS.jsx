@@ -15,7 +15,7 @@ export default function FormOS() {
     const { criarOS } = useOS();
     const { user } = useAuth();
     const { addNotification } = useNotification();
-    const { getLeaderByDepartment, currentUserProfile } = useUsers();
+    const { getLeaderByDepartment } = useUsers();
     const navigate = useNavigate();
     const isDiretora = user?.role === UserRole.DIRETORA;
     const cloudinaryCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim();
@@ -162,7 +162,6 @@ export default function FormOS() {
                     responsavel_nome: responsavel.nome,
                     responsavel_telefone: responsavel.telefone || null,
                     responsavel_telegram_chat_id: responsavel.telegram_chat_id || null,
-                    criado_por_telegram_chat_id: currentUserProfile?.telegram_chat_id || null,
                     prazo: toLocalEndOfDayISO(form.prazo),
                     imagem: form.imagem,
                 },
