@@ -4,7 +4,7 @@ import {
     signInWithEmailAndPassword,
     signOut,
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { USERS } from '../data/mockData';
 import { auth, db, isFirebaseConfigured } from '../services/firebase';
 import { UserRole } from '../models/User';
@@ -58,14 +58,36 @@ async function getFirestoreUserProfile(firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
         const userSnapshot = await getDoc(userRef);
 
-        if (!userSnapshot.exists()) {
+        if (userSnapshot.exists()) {
+            const userData = userSnapshot.data();
+
+            return {
+                id: userSnapshot.id,
+                firebaseUid: firebaseUser.uid,
+                nome: userData.nome || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuario',
+                email: userData.email || firebaseUser.email || '',
+                role: resolveRole(userData.role, userData.email || firebaseUser.email || ''),
+                departamentos: Array.isArray(userData.departamentos) ? userData.departamentos : [],
+            };
+        }
+
+        // Compatibilidade: encontra documentos antigos criados com outro id usando o e-mail.
+        const normalizedEmail = firebaseUser.email?.toLowerCase();
+        if (!normalizedEmail) {
             return null;
         }
 
-        const userData = userSnapshot.data();
+        const usersByEmailQuery = query(collection(db, 'users'), where('email', '==', normalizedEmail));
+        const usersByEmailSnapshot = await getDocs(usersByEmailQuery);
+        if (usersByEmailSnapshot.empty) {
+            return null;
+        }
+
+        const matchedUserDoc = usersByEmailSnapshot.docs[0];
+        const userData = matchedUserDoc.data();
 
         return {
-            id: userSnapshot.id,
+            id: matchedUserDoc.id,
             firebaseUid: firebaseUser.uid,
             nome: userData.nome || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuario',
             email: userData.email || firebaseUser.email || '',
