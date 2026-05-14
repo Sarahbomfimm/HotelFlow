@@ -7,6 +7,31 @@ import { useAuth } from './AuthContext';
 
 const UsersContext = createContext(null);
 
+function getTelegramStorageKey(email) {
+    if (!email) return null;
+    return `hotelflow:telegram_chat_id:${email.toLowerCase()}`;
+}
+
+function readStoredTelegramChatId(email) {
+    if (typeof window === 'undefined') return null;
+    const key = getTelegramStorageKey(email);
+    if (!key) return null;
+    return window.localStorage.getItem(key);
+}
+
+function writeStoredTelegramChatId(email, chatId) {
+    if (typeof window === 'undefined') return;
+    const key = getTelegramStorageKey(email);
+    if (!key) return;
+
+    if (chatId) {
+        window.localStorage.setItem(key, chatId);
+        return;
+    }
+
+    window.localStorage.removeItem(key);
+}
+
 function sanitizeMockUsers() {
     return USERS.map(({ senha: _omit, ...safeUser }) => safeUser);
 }
@@ -156,19 +181,36 @@ export function UsersProvider({ children }) {
     const currentUserProfile = useMemo(() => {
         if (!user) return null;
 
+        const storedTelegramChatId = readStoredTelegramChatId(user.email);
+
         const byUid = normalizedUsers.find(
             (u) => u.firebaseUid === user.firebaseUid || u.id === user.firebaseUid || u.id === user.id,
         );
-        if (byUid) return byUid;
+        if (byUid) {
+            return {
+                ...byUid,
+                telegram_chat_id: byUid.telegram_chat_id || storedTelegramChatId || null,
+            };
+        }
 
-        return normalizedUsers.find((u) => u.email?.toLowerCase() === user.email?.toLowerCase()) || null;
+        const byEmail = normalizedUsers.find((u) => u.email?.toLowerCase() === user.email?.toLowerCase()) || null;
+        if (!byEmail) return null;
+
+        return {
+            ...byEmail,
+            telegram_chat_id: byEmail.telegram_chat_id || storedTelegramChatId || null,
+        };
     }, [normalizedUsers, user]);
 
     const updateTelegramChatId = useCallback(async (chatId) => {
+        writeStoredTelegramChatId(currentUserProfile?.email || user?.email, chatId);
+
         // Atualiza estado local imediatamente
         setUsers((prev) =>
             prev.map((u) =>
-                u.email?.toLowerCase() === user?.email?.toLowerCase()
+                u.id === currentUserProfile?.id
+                    || u.firebaseUid === user?.firebaseUid
+                    || u.email?.toLowerCase() === user?.email?.toLowerCase()
                     ? { ...u, telegram_chat_id: chatId }
                     : u,
             ),
@@ -176,16 +218,30 @@ export function UsersProvider({ children }) {
 
         if (!isFirebaseConfigured || !db || !user) return;
 
-        const docId = user.firebaseUid || user.id;
+        const docId = currentUserProfile?.id || user.firebaseUid || user.id;
         if (!docId) return;
 
         try {
-            await updateDoc(doc(db, 'users', docId), { telegram_chat_id: chatId });
+            await updateDoc(doc(db, 'users', docId), {
+                telegram_chat_id: chatId,
+                email: currentUserProfile?.email || user.email || '',
+                nome: currentUserProfile?.nome || user.nome || '',
+                firebaseUid: user.firebaseUid || user.id || null,
+            });
         } catch {
             // Se doc não existe, cria com merge
-            await setDoc(doc(db, 'users', docId), { telegram_chat_id: chatId }, { merge: true });
+            await setDoc(
+                doc(db, 'users', docId),
+                {
+                    telegram_chat_id: chatId,
+                    email: currentUserProfile?.email || user.email || '',
+                    nome: currentUserProfile?.nome || user.nome || '',
+                    firebaseUid: user.firebaseUid || user.id || null,
+                },
+                { merge: true },
+            );
         }
-    }, [user]);
+    }, [currentUserProfile, user]);
 
     return (
         <UsersContext.Provider value={{ users: normalizedUsers, lideres, deptLeaderMap, getLeaderByDepartment, currentUserProfile, updateTelegramChatId, loading }}>
