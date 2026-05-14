@@ -44,7 +44,7 @@ async function enviarDireto(chatId, text) {
     const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
+        body: JSON.stringify({ chat_id: chatId, text }),
     });
 
     const data = await response.json();
@@ -69,14 +69,14 @@ function montarMensagem(nomeResponsavel, os) {
     const dataAtribuicao = new Date(os.criado_em || new Date()).toLocaleDateString('pt-BR');
 
     return (
-        `🏨 *Nova Solicitação Interna*\n\n` +
-        `Olá *${nomeResponsavel}*! 👋\n\n` +
+        `🏨 Nova Solicitação Interna\n\n` +
+        `Olá ${nomeResponsavel}! 👋\n\n` +
         `Uma nova SI foi atribuída a você:\n\n` +
-        `📋 *${os.titulo}*\n` +
+        `📋 ${os.titulo}\n` +
         `📝 ${os.descricao}\n` +
         `🏢 Departamento: ${os.departamento}\n` +
         `📅 Prazo: ${dataPrazo}\n` +
         `🗓️ Criada em: ${dataAtribuicao}\n\n` +
-        `Acesse o *HotelFlow* para mais detalhes.`
+        `Acesse o HotelFlow para mais detalhes.`
     );
 }
