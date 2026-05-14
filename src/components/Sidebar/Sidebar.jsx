@@ -6,6 +6,7 @@ import {
 import { useState } from 'react';
 import Logo from '../Logo/Logo';
 import { useAuth } from '../../context/AuthContext';
+import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
 
 const liderLinks = [
@@ -33,16 +34,19 @@ const adminLinks = [
 
 export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const { user, logout } = useAuth();
+    const { currentUserProfile } = useUsers();
     const navigate = useNavigate();
     const [collapsed, setCollapsed] = useState(false);
 
-    const links = user?.role === UserRole.ADMIN ? adminLinks : user?.role === UserRole.DIRETORA ? diretoraLinks : liderLinks;
+    const displayUser = currentUserProfile || user;
+
+    const links = displayUser?.role === UserRole.ADMIN ? adminLinks : displayUser?.role === UserRole.DIRETORA ? diretoraLinks : liderLinks;
     const showLabels = !collapsed || mobileMenuOpen;
-    const profileSubtitle = user?.role === UserRole.ADMIN
+    const profileSubtitle = displayUser?.role === UserRole.ADMIN
         ? 'Admin'
-        : user?.role === UserRole.DIRETORA
+        : displayUser?.role === UserRole.DIRETORA
             ? 'Diretora - Financeiro'
-            : user?.role;
+            : displayUser?.role;
 
     const handleBrandClick = () => {
         navigate('/dashboard');
@@ -103,10 +107,10 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-hotel-gold flex items-center justify-center
                             font-heading font-bold text-white text-sm flex-shrink-0">
-                            {user?.nome?.[0]?.toUpperCase()}
+                            {displayUser?.nome?.[0]?.toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                            <p className="text-sm font-semibold font-heading truncate">{user?.nome}</p>
+                            <p className="text-sm font-semibold font-heading truncate">{displayUser?.nome}</p>
                             <p className="text-xs text-white/60 font-body capitalize">{profileSubtitle}</p>
                         </div>
                     </div>

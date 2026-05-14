@@ -23,13 +23,16 @@ function mergeUsersWithFallback(firebaseUsers) {
         }
 
         const fallbackUser = merged.get(emailKey);
+        const hasTelefone = Object.prototype.hasOwnProperty.call(user, 'telefone');
+        const hasTelegramChatId = Object.prototype.hasOwnProperty.call(user, 'telegram_chat_id');
+
         merged.set(emailKey, {
             ...fallbackUser,
             ...user,
             id: user.id,
             firebaseUid: user.firebaseUid || user.id,
-            telefone: user.telefone || fallbackUser?.telefone || null,
-            telegram_chat_id: user.telegram_chat_id || fallbackUser?.telegram_chat_id || null,
+            telefone: hasTelefone ? user.telefone : fallbackUser?.telefone || null,
+            telegram_chat_id: hasTelegramChatId ? user.telegram_chat_id : fallbackUser?.telegram_chat_id || null,
             departamentos: Array.isArray(user.departamentos)
                 ? user.departamentos
                 : fallbackUser?.departamentos || [],
@@ -150,10 +153,16 @@ export function UsersProvider({ children }) {
         [deptLeaderMap],
     );
 
-    const currentUserProfile = useMemo(
-        () => normalizedUsers.find((u) => u.email?.toLowerCase() === user?.email?.toLowerCase()) || null,
-        [normalizedUsers, user],
-    );
+    const currentUserProfile = useMemo(() => {
+        if (!user) return null;
+
+        const byUid = normalizedUsers.find(
+            (u) => u.firebaseUid === user.firebaseUid || u.id === user.firebaseUid || u.id === user.id,
+        );
+        if (byUid) return byUid;
+
+        return normalizedUsers.find((u) => u.email?.toLowerCase() === user.email?.toLowerCase()) || null;
+    }, [normalizedUsers, user]);
 
     const updateTelegramChatId = useCallback(async (chatId) => {
         // Atualiza estado local imediatamente

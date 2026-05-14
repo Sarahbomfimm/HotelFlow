@@ -11,6 +11,19 @@ import { UserRole } from '../models/User';
 
 const AuthContext = createContext(null);
 
+function resolveRole(role, email) {
+    const normalizedEmail = (email || '').toLowerCase();
+    if (normalizedEmail === 'sarah@hotelflow.com') {
+        return UserRole.ADMIN;
+    }
+
+    const normalizedRole = String(role || '').toLowerCase();
+    if (normalizedRole === UserRole.ADMIN) return UserRole.ADMIN;
+    if (normalizedRole === UserRole.DIRETORA) return UserRole.DIRETORA;
+    if (normalizedRole === UserRole.LIDER) return UserRole.LIDER;
+    return UserRole.LIDER;
+}
+
 function buildFallbackUserProfile(firebaseUser) {
     const normalizedEmail = firebaseUser.email?.toLowerCase() || '';
     const matchedUser = USERS.find(
@@ -31,7 +44,7 @@ function buildFallbackUserProfile(firebaseUser) {
         firebaseUid: firebaseUser.uid,
         nome: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuario',
         email: firebaseUser.email || '',
-        role: UserRole.LIDER,
+        role: resolveRole('', firebaseUser.email || ''),
         departamentos: [],
     };
 }
@@ -56,7 +69,7 @@ async function getFirestoreUserProfile(firebaseUser) {
             firebaseUid: firebaseUser.uid,
             nome: userData.nome || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuario',
             email: userData.email || firebaseUser.email || '',
-            role: userData.role || UserRole.LIDER,
+            role: resolveRole(userData.role, userData.email || firebaseUser.email || ''),
             departamentos: Array.isArray(userData.departamentos) ? userData.departamentos : [],
         };
     } catch {

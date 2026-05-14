@@ -38,6 +38,7 @@ export const DEPARTAMENTOS = [
     'RH',
     'Compras e Suprimentos',
     'Financeiro',
+    'Teste',
 ];
 
 /**

@@ -15,6 +15,8 @@ import { StatusOS, StatusLabel, PDCAStep } from '../../models/OrdemDeServico';
 import { format, isPast, parseISO, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+const DEPARTAMENTO_TESTE = 'Teste';
+
 function StatCard({ icon: Icon, label, value, colorClass, onClick }) {
     return (
         <button
@@ -63,6 +65,7 @@ export default function DashboardDiretora() {
     const { user } = useAuth();
     const { lideres, currentUserProfile, updateTelegramChatId } = useUsers();
     const navigate = useNavigate();
+    const displayName = currentUserProfile?.nome || user?.nome;
 
     const [filterLider, setFilterLider] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
@@ -77,11 +80,15 @@ export default function DashboardDiretora() {
     const { addNotification } = useNotification();
 
     const hoje = new Date();
+    const ordensSemTeste = useMemo(
+        () => ordens.filter((o) => o.departamento !== DEPARTAMENTO_TESTE),
+        [ordens],
+    );
 
     // Apenas SIs criadas no mês atual
     const ordensMes = useMemo(
-        () => ordens.filter((o) => o.criado_em && isSameMonth(parseISO(o.criado_em), hoje)),
-        [ordens],
+        () => ordensSemTeste.filter((o) => o.criado_em && isSameMonth(parseISO(o.criado_em), hoje)),
+        [ordensSemTeste],
     );
 
     const stats = useMemo(() => ({
@@ -131,7 +138,7 @@ export default function DashboardDiretora() {
             {/* Saudação */}
             <div className="mb-6">
                 <h1 className="font-heading text-xl font-bold text-hotel-blue sm:text-2xl">
-                    Olá, {user?.nome}! 👋
+                    Olá, {displayName}! 👋
                 </h1>
                 <p className="text-hotel-gray-md font-body text-sm mt-1">
                     {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
@@ -407,8 +414,8 @@ export default function DashboardDiretora() {
                     </h3>
                     <div className="space-y-3 flex-1 overflow-y-auto pr-1 min-h-0">
                         {lideres.map((lider) => {
-                            const total = ordens.filter((o) => o.responsavel_id === lider.id).length;
-                            const concl = ordens.filter((o) => o.responsavel_id === lider.id && o.status === StatusOS.CONCLUIDO).length;
+                            const total = ordensSemTeste.filter((o) => o.responsavel_id === lider.id).length;
+                            const concl = ordensSemTeste.filter((o) => o.responsavel_id === lider.id && o.status === StatusOS.CONCLUIDO).length;
                             const pct = total > 0 ? Math.round((concl / total) * 100) : 0;
                             return (
                                 <div key={lider.id} className="space-y-1">

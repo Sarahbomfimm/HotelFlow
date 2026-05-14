@@ -15,6 +15,8 @@ import { StatusOS, StatusLabel, PDCAStep } from '../../models/OrdemDeServico';
 import { format, isPast, parseISO, differenceInDays, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+const DEPARTAMENTO_TESTE = 'Teste';
+
 function StatCard({ icon: Icon, label, value, colorClass, onClick }) {
     return (
         <button
@@ -64,6 +66,7 @@ export default function DashboardLider() {
     const { addNotification } = useNotification();
     const { currentUserProfile, updateTelegramChatId } = useUsers();
     const navigate = useNavigate();
+    const displayName = currentUserProfile?.nome || user?.nome;
 
     const [obsModal, setObsModal] = useState({ open: false, os: null, novoStatus: null });
     const [tab, setTab] = useState('minhas');
@@ -80,11 +83,15 @@ export default function DashboardLider() {
         () => getOSPorLider(user?.departamentos || [], user),
         [getOSPorLider, user],
     );
+    const ordensSemTeste = useMemo(
+        () => ordens.filter((o) => o.departamento !== DEPARTAMENTO_TESTE),
+        [ordens],
+    );
 
     // Apenas SIs criadas no mês atual
     const ordensMes = useMemo(
-        () => ordens.filter((o) => o.criado_em && isSameMonth(parseISO(o.criado_em), hoje)),
-        [ordens],
+        () => ordensSemTeste.filter((o) => o.criado_em && isSameMonth(parseISO(o.criado_em), hoje)),
+        [ordensSemTeste],
     );
 
     const minhasSIs = useMemo(
@@ -191,7 +198,7 @@ export default function DashboardLider() {
                 )}
                 {/* Saudação */}
                 <div className="mb-6">
-                    <h1 className="font-heading text-xl font-bold text-hotel-blue sm:text-2xl">Olá, {user?.nome}! 👋</h1>
+                    <h1 className="font-heading text-xl font-bold text-hotel-blue sm:text-2xl">Olá, {displayName}! 👋</h1>
                     <p className="text-hotel-gray-md font-body text-sm mt-1">
                         {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                         {' · '}
