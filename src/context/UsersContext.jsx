@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { collection, doc, onSnapshot, orderBy, query, setDoc, updateDoc } from 'firebase/firestore';
 import { USERS } from '../data/mockData';
+import { DEPARTAMENTOS } from '../models/OrdemDeServico';
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { UserRole } from '../models/User';
 import { useAuth } from './AuthContext';
@@ -70,11 +71,13 @@ function mergeUsersWithFallback(firebaseUsers) {
 export function UsersProvider({ children }) {
     const { user, authReady } = useAuth();
     const [users, setUsers] = useState(sanitizeMockUsers);
+    const [usersFromFirestore, setUsersFromFirestore] = useState([]);
     const [loading, setLoading] = useState(Boolean(isFirebaseConfigured && db));
 
     useEffect(() => {
         if (!isFirebaseConfigured || !db) {
             setUsers(sanitizeMockUsers());
+            setUsersFromFirestore([]);
             setLoading(false);
             return undefined;
         }
@@ -86,6 +89,7 @@ export function UsersProvider({ children }) {
 
         if (!user) {
             setUsers(sanitizeMockUsers());
+            setUsersFromFirestore([]);
             setLoading(false);
             return undefined;
         }
@@ -95,20 +99,24 @@ export function UsersProvider({ children }) {
         const unsubscribe = onSnapshot(usersQuery, (snapshot) => {
             if (snapshot.empty) {
                 setUsers(sanitizeMockUsers());
+                setUsersFromFirestore([]);
             } else {
                 const firebaseUsers = snapshot.docs.map((userDoc) => ({
                     id: userDoc.id,
                     ...userDoc.data(),
+                    firebaseUid: userDoc.data().firebaseUid || userDoc.id,
                     departamentos: Array.isArray(userDoc.data().departamentos)
                         ? userDoc.data().departamentos
                         : [],
                 }));
 
+                setUsersFromFirestore(firebaseUsers);
                 setUsers(mergeUsersWithFallback(firebaseUsers));
             }
             setLoading(false);
         }, () => {
             setUsers(sanitizeMockUsers());
+            setUsersFromFirestore([]);
             setLoading(false);
         });
 
@@ -178,6 +186,15 @@ export function UsersProvider({ children }) {
         [deptLeaderMap],
     );
 
+    const availableDepartments = useMemo(() => {
+        const dynamicDepartments = normalizedUsers.flatMap((item) =>
+            Array.isArray(item.departamentos) ? item.departamentos : [],
+        );
+
+        return Array.from(new Set([...DEPARTAMENTOS, ...dynamicDepartments]))
+            .sort((left, right) => left.localeCompare(right, 'pt-BR'));
+    }, [normalizedUsers]);
+
     const currentUserProfile = useMemo(() => {
         if (!user) return null;
 
@@ -244,7 +261,7 @@ export function UsersProvider({ children }) {
     }, [currentUserProfile, user]);
 
     return (
-        <UsersContext.Provider value={{ users: normalizedUsers, lideres, deptLeaderMap, getLeaderByDepartment, currentUserProfile, updateTelegramChatId, loading }}>
+        <UsersContext.Provider value={{ users: normalizedUsers, usersFromFirestore, lideres, deptLeaderMap, getLeaderByDepartment, availableDepartments, currentUserProfile, updateTelegramChatId, loading }}>
             {children}
         </UsersContext.Provider>
     );

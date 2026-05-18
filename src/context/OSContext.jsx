@@ -66,6 +66,45 @@ function normalizeOrder(id, data) {
     };
 }
 
+function normalizeIdentityValue(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function matchesOrderActor(order, actor, prefix) {
+    if (!order || !actor) {
+        return false;
+    }
+
+    const actorIds = [actor.id, actor.firebaseUid]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+    const orderIds = [order[`${prefix}_id`], order[`${prefix}_uid`]]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+
+    if (actorIds.some((id) => orderIds.includes(id))) {
+        return true;
+    }
+
+    const actorEmail = normalizeIdentityValue(actor.email);
+    const orderEmail = normalizeIdentityValue(order[`${prefix}_email`]);
+    if (actorEmail && orderEmail && actorEmail === orderEmail) {
+        return true;
+    }
+
+    const actorName = normalizeIdentityValue(actor.nome);
+    const orderName = normalizeIdentityValue(order[`${prefix}_nome`]);
+    if (actorName && orderName && actorName === orderName) {
+        return true;
+    }
+
+    return false;
+}
+
+function isManagementRole(role) {
+    return role === UserRole.DIRETORA || role === UserRole.ADMIN;
+}
+
 export function OSProvider({ children }) {
     const { user, authReady } = useAuth();
     const [ordens, setOrdens] = useState(() => (isFirebaseConfigured && db ? [] : INITIAL_OS));
@@ -227,11 +266,13 @@ export function OSProvider({ children }) {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
-        // Apenas o responsável designado pode alterar o status da SI
-        const isResponsavel = usuario.id === os.responsavel_id || usuario.firebaseUid === os.responsavel_uid;
+        // O responsável pode alterar o fluxo normal; diretoria/admin podem concluir qualquer SI.
+        const isResponsavel = matchesOrderActor(os, usuario, 'responsavel');
+        const isManagement = isManagementRole(usuario?.role);
+        const canManagementFinalize = isManagement && novoStatus === StatusOS.CONCLUIDO;
 
-        if (!isResponsavel) {
-            throw new Error('Apenas o responsável designado pode alterar o status desta SI.');
+        if (!isResponsavel && !canManagementFinalize) {
+            throw new Error('Apenas o responsável designado pode alterar o status desta SI. Diretoria/Admin podem apenas finalizá-la.');
         }
 
         const base = `Status alterado de ${StatusLabel[os.status]} para ${StatusLabel[novoStatus]}.`;
@@ -266,7 +307,11 @@ export function OSProvider({ children }) {
         ));
         setError('');
 
-        if (usuario.role !== UserRole.DIRETORA && (os.criado_por_uid || os.criado_por_id || os.criado_por_email)) {
+        const shouldNotifyCreator =
+            (os.criado_por_uid || os.criado_por_id || os.criado_por_email)
+            && !matchesOrderActor(os, usuario, 'criado_por');
+
+        if (shouldNotifyCreator) {
             const message = novoStatus === StatusOS.CONCLUIDO
                 ? `SI "${os.titulo}" concluída por ${usuario.nome} (${os.departamento}).`
                 : `SI "${os.titulo}" iniciada por ${usuario.nome} (${os.departamento}).`;
@@ -288,14 +333,11 @@ export function OSProvider({ children }) {
         if (!os) return;
 
         // Diretora pode editar qualquer SI; demais usuários apenas as criadas por si mesmos.
-        const isDiretora = usuario?.role === UserRole.DIRETORA;
-        const isCriador =
-            usuario?.id === os.criado_por_id
-            || usuario?.firebaseUid === os.criado_por_uid
-            || usuario?.email?.toLowerCase() === os.criado_por_email?.toLowerCase();
+        const isDiretora = isManagementRole(usuario?.role);
+        const isCriador = matchesOrderActor(os, usuario, 'criado_por');
 
         if (!isDiretora && !isCriador) {
-            throw new Error('Apenas a Diretora ou quem criou esta SI pode editá-la.');
+            throw new Error('Apenas a Diretoria ou quem criou esta SI pode editá-la.');
         }
 
         const campos = Object.keys(atualizacoes)
@@ -374,10 +416,7 @@ export function OSProvider({ children }) {
         if (!os) return;
 
         // Validação de segurança: apenas quem criou pode excluir
-        const isCriador =
-            usuario?.id === os.criado_por_id
-            || usuario?.firebaseUid === os.criado_por_uid
-            || usuario?.email?.toLowerCase() === os.criado_por_email?.toLowerCase();
+        const isCriador = matchesOrderActor(os, usuario, 'criado_por');
 
         if (!isCriador) {
             throw new Error('Apenas quem criou esta SI pode excluí-la.');
@@ -404,12 +443,8 @@ export function OSProvider({ children }) {
             ordens.filter((os) =>
                 departamentos.includes(os.departamento) ||
                 (usuario && (
-                    os.criado_por_id === usuario.id
-                    || os.criado_por_uid === usuario.firebaseUid
-                    || (usuario.email && os.criado_por_email?.toLowerCase() === usuario.email.toLowerCase())
-                    || os.responsavel_id === usuario.id
-                    || os.responsavel_uid === usuario.firebaseUid
-                    || (usuario.email && os.responsavel_email?.toLowerCase() === usuario.email.toLowerCase())
+                    matchesOrderActor(os, usuario, 'criado_por')
+                    || matchesOrderActor(os, usuario, 'responsavel')
                 ))
             ),
         [ordens],

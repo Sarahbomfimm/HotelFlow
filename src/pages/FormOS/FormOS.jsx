@@ -7,7 +7,6 @@ import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
-import { DEPARTAMENTOS } from '../../models/OrdemDeServico';
 import { format } from 'date-fns';
 import { UserRole } from '../../models/User';
 
@@ -15,9 +14,9 @@ export default function FormOS() {
     const { criarOS } = useOS();
     const { user } = useAuth();
     const { addNotification } = useNotification();
-    const { getLeaderByDepartment } = useUsers();
+    const { getLeaderByDepartment, availableDepartments } = useUsers();
     const navigate = useNavigate();
-    const isDiretora = user?.role === UserRole.DIRETORA;
+    const isDiretora = user?.role === UserRole.DIRETORA || user?.role === UserRole.ADMIN;
     const cloudinaryCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim();
     const cloudinaryUploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET?.trim();
     const isCloudinaryConfigured = Boolean(cloudinaryCloudName && cloudinaryUploadPreset);
@@ -247,7 +246,7 @@ export default function FormOS() {
                                 onChange={set('departamento')}
                             >
                                 <option value="">Selecione...</option>
-                                {DEPARTAMENTOS.map((dep) => (
+                                {availableDepartments.map((dep) => (
                                     <option key={dep} value={dep}>{dep}</option>
                                 ))}
                             </select>

@@ -17,11 +17,46 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
-import { StatusOS, StatusLabel, DEPARTAMENTOS, PDCAStep, PDCALabel } from '../../models/OrdemDeServico';
+import { StatusOS, StatusLabel, PDCAStep, PDCALabel } from '../../models/OrdemDeServico';
 import { format, isPast, parseISO, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+
+function normalizeIdentityValue(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function matchesOrderActor(order, actor, prefix) {
+    if (!order || !actor) {
+        return false;
+    }
+
+    const actorIds = [actor.id, actor.firebaseUid]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+    const orderIds = [order[`${prefix}_id`], order[`${prefix}_uid`]]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+
+    if (actorIds.some((id) => orderIds.includes(id))) {
+        return true;
+    }
+
+    const actorEmail = normalizeIdentityValue(actor.email);
+    const orderEmail = normalizeIdentityValue(order[`${prefix}_email`]);
+    if (actorEmail && orderEmail && actorEmail === orderEmail) {
+        return true;
+    }
+
+    const actorName = normalizeIdentityValue(actor.nome);
+    const orderName = normalizeIdentityValue(order[`${prefix}_nome`]);
+    if (actorName && orderName && actorName === orderName) {
+        return true;
+    }
+
+    return false;
+}
 
 function MultiSelectFilter({
     title,
@@ -131,14 +166,25 @@ const nextLabel = {
     [StatusOS.EM_ANDAMENTO]: 'Concluir',
 };
 
+function compareOrdersByCompletion(left, right) {
+    const leftCompleted = left.status === StatusOS.CONCLUIDO;
+    const rightCompleted = right.status === StatusOS.CONCLUIDO;
+
+    if (leftCompleted !== rightCompleted) {
+        return leftCompleted ? 1 : -1;
+    }
+
+    return new Date(left.prazo) - new Date(right.prazo);
+}
+
 export default function ListaOS() {
     const { ordens, getOSPorLider, atualizarStatus, excluirOS, adicionarObservacao, error: ordensError } = useOS();
     const { user } = useAuth();
     const { addNotification } = useNotification();
-    const { lideres } = useUsers();
+    const { lideres, availableDepartments } = useUsers();
     const navigate = useNavigate();
     const location = useLocation();
-    const isDiretora = user?.role === UserRole.DIRETORA;
+    const isDiretora = user?.role === UserRole.DIRETORA || user?.role === UserRole.ADMIN;
     const isAbertasPorMimRoute = location.pathname === '/ordens/abertas-por-mim';
 
     // Inicializa filtros a partir de state passado pelo dashboard
@@ -192,19 +238,26 @@ export default function ListaOS() {
         return base
             .filter((o) => isPdcaOnlyNavigation || filterStatus.length === 0 || filterStatus.includes(o.status))
             .filter((o) => filterPdca.length === 0 || filterPdca.includes(o.etapa_pdca))
-            .filter((o) => filterLider.length === 0 || filterLider.includes(o.responsavel_id))
+            .filter((o) => {
+                if (filterLider.length === 0) return true;
+
+                return filterLider.some((leaderId) => {
+                    const leader = lideres.find((item) => item.id === leaderId);
+                    if (!leader) {
+                        return normalizeIdentityValue(o.responsavel_id) === normalizeIdentityValue(leaderId);
+                    }
+
+                    return matchesOrderActor(o, leader, 'responsavel');
+                });
+            })
             .filter((o) => filterDept.length === 0 || filterDept.includes(o.departamento))
             .filter((o) => {
                 if (!locState.onlyMine) return true;
-                return o.responsavel_id === user?.id
-                    || o.responsavel_uid === user?.firebaseUid
-                    || (user?.email && o.responsavel_email?.toLowerCase() === user.email.toLowerCase());
+                return matchesOrderActor(o, user, 'responsavel');
             })
             .filter((o) => {
                 if (!shouldShowOnlyCreatedByMe) return true;
-                return o.criado_por_id === user?.id
-                    || o.criado_por_uid === user?.firebaseUid
-                    || (user?.email && o.criado_por_email?.toLowerCase() === user.email.toLowerCase());
+                return matchesOrderActor(o, user, 'criado_por');
             })
             .filter((o) => {
                 if (!shouldShowOnlyCurrentMonth) return true;
@@ -234,9 +287,7 @@ export default function ListaOS() {
                     o.departamento.toLowerCase().includes(q)
                 );
             })
-            .sort((a, b) => {
-                return new Date(a.prazo) - new Date(b.prazo);
-            });
+            .sort(compareOrdersByCompletion);
     }, [
         base,
         filterStatus,
@@ -251,8 +302,19 @@ export default function ListaOS() {
         shouldShowOnlyCurrentMonth,
         shouldShowOnlyCreatedByMe,
         shouldShowOnlyOverdue,
+        lideres,
         user,
     ]);
+
+    const activeOrders = useMemo(
+        () => filtered.filter((os) => os.status !== StatusOS.CONCLUIDO),
+        [filtered],
+    );
+
+    const completedOrders = useMemo(
+        () => filtered.filter((os) => os.status === StatusOS.CONCLUIDO),
+        [filtered],
+    );
 
     useEffect(() => {
         if (!expanded) {
@@ -325,6 +387,170 @@ export default function ListaOS() {
         ? 'Todas as Solicitações Internas'
         : (shouldShowOnlyCreatedByMe ? 'SIs Abertas por Mim' : 'Minhas Solicitações Internas');
 
+    const renderOrderCard = (os) => {
+        const atrasada = os.status !== StatusOS.CONCLUIDO && isPast(parseISO(os.prazo));
+        const isExpanded = expanded === os.id;
+        const isResponsavel = matchesOrderActor(os, user, 'responsavel');
+        const canManagementFinalize = isDiretora && os.status !== StatusOS.CONCLUIDO && !isResponsavel;
+        const podeAtualizar = os.status !== StatusOS.CONCLUIDO && isResponsavel;
+        const isCriador = matchesOrderActor(os, user, 'criado_por');
+        const podeEditar = isDiretora || isCriador;
+        const podeExcluir = isCriador;
+
+        return (
+            <div
+                key={os.id}
+                ref={(element) => {
+                    if (element) {
+                        cardRefs.current[os.id] = element;
+                    }
+                }}
+                className={`card transition-all duration-200 ${atrasada ? 'border-red-200' : ''}`}
+            >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                    <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                            <StatusBadge status={os.status} />
+                            <PDCABadge etapa={os.etapa_pdca} status={os.status} compact />
+                            <span className="text-xs font-body bg-hotel-gray text-hotel-blue px-2 py-0.5 rounded-full font-medium">
+                                {os.departamento}
+                            </span>
+                            {atrasada && (
+                                <span className="text-xs text-red-600 font-semibold">⚠ Atrasada</span>
+                            )}
+                        </div>
+                        <h4 className="font-semibold font-body text-hotel-blue text-sm">{os.titulo}</h4>
+                        <p className="text-xs text-hotel-gray-md font-body mt-0.5">
+                            {isDiretora ? `${os.responsavel_nome} · ` : ''}
+                            Prazo: <strong className={atrasada ? 'text-red-500' : ''}>
+                                {format(parseISO(os.prazo), 'dd/MM/yyyy')}
+                            </strong>
+                        </p>
+                    </div>
+
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-shrink-0 sm:justify-end">
+                        {podeAtualizar && (
+                            <button
+                                onClick={() => solicitarStatusChange(os, nextStatus[os.status])}
+                                className="btn-gold flex-1 px-3 py-1.5 text-xs sm:flex-none"
+                            >
+                                {nextLabel[os.status]}
+                            </button>
+                        )}
+                        {canManagementFinalize && (
+                            <button
+                                onClick={() => solicitarStatusChange(os, StatusOS.CONCLUIDO)}
+                                className="flex-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 sm:flex-none"
+                            >
+                                Finalizar
+                            </button>
+                        )}
+                        {podeEditar && (
+                            <button
+                                onClick={() => setToEdit(os)}
+                                className="p-1.5 rounded-lg text-hotel-gray-md hover:text-hotel-blue hover:bg-hotel-light transition-colors"
+                                aria-label="Editar SI"
+                            >
+                                <Edit3 size={15} />
+                            </button>
+                        )}
+                        {podeExcluir && (
+                            <button
+                                onClick={() => setToDelete(os)}
+                                className="p-1.5 rounded-lg text-hotel-gray-md hover:text-red-500 hover:bg-red-50 transition-colors"
+                                aria-label="Excluir SI"
+                            >
+                                <Trash2 size={15} />
+                            </button>
+                        )}
+                        <button
+                            onClick={() => setExpanded(isExpanded ? null : os.id)}
+                            className="p-1.5 rounded-lg text-hotel-gray-md hover:text-hotel-blue transition-colors"
+                            aria-label={isExpanded ? 'Recolher' : 'Expandir'}
+                        >
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </button>
+                    </div>
+                </div>
+
+                {isExpanded && (
+                    <div className="mt-4 pt-4 border-t border-hotel-gray/50 animate-fadeIn space-y-3">
+                        <p className="text-sm font-body text-gray-700 leading-relaxed">{os.descricao}</p>
+
+                        {os.imagem && (
+                            <div className="rounded-xl overflow-hidden border border-hotel-gray">
+                                <div className="flex items-center gap-2 px-3 py-2 bg-hotel-light border-b border-hotel-gray">
+                                    <ImageIcon size={14} className="text-hotel-gray-md" />
+                                    <span className="text-xs font-semibold text-hotel-blue font-body flex-1">Imagem anexada</span>
+                                    <a
+                                        href={os.imagem}
+                                        download={`SI-${os.id}.png`}
+                                        className="flex items-center gap-1 text-hotel-blue text-xs font-semibold hover:text-hotel-gold transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Download size={13} /> Baixar
+                                    </a>
+                                </div>
+                                <img
+                                    src={os.imagem}
+                                    alt="Imagem da SI"
+                                    className="w-full max-h-64 object-cover cursor-pointer"
+                                    onClick={() => window.open(os.imagem, '_blank')}
+                                    title="Clique para abrir em tamanho completo"
+                                />
+                            </div>
+                        )}
+
+                        <div className="grid sm:grid-cols-2 gap-3 text-xs font-body text-hotel-gray-md">
+                            <div>
+                                <span className="font-semibold text-hotel-blue">Criado por:</span>{' '}
+                                {os.criado_por_nome} em {format(parseISO(os.criado_em), 'dd/MM/yyyy HH:mm')}
+                            </div>
+                            <div>
+                                <span className="font-semibold text-hotel-blue">Responsável:</span>{' '}
+                                {os.responsavel_nome}
+                            </div>
+                            <div>
+                                <span className="font-semibold text-hotel-blue">Etapa PDCA:</span>{' '}
+                                {os.etapa_pdca || PDCAStep.PLAN}
+                            </div>
+                        </div>
+
+                        {os.status === StatusOS.EM_ANDAMENTO && (
+                            <div className="pt-1">
+                                <button
+                                    onClick={() => setAdicionarObsModal({ open: true, os })}
+                                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-hotel-blue/30 px-3 py-2 text-sm text-hotel-blue font-semibold font-body transition-colors hover:bg-hotel-light sm:w-auto"
+                                >
+                                    <PDCABadge etapa={os.etapa_pdca} status={os.status} compact /> Registrar Progresso
+                                </button>
+                            </div>
+                        )}
+
+                        {os.historico?.length > 0 && (
+                            <div className="pt-1">
+                                <p className="text-xs font-semibold text-hotel-blue font-body mb-2 flex items-center gap-1.5">
+                                    <Clock3 size={12} /> Histórico de atualizações
+                                </p>
+                                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                    {[...os.historico].reverse().map((h, i) => (
+                                        <div key={i} className="flex flex-col text-xs font-body border-l-2 border-hotel-gold/50 pl-2.5 py-0.5">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className="font-semibold text-hotel-blue">{h.usuario_nome}</span>
+                                                <span className="text-hotel-gray-md">· {format(parseISO(h.data), 'dd/MM/yyyy HH:mm')}</span>
+                                            </div>
+                                            <p className="text-gray-700 mt-0.5">{h.descricao}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     return (
         <AppLayout pageTitle={pageTitle}>
             <div className="animate-fadeIn">
@@ -387,7 +613,7 @@ export default function ListaOS() {
                     <MultiSelectFilter
                         title="Todos os depto."
                         selectedValues={filterDept}
-                        options={DEPARTAMENTOS.map((departamento) => ({ value: departamento, label: departamento }))}
+                        options={availableDepartments.map((departamento) => ({ value: departamento, label: departamento }))}
                         onToggle={(value) => toggleInFilter(setFilterDept, filterDept, value)}
                         onClear={() => setFilterDept([])}
                     />
@@ -443,169 +669,24 @@ export default function ListaOS() {
                             </p>
                         </div>
                     ) : (
-                        filtered.map((os) => {
-                            const atrasada = os.status !== StatusOS.CONCLUIDO && isPast(parseISO(os.prazo));
-                            const isExpanded = expanded === os.id;
-                            const isResponsavel = user?.id === os.responsavel_id || user?.firebaseUid === os.responsavel_uid;
-                            const podeAtualizar = os.status !== StatusOS.CONCLUIDO && isResponsavel;
-                            const isCriador =
-                                user?.id === os.criado_por_id
-                                || user?.firebaseUid === os.criado_por_uid
-                                || user?.email?.toLowerCase() === os.criado_por_email?.toLowerCase();
-                            const podeEditar = isDiretora || isCriador;
-                            const podeExcluir = isCriador;
-
-                            return (
-                                <div
-                                    key={os.id}
-                                    ref={(element) => {
-                                        if (element) {
-                                            cardRefs.current[os.id] = element;
-                                        }
-                                    }}
-                                    className={`card transition-all duration-200 ${atrasada ? 'border-red-200' : ''}`}
-                                >
-                                    {/* Linha principal */}
-                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                                                <StatusBadge status={os.status} />
-                                                <PDCABadge etapa={os.etapa_pdca} status={os.status} compact />
-                                                <span className="text-xs font-body bg-hotel-gray text-hotel-blue px-2 py-0.5 rounded-full font-medium">
-                                                    {os.departamento}
-                                                </span>
-                                                {atrasada && (
-                                                    <span className="text-xs text-red-600 font-semibold">⚠ Atrasada</span>
-                                                )}
-                                            </div>
-                                            <h4 className="font-semibold font-body text-hotel-blue text-sm">{os.titulo}</h4>
-                                            <p className="text-xs text-hotel-gray-md font-body mt-0.5">
-                                                {isDiretora ? `${os.responsavel_nome} · ` : ''}
-                                                Prazo: <strong className={atrasada ? 'text-red-500' : ''}>
-                                                    {format(parseISO(os.prazo), 'dd/MM/yyyy')}
-                                                </strong>
-                                            </p>
-                                        </div>
-
-                                        {/* Ações */}
-                                        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-shrink-0 sm:justify-end">
-                                            {podeAtualizar && (
-                                                <button
-                                                    onClick={() => solicitarStatusChange(os, nextStatus[os.status])}
-                                                    className="btn-gold flex-1 px-3 py-1.5 text-xs sm:flex-none"
-                                                >
-                                                    {nextLabel[os.status]}
-                                                </button>
-                                            )}
-                                            {podeEditar && (
-                                                <button
-                                                    onClick={() => setToEdit(os)}
-                                                    className="p-1.5 rounded-lg text-hotel-gray-md hover:text-hotel-blue hover:bg-hotel-light transition-colors"
-                                                    aria-label="Editar SI"
-                                                >
-                                                    <Edit3 size={15} />
-                                                </button>
-                                            )}
-                                            {podeExcluir && (
-                                                <button
-                                                    onClick={() => setToDelete(os)}
-                                                    className="p-1.5 rounded-lg text-hotel-gray-md hover:text-red-500 hover:bg-red-50 transition-colors"
-                                                    aria-label="Excluir SI"
-                                                >
-                                                    <Trash2 size={15} />
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => setExpanded(isExpanded ? null : os.id)}
-                                                className="p-1.5 rounded-lg text-hotel-gray-md hover:text-hotel-blue transition-colors"
-                                                aria-label={isExpanded ? 'Recolher' : 'Expandir'}
-                                            >
-                                                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                            </button>
-                                        </div>
+                        <>
+                            {activeOrders.length > 0 && (
+                                <div className="space-y-3">
+                                    <div className="rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-2">
+                                        <p className="text-xs font-semibold text-hotel-blue">SIs ativas</p>
                                     </div>
-
-                                    {/* Detalhe expandido */}
-                                    {isExpanded && (
-                                        <div className="mt-4 pt-4 border-t border-hotel-gray/50 animate-fadeIn space-y-3">
-                                            <p className="text-sm font-body text-gray-700 leading-relaxed">{os.descricao}</p>
-
-                                            {/* Imagem anexada */}
-                                            {os.imagem && (
-                                                <div className="rounded-xl overflow-hidden border border-hotel-gray">
-                                                    <div className="flex items-center gap-2 px-3 py-2 bg-hotel-light border-b border-hotel-gray">
-                                                        <ImageIcon size={14} className="text-hotel-gray-md" />
-                                                        <span className="text-xs font-semibold text-hotel-blue font-body flex-1">Imagem anexada</span>
-                                                        <a
-                                                            href={os.imagem}
-                                                            download={`SI-${os.id}.png`}
-                                                            className="flex items-center gap-1 text-hotel-blue text-xs font-semibold hover:text-hotel-gold transition-colors"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                            <Download size={13} /> Baixar
-                                                        </a>
-                                                    </div>
-                                                    <img
-                                                        src={os.imagem}
-                                                        alt="Imagem da SI"
-                                                        className="w-full max-h-64 object-cover cursor-pointer"
-                                                        onClick={() => window.open(os.imagem, '_blank')}
-                                                        title="Clique para abrir em tamanho completo"
-                                                    />
-                                                </div>
-                                            )}
-
-                                            <div className="grid sm:grid-cols-2 gap-3 text-xs font-body text-hotel-gray-md">
-                                                <div>
-                                                    <span className="font-semibold text-hotel-blue">Criado por:</span>{' '}
-                                                    {os.criado_por_nome} em {format(parseISO(os.criado_em), 'dd/MM/yyyy HH:mm')}
-                                                </div>
-                                                <div>
-                                                    <span className="font-semibold text-hotel-blue">Responsável:</span>{' '}
-                                                    {os.responsavel_nome}
-                                                </div>
-                                                <div>
-                                                    <span className="font-semibold text-hotel-blue">Etapa PDCA:</span>{' '}
-                                                    {os.etapa_pdca || PDCAStep.PLAN}
-                                                </div>
-                                            </div>
-
-                                            {/* Registrar progresso — disponível enquanto em andamento */}
-                                            {os.status === StatusOS.EM_ANDAMENTO && (
-                                                <div className="pt-1">
-                                                    <button
-                                                        onClick={() => setAdicionarObsModal({ open: true, os })}
-                                                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-hotel-blue/30 px-3 py-2 text-sm text-hotel-blue font-semibold font-body transition-colors hover:bg-hotel-light sm:w-auto"
-                                                    >
-                                                        <PDCABadge etapa={os.etapa_pdca} status={os.status} compact /> Registrar Progresso
-                                                    </button>
-                                                </div>
-                                            )}
-                                            {/* Histórico de atualizações */}
-                                            {os.historico?.length > 0 && (
-                                                <div className="pt-1">
-                                                    <p className="text-xs font-semibold text-hotel-blue font-body mb-2 flex items-center gap-1.5">
-                                                        <Clock3 size={12} /> Histórico de atualizações
-                                                    </p>
-                                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                                                        {[...os.historico].reverse().map((h, i) => (
-                                                            <div key={i} className="flex flex-col text-xs font-body border-l-2 border-hotel-gold/50 pl-2.5 py-0.5">
-                                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                                    <span className="font-semibold text-hotel-blue">{h.usuario_nome}</span>
-                                                                    <span className="text-hotel-gray-md">· {format(parseISO(h.data), 'dd/MM/yyyy HH:mm')}</span>
-                                                                </div>
-                                                                <p className="text-gray-700 mt-0.5">{h.descricao}</p>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                        </div>
-                                    )}
+                                    {activeOrders.map(renderOrderCard)}
                                 </div>
-                            );
-                        })
+                            )}
+                            {completedOrders.length > 0 && (
+                                <div className="space-y-3">
+                                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-2">
+                                        <p className="text-xs font-semibold text-emerald-700">SIs concluídas</p>
+                                    </div>
+                                    {completedOrders.map(renderOrderCard)}
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

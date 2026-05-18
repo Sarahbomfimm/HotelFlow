@@ -4,14 +4,14 @@ import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
-import { DEPARTAMENTOS, PDCAStep, PDCALabel, StatusOS } from '../../models/OrdemDeServico';
+import { PDCAStep, PDCALabel, StatusOS } from '../../models/OrdemDeServico';
 import { format, parseISO } from 'date-fns';
 
 export default function EditarOSModal({ os, onClose }) {
     const { editarOS } = useOS();
     const { user } = useAuth();
     const { addNotification } = useNotification();
-    const { getLeaderByDepartment } = useUsers();
+    const { getLeaderByDepartment, availableDepartments } = useUsers();
 
     const [form, setForm] = useState({
         titulo: '',
@@ -152,7 +152,7 @@ export default function EditarOSModal({ os, onClose }) {
                                 onChange={set('departamento')}
                             >
                                 <option value="">Selecione...</option>
-                                {DEPARTAMENTOS.map((dep) => (
+                                {availableDepartments.map((dep) => (
                                     <option key={dep} value={dep}>{dep}</option>
                                 ))}
                             </select>
