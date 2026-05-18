@@ -30,7 +30,7 @@ export default function Login() {
                 style={{ backgroundImage: 'linear-gradient(135deg, #062135 0%, #0A3D62 50%, #1a5276 100%)' }}
             >
                 <Logo size={48} showText light />
-                <div className="login-visual-stage">
+                <div className="login-visual-stage mt-6">
                     <div className="login-visual-glow" aria-hidden="true" />
                     <div className="login-visual-card">
                         <svg viewBox="0 0 380 230" className="w-full" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ilustração de prédio com painéis de acompanhamento">
@@ -78,9 +78,13 @@ export default function Login() {
                         <div className="login-visual-scan" aria-hidden="true" />
                     </div>
 
-                    <div className="mt-4 flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                        <p className="text-white/75 font-body text-sm">Monitoramento em tempo real de tarefas e equipes</p>
+                    <div className="mt-7 flex items-center gap-3">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-hotel-gold/35 bg-hotel-gold/10">
+                            <span className="h-2 w-2 rounded-full bg-hotel-gold animate-pulse" />
+                        </span>
+                        <p className="font-body text-[13px] font-medium tracking-wide text-white/80">
+                            Painel operacional em tempo real
+                        </p>
                     </div>
                 </div>
                 <svg viewBox="0 0 400 80" className="w-full opacity-20" xmlns="http://www.w3.org/2000/svg">
