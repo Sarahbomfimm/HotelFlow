@@ -286,14 +286,14 @@ export default function AdminPanel() {
                                     placeholder="Nome"
                                     value={formData.nome}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, nome: e.target.value }))}
-                                    className="w-full rounded-lg border border-hotel-gray px-3 py-2 text-sm font-body focus:outline-none focus:ring-2 focus:ring-hotel-blue"
+                                    className="input"
                                 />
                                 <input
                                     type="email"
                                     placeholder="Email"
                                     value={formData.email}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-                                    className="w-full rounded-lg border border-hotel-gray px-3 py-2 text-sm font-body focus:outline-none focus:ring-2 focus:ring-hotel-blue"
+                                    className="input"
                                 />
                             </div>
 
@@ -303,12 +303,12 @@ export default function AdminPanel() {
                                     placeholder={editingId ? 'Nova senha (opcional, apenas para nova conta use este campo)' : 'Senha inicial (mín. 6)'}
                                     value={formData.senha}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, senha: e.target.value }))}
-                                    className="flex-1 rounded-lg border border-hotel-gray px-3 py-2 text-sm font-body focus:outline-none focus:ring-2 focus:ring-hotel-blue"
+                                    className="input flex-1"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword((v) => !v)}
-                                    className="rounded-lg border border-hotel-gray bg-white px-3 text-hotel-gray-md hover:text-hotel-blue transition-colors"
+                                    className="rounded-2xl border border-hotel-gray/70 bg-white px-3 text-hotel-gray-md shadow-sm transition-colors hover:border-hotel-blue/30 hover:text-hotel-blue"
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
@@ -320,14 +320,14 @@ export default function AdminPanel() {
                                     placeholder="Telefone"
                                     value={formData.telefone}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, telefone: e.target.value }))}
-                                    className="w-full rounded-lg border border-hotel-gray px-3 py-2 text-sm font-body focus:outline-none focus:ring-2 focus:ring-hotel-blue"
+                                    className="input"
                                 />
                                 <input
                                     type="text"
                                     placeholder="Telegram Chat ID"
                                     value={formData.telegram_chat_id}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, telegram_chat_id: e.target.value.replace(/\D/g, '') }))}
-                                    className="w-full rounded-lg border border-hotel-gray px-3 py-2 text-sm font-body focus:outline-none focus:ring-2 focus:ring-hotel-blue"
+                                    className="input"
                                 />
                             </div>
 
@@ -335,7 +335,7 @@ export default function AdminPanel() {
                                 <select
                                     value={formData.role}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, role: e.target.value }))}
-                                    className="w-full rounded-lg border border-hotel-gray px-3 py-2 text-sm font-body focus:outline-none focus:ring-2 focus:ring-hotel-blue"
+                                    className="input"
                                 >
                                     <option value={UserRole.ADMIN}>Admin</option>
                                     <option value={UserRole.DIRETORA}>Diretora</option>
@@ -346,7 +346,7 @@ export default function AdminPanel() {
                                     placeholder="Departamentos (separados por vírgula)"
                                     value={formData.departamentosText}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, departamentosText: e.target.value }))}
-                                    className="w-full rounded-lg border border-hotel-gray px-3 py-2 text-sm font-body focus:outline-none focus:ring-2 focus:ring-hotel-blue"
+                                    className="input"
                                 />
                             </div>
 

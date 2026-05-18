@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
     ClipboardList, CheckCircle2, Clock, AlertCircle,
-    Users, TrendingUp, ArrowRight, Send,
+    Users, TrendingUp, ArrowRight, Send, PlusCircle,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
@@ -151,13 +151,21 @@ export default function DashboardDiretora() {
                 </div>
             )}
             {/* Saudação */}
-            <div className="mb-6">
-                <h1 className="font-heading text-xl font-bold text-hotel-blue sm:text-2xl">
-                    Olá, {displayName}! 👋
-                </h1>
-                <p className="text-hotel-gray-md font-body text-sm mt-1">
-                    {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                </p>
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 className="font-heading text-xl font-bold text-hotel-blue sm:text-2xl">
+                        Olá, {displayName}! 👋
+                    </h1>
+                    <p className="text-hotel-gray-md font-body text-sm mt-1">
+                        {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    </p>
+                </div>
+                <button
+                    onClick={() => navigate('/nova-os')}
+                    className="btn-gold inline-flex items-center justify-center gap-2 px-4 py-2 text-sm"
+                >
+                    <PlusCircle size={16} /> Nova SI
+                </button>
             </div>
 
             {/* Banner Conectar Telegram */}
@@ -200,7 +208,7 @@ export default function DashboardDiretora() {
                                     value={telegramInput}
                                     onChange={(e) => setTelegramInput(e.target.value.replace(/\D/g, ''))}
                                     placeholder="Cole seu ID aqui (ex: 123456789)"
-                                    className="flex-1 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-body text-hotel-blue focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    className="input flex-1 py-2 text-xs"
                                 />
                                 <button
                                     onClick={async () => {

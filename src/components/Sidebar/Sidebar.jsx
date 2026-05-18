@@ -1,6 +1,6 @@
 ﻿import { NavLink, useNavigate } from 'react-router-dom';
 import {
-    LayoutDashboard, ClipboardList, PlusCircle, History, ChartNoAxesCombined,
+    LayoutDashboard, ClipboardList, History, ChartNoAxesCombined,
     LogOut, ChevronLeft, ChevronRight, X, Settings,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -14,24 +14,21 @@ const liderLinks = [
     { to: '/ordens', label: 'Minhas SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
-    { to: '/nova-os', label: 'Nova SI', icon: PlusCircle },
 ];
 const diretoraLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
-    { to: '/nova-os', label: 'Nova SI', icon: PlusCircle },
     { to: '/historico', label: 'Histórico', icon: History },
 ];
 const adminLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/admin', label: 'Gerenciamento', icon: Settings },
     { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
-    { to: '/nova-os', label: 'Nova SI', icon: PlusCircle },
     { to: '/historico', label: 'Histórico', icon: History },
+    { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
 export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const { user, logout } = useAuth();
