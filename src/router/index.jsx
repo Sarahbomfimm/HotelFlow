@@ -82,7 +82,7 @@ export default function AppRouter() {
             <Route
                 path="/admin"
                 element={
-                    <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.DIRETORA]}>
+                    <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
                         <AdminPanel />
                     </ProtectedRoute>
                 }
