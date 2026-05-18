@@ -17,6 +17,41 @@ import { ptBR } from 'date-fns/locale';
 
 const DEPARTAMENTO_TESTE = 'Teste';
 
+function normalizeIdentityValue(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function matchesOrderActor(order, actor, prefix) {
+    if (!order || !actor) {
+        return false;
+    }
+
+    const actorIds = [actor.id, actor.firebaseUid]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+    const orderIds = [order[`${prefix}_id`], order[`${prefix}_uid`]]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+
+    if (actorIds.some((id) => orderIds.includes(id))) {
+        return true;
+    }
+
+    const actorEmail = normalizeIdentityValue(actor.email);
+    const orderEmail = normalizeIdentityValue(order[`${prefix}_email`]);
+    if (actorEmail && orderEmail && actorEmail === orderEmail) {
+        return true;
+    }
+
+    const actorName = normalizeIdentityValue(actor.nome);
+    const orderName = normalizeIdentityValue(order[`${prefix}_nome`]);
+    if (actorName && orderName && actorName === orderName) {
+        return true;
+    }
+
+    return false;
+}
+
 function StatCard({ icon: Icon, label, value, colorClass, onClick }) {
     return (
         <button
@@ -96,22 +131,15 @@ export default function DashboardLider() {
 
     const minhasSIs = useMemo(
         () => ordensMes.filter((o) =>
-            o.responsavel_id === user?.id
-            || o.responsavel_uid === user?.firebaseUid
-            || (user?.email && o.responsavel_email?.toLowerCase() === user.email.toLowerCase())
+            matchesOrderActor(o, user, 'responsavel')
         ),
         [ordensMes, user],
     );
 
     const abertosPorMim = useMemo(
         () => ordensMes.filter(
-            (o) => (
-                o.criado_por_id === user?.id
-                || o.criado_por_uid === user?.firebaseUid
-                || (user?.email && o.criado_por_email?.toLowerCase() === user.email.toLowerCase())
-            )
-                && o.responsavel_id !== user?.id
-                && o.responsavel_uid !== user?.firebaseUid,
+            (o) => matchesOrderActor(o, user, 'criado_por')
+                && !matchesOrderActor(o, user, 'responsavel'),
         ),
         [ordensMes, user],
     );

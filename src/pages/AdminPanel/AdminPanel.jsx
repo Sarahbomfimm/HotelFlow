@@ -8,7 +8,7 @@ import { useUsers } from '../../context/UsersContext';
 import { useNotification } from '../../context/NotificationContext';
 import { UserRole } from '../../models/User';
 import { auth, db, isFirebaseConfigured } from '../../services/firebase';
-import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 
 const FIREBASE_API_KEY = import.meta.env.VITE_FIREBASE_API_KEY?.trim();
@@ -42,7 +42,9 @@ async function createFirebaseAuthUser(email, password) {
     if (!response.ok) {
         const code = data?.error?.message;
         if (code === 'EMAIL_EXISTS') {
-            throw new Error('Este e-mail já existe no Firebase Auth.');
+            const error = new Error('Este e-mail já existe no Firebase Auth.');
+            error.code = 'EMAIL_EXISTS';
+            throw error;
         }
         if (code === 'WEAK_PASSWORD : Password should be at least 6 characters') {
             throw new Error('A senha deve ter pelo menos 6 caracteres.');
@@ -53,8 +55,12 @@ async function createFirebaseAuthUser(email, password) {
     return data.localId;
 }
 
+function buildEmailDocId(email) {
+    return `email_${String(email || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+}
+
 export default function AdminPanel() {
-    const { users } = useUsers();
+    const { usersFromFirestore } = useUsers();
     const { addNotification } = useNotification();
     const navigate = useNavigate();
 
@@ -74,8 +80,8 @@ export default function AdminPanel() {
     const [sendingResetTo, setSendingResetTo] = useState('');
 
     const sortedUsers = useMemo(
-        () => [...users].sort((a, b) => (a?.nome || '').localeCompare(b?.nome || '')),
-        [users],
+        () => [...usersFromFirestore].sort((a, b) => (a?.nome || '').localeCompare(b?.nome || '')),
+        [usersFromFirestore],
     );
 
     const handleSaveUser = async () => {
@@ -112,13 +118,36 @@ export default function AdminPanel() {
             };
 
             if (!editingId) {
-                const uid = await createFirebaseAuthUser(email, senha);
-                await setDoc(doc(db, 'users', uid), {
-                    ...userData,
-                    firebaseUid: uid,
-                    criado_em: new Date().toISOString(),
-                }, { merge: true });
-                addNotification('Conta criada com sucesso no Firebase Auth e Firestore!', 'success');
+                try {
+                    const uid = await createFirebaseAuthUser(email, senha);
+                    await setDoc(doc(db, 'users', uid), {
+                        ...userData,
+                        firebaseUid: uid,
+                        criado_em: new Date().toISOString(),
+                    }, { merge: true });
+                    addNotification('Conta criada com sucesso no Firebase Auth e Firestore!', 'success');
+                } catch (createError) {
+                    if (createError?.code !== 'EMAIL_EXISTS') {
+                        throw createError;
+                    }
+
+                    const existingByEmail = await getDocs(
+                        query(collection(db, 'users'), where('email', '==', email)),
+                    );
+
+                    const existingDocId = existingByEmail.docs[0]?.id;
+                    const targetDocId = existingDocId || buildEmailDocId(email);
+
+                    await setDoc(doc(db, 'users', targetDocId), {
+                        ...userData,
+                        // A conta já existe no Auth; o UID será sincronizado no próximo login desse usuário.
+                        firebaseUid: existingByEmail.docs[0]?.data()?.firebaseUid || null,
+                        criado_em: new Date().toISOString(),
+                    }, { merge: true });
+
+                    addNotification('E-mail já existia no Auth. Perfil foi recriado no Firestore com sucesso!', 'success');
+                    addNotification('Se necessário, use redefinição de senha para recuperar o acesso dessa conta.', 'info');
+                }
             } else {
                 await setDoc(doc(db, 'users', editingId), userData, { merge: true });
                 addNotification('Usuário atualizado com sucesso no Firestore!', 'success');
@@ -133,12 +162,25 @@ export default function AdminPanel() {
         }
     };
 
-    const handleDeleteUser = async (userId, userName) => {
+    const handleDeleteUser = async (selectedUser) => {
+        const userName = selectedUser?.nome || 'este usuário';
         if (!window.confirm(`Tem certeza que deseja deletar ${userName} do Firestore?`)) return;
 
         try {
             if (isFirebaseConfigured && db) {
-                await deleteDoc(doc(db, 'users', userId));
+                const email = String(selectedUser?.email || '').trim().toLowerCase();
+                const docIds = new Set([selectedUser?.id].filter(Boolean));
+
+                if (email) {
+                    const usersByEmailSnapshot = await getDocs(
+                        query(collection(db, 'users'), where('email', '==', email)),
+                    );
+                    usersByEmailSnapshot.docs.forEach((snapshotDoc) => docIds.add(snapshotDoc.id));
+                }
+
+                await Promise.all(
+                    Array.from(docIds).map((docId) => deleteDoc(doc(db, 'users', docId))),
+                );
             }
             addNotification(`${userName} foi removido do Firestore.`, 'success');
             addNotification('Observação: conta do Firebase Auth deve ser removida no console/admin SDK.', 'info');
@@ -388,7 +430,7 @@ export default function AdminPanel() {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleDeleteUser(row.id, row.nome)}
+                                                    onClick={() => handleDeleteUser(row)}
                                                     className="text-red-600 hover:text-red-800 transition-colors"
                                                     title="Deletar"
                                                 >

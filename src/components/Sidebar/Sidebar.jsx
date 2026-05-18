@@ -18,20 +18,13 @@ const liderLinks = [
 ];
 const diretoraLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/admin', label: 'Gerenciamento', icon: Settings },
     { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/nova-os', label: 'Nova SI', icon: PlusCircle },
     { to: '/historico', label: 'Histórico', icon: History },
 ];
-const adminLinks = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/admin', label: 'Gerenciamento', icon: Settings },
-    { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
-    { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
-    { to: '/nova-os', label: 'Nova SI', icon: PlusCircle },
-];
-
 export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const { user, logout } = useAuth();
     const { currentUserProfile } = useUsers();
@@ -40,12 +33,13 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
 
     const displayUser = currentUserProfile || user;
 
-    const links = displayUser?.role === UserRole.ADMIN ? adminLinks : displayUser?.role === UserRole.DIRETORA ? diretoraLinks : liderLinks;
+    const isManagementRole = displayUser?.role === UserRole.ADMIN || displayUser?.role === UserRole.DIRETORA;
+    const links = isManagementRole ? diretoraLinks : liderLinks;
     const showLabels = !collapsed || mobileMenuOpen;
     const profileSubtitle = displayUser?.role === UserRole.ADMIN
-        ? 'Admin'
+        ? 'Adm'
         : displayUser?.role === UserRole.DIRETORA
-            ? 'Diretora - Financeiro'
+            ? 'Diretoria'
             : displayUser?.role;
 
     const handleBrandClick = () => {

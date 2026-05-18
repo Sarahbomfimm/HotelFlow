@@ -66,6 +66,7 @@ export default function DashboardDiretora() {
     const { lideres, currentUserProfile, updateTelegramChatId } = useUsers();
     const navigate = useNavigate();
     const displayName = currentUserProfile?.nome || user?.nome;
+    const isAdmin = (currentUserProfile?.role || user?.role) === 'admin';
 
     const [filterLider, setFilterLider] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
@@ -122,14 +123,28 @@ export default function DashboardDiretora() {
     const base = tab === 'minhas' ? minhasSIs : ordensMes;
 
     const ordensFiltradas = useMemo(() => {
+        const belongsToLeader = (o, leader) => (
+            o.responsavel_id === leader.id
+            || (leader.firebaseUid && o.responsavel_uid === leader.firebaseUid)
+            || (leader.email && o.responsavel_email?.toLowerCase() === leader.email.toLowerCase())
+        );
+
+        const selectedLeader = lideres.find((l) => l.id === filterLider) || null;
+
         return base
-            .filter((o) => !filterLider || o.responsavel_id === filterLider)
+            .filter((o) => !selectedLeader || belongsToLeader(o, selectedLeader))
             .filter((o) => !filterStatus || o.status === filterStatus)
             .slice(0, 8);
-    }, [base, filterLider, filterStatus]);
+    }, [base, filterLider, filterStatus, lideres]);
+
+    const belongsToLeader = (o, leader) => (
+        o.responsavel_id === leader.id
+        || (leader.firebaseUid && o.responsavel_uid === leader.firebaseUid)
+        || (leader.email && o.responsavel_email?.toLowerCase() === leader.email.toLowerCase())
+    );
 
     return (
-        <AppLayout pageTitle="Dashboard — Diretora">
+        <AppLayout pageTitle={isAdmin ? 'Dashboard — Administradora' : 'Dashboard — Diretora'}>
             {ordensError && (
                 <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-body text-red-700">
                     {ordensError}
@@ -414,8 +429,8 @@ export default function DashboardDiretora() {
                     </h3>
                     <div className="space-y-3 flex-1 overflow-y-auto pr-1 min-h-0">
                         {lideres.map((lider) => {
-                            const total = ordensSemTeste.filter((o) => o.responsavel_id === lider.id).length;
-                            const concl = ordensSemTeste.filter((o) => o.responsavel_id === lider.id && o.status === StatusOS.CONCLUIDO).length;
+                            const total = ordensSemTeste.filter((o) => belongsToLeader(o, lider)).length;
+                            const concl = ordensSemTeste.filter((o) => belongsToLeader(o, lider) && o.status === StatusOS.CONCLUIDO).length;
                             const pct = total > 0 ? Math.round((concl / total) * 100) : 0;
                             return (
                                 <div key={lider.id} className="space-y-1">

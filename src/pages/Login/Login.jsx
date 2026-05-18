@@ -30,11 +30,58 @@ export default function Login() {
                 style={{ backgroundImage: 'linear-gradient(135deg, #062135 0%, #0A3D62 50%, #1a5276 100%)' }}
             >
                 <Logo size={48} showText light />
-                <div>
-                    <blockquote className="text-white/80 text-xl font-heading leading-relaxed italic mb-6">
-                        "Eficiencia em cada andar, excelencia em cada detalhe."
-                    </blockquote>
-                    <p className="text-hotel-gold font-body text-sm">— Gestao HotelFlow</p>
+                <div className="login-visual-stage">
+                    <div className="login-visual-glow" aria-hidden="true" />
+                    <div className="login-visual-card">
+                        <svg viewBox="0 0 380 230" className="w-full" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ilustração de prédio com painéis de acompanhamento">
+                            <defs>
+                                <linearGradient id="hotelBase" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0%" stopColor="#0f4d7a" />
+                                    <stop offset="100%" stopColor="#0b2f4d" />
+                                </linearGradient>
+                                <linearGradient id="windowGlow" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#f4d3ad" stopOpacity="0.95" />
+                                    <stop offset="100%" stopColor="#c49a6c" stopOpacity="0.55" />
+                                </linearGradient>
+                            </defs>
+
+                            <rect x="6" y="14" width="368" height="202" rx="24" fill="#0b2740" opacity="0.65" />
+                            <rect x="22" y="32" width="236" height="170" rx="16" fill="url(#hotelBase)" />
+                            <rect x="22" y="32" width="236" height="34" rx="16" fill="#114c77" opacity="0.8" />
+                            <circle cx="44" cy="49" r="5" fill="#9cd3f6" opacity="0.8" />
+                            <circle cx="60" cy="49" r="5" fill="#f3c189" opacity="0.8" />
+
+                            {[0, 1, 2, 3].map((row) => (
+                                [0, 1, 2, 3, 4].map((col) => (
+                                    <rect
+                                        key={`w-${row}-${col}`}
+                                        x={40 + (col * 40)}
+                                        y={78 + (row * 28)}
+                                        width="24"
+                                        height="16"
+                                        rx="4"
+                                        fill="url(#windowGlow)"
+                                        opacity={0.75 + ((row + col) % 2) * 0.15}
+                                    />
+                                ))
+                            ))}
+
+                            <rect x="274" y="44" width="84" height="54" rx="10" fill="#123a5d" />
+                            <rect x="274" y="106" width="84" height="44" rx="10" fill="#123a5d" />
+                            <rect x="274" y="158" width="84" height="32" rx="10" fill="#123a5d" />
+
+                            <polyline points="286,84 304,70 320,78 340,56" fill="none" stroke="#7ed3ff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                            <polyline points="286,134 304,128 324,114 342,118" fill="none" stroke="#f3c189" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                            <rect x="286" y="170" width="52" height="10" rx="5" fill="#7ed3ff" opacity="0.65" />
+                        </svg>
+
+                        <div className="login-visual-scan" aria-hidden="true" />
+                    </div>
+
+                    <div className="mt-4 flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <p className="text-white/75 font-body text-sm">Monitoramento em tempo real de tarefas e equipes</p>
+                    </div>
                 </div>
                 <svg viewBox="0 0 400 80" className="w-full opacity-20" xmlns="http://www.w3.org/2000/svg">
                     <path d="M0 40 Q50 10 100 40 Q150 70 200 40 Q250 10 300 40 Q350 70 400 40" stroke="#C49A6C" strokeWidth="3" fill="none" />

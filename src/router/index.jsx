@@ -15,8 +15,7 @@ import PDCAVisualPage from '../pages/PDCAVisualPage/PDCAVisualPage';
 function DashboardRouter() {
     const { user } = useAuth();
     if (!user) return <Navigate to="/login" replace />;
-    if (user.role === UserRole.ADMIN) return <DashboardDiretora />;
-    return user.role === UserRole.DIRETORA
+    return (user.role === UserRole.ADMIN || user.role === UserRole.DIRETORA)
         ? <DashboardDiretora />
         : <DashboardLider />;
 }
@@ -65,7 +64,7 @@ export default function AppRouter() {
             <Route
                 path="/nova-os"
                 element={
-                    <ProtectedRoute allowedRoles={[UserRole.DIRETORA, UserRole.LIDER]}>
+                    <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.DIRETORA, UserRole.LIDER]}>
                         <FormOS />
                     </ProtectedRoute>
                 }
@@ -73,7 +72,7 @@ export default function AppRouter() {
             <Route
                 path="/historico"
                 element={
-                    <ProtectedRoute allowedRoles={[UserRole.DIRETORA]}>
+                    <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.DIRETORA]}>
                         <HistoricoOS />
                     </ProtectedRoute>
                 }
@@ -83,7 +82,7 @@ export default function AppRouter() {
             <Route
                 path="/admin"
                 element={
-                    <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                    <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.DIRETORA]}>
                         <AdminPanel />
                     </ProtectedRoute>
                 }
