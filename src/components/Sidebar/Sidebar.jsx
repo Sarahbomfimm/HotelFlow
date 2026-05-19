@@ -1,6 +1,6 @@
 ﻿import { NavLink, useNavigate } from 'react-router-dom';
 import {
-    LayoutDashboard, ClipboardList, History, ChartNoAxesCombined,
+    LayoutDashboard, ClipboardList, History, ChartNoAxesCombined, CalendarDays,
     LogOut, ChevronLeft, ChevronRight, X, Settings,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -27,6 +27,7 @@ const adminLinks = [
     { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
+    { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/historico', label: 'Histórico', icon: History },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];

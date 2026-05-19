@@ -101,6 +101,15 @@ function matchesOrderActor(order, actor, prefix) {
     return false;
 }
 
+function capitalizeFirstLetter(value) {
+    const text = String(value || '').trim();
+    if (!text) {
+        return '';
+    }
+
+    return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function isManagementRole(role) {
     return role === UserRole.DIRETORA || role === UserRole.ADMIN;
 }
@@ -148,8 +157,10 @@ export function OSProvider({ children }) {
 
     /** Cria uma nova OS */
     const criarOS = useCallback(async (dados, autor) => {
+        const titulo = capitalizeFirstLetter(dados.titulo);
         const novaOS = {
             ...dados,
+            titulo,
             status: StatusOS.ABERTO,
             etapa_pdca: PDCAStep.PLAN,
             criado_em: new Date().toISOString(),
@@ -207,7 +218,7 @@ export function OSProvider({ children }) {
                     recipientUid: dados.responsavel_uid || dados.responsavel_id,
                     recipientEmail: dados.responsavel_email,
                 }, {
-                    message: `Nova SI: "${dados.titulo}" atribuída a você (${dados.departamento}).`,
+                    message: `Nova SI: "${titulo}" atribuída a você (${dados.departamento}).`,
                     type: 'new_os',
                     relatedOrderId: orderRef.id,
                 });
@@ -224,7 +235,7 @@ export function OSProvider({ children }) {
                             telefone: dados.responsavel_telefone,
                         },
                         {
-                            titulo: dados.titulo,
+                            titulo,
                             descricao: dados.descricao,
                             departamento: dados.departamento,
                             prazo: dados.prazo,
@@ -243,7 +254,7 @@ export function OSProvider({ children }) {
                     await enviarNotificacaoTelegram(
                         dados.responsavel_telegram_chat_id,
                         {
-                            titulo: dados.titulo,
+                            titulo,
                             descricao: dados.descricao,
                             departamento: dados.departamento,
                             prazo: dados.prazo,

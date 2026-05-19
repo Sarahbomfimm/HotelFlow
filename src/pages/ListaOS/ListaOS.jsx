@@ -177,6 +177,15 @@ function compareOrdersByCompletion(left, right) {
     return new Date(left.prazo) - new Date(right.prazo);
 }
 
+function escapeCsvValue(value) {
+    const text = String(value ?? '');
+    if (/["\n\r;]/.test(text) || text.includes(',')) {
+        return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    return text;
+}
+
 export default function ListaOS() {
     const { ordens, getOSPorLider, atualizarStatus, excluirOS, adicionarObservacao, error: ordensError } = useOS();
     const { user } = useAuth();
@@ -315,6 +324,52 @@ export default function ListaOS() {
         () => filtered.filter((os) => os.status === StatusOS.CONCLUIDO),
         [filtered],
     );
+
+    const exportarCsv = () => {
+        if (filtered.length === 0) {
+            addNotification('Não há SI para exportar.', 'info');
+            return;
+        }
+
+        const header = [
+            'Título',
+            'Descrição',
+            'Departamento',
+            'Responsável',
+            'Prazo',
+            'Status',
+            'PDCA',
+            'Criado em',
+            'Criado por',
+        ];
+
+        const rows = filtered.map((os) => [
+            os.titulo,
+            os.descricao,
+            os.departamento,
+            os.responsavel_nome,
+            os.prazo ? format(parseISO(os.prazo), 'dd/MM/yyyy', { locale: ptBR }) : '',
+            StatusLabel[os.status] || os.status || '',
+            PDCALabel[os.etapa_pdca] || os.etapa_pdca || '',
+            os.criado_em ? format(parseISO(os.criado_em), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '',
+            os.criado_por_nome || '',
+        ]);
+
+        const csvContent = [header, ...rows]
+            .map((row) => row.map(escapeCsvValue).join(';'))
+            .join('\r\n');
+
+        const blob = new Blob([`\ufeff${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = `si_${format(new Date(), 'yyyy-MM-dd_HHmm')}.csv`;
+        link.click();
+
+        URL.revokeObjectURL(url);
+        addNotification('CSV exportado com sucesso.', 'success');
+    };
 
     useEffect(() => {
         if (!expanded) {
@@ -629,7 +684,7 @@ export default function ListaOS() {
                 </div>
 
                 {/* Filtro por período de prazo */}
-                <div className="mb-4 flex flex-col gap-3 rounded-xl border border-hotel-gray/50 bg-white p-3 sm:flex-row sm:flex-wrap sm:items-center">
+                <div className="mb-4 flex flex-col gap-3 rounded-xl border border-hotel-gray/50 bg-white p-3 sm:flex-row sm:flex-nowrap sm:items-center">
                     <span className="flex items-center gap-1.5 text-xs font-semibold text-hotel-blue font-body">
                         <CalendarRange size={14} /> Período do Prazo:
                     </span>
@@ -641,7 +696,7 @@ export default function ListaOS() {
                         isClearable
                         dateFormat="dd/MM/yyyy"
                         locale={ptBR}
-                        className="input w-full py-1.5 text-xs sm:w-[260px]"
+                        className="input w-full py-1.5 text-xs sm:w-[220px]"
                         placeholderText="Selecione o período do prazo"
                     />
                     {(prazoInicio || prazoFim) && (
@@ -652,6 +707,13 @@ export default function ListaOS() {
                             Limpar período
                         </button>
                     )}
+                    <button
+                        type="button"
+                        onClick={exportarCsv}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-full border border-emerald-500/20 bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    >
+                        <Download size={14} /> Exportar CSV
+                    </button>
                 </div>
 
                 {/* Contador */}

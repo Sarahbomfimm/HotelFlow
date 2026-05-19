@@ -11,6 +11,7 @@ import FormOS from '../pages/FormOS/FormOS';
 import ListaOS from '../pages/ListaOS/ListaOS';
 import HistoricoOS from '../pages/HistoricoOS/HistoricoOS';
 import PDCAVisualPage from '../pages/PDCAVisualPage/PDCAVisualPage';
+import Reunioes from '../pages/Reunioes/Reunioes';
 
 function DashboardRouter() {
     const { user } = useAuth();
@@ -56,6 +57,14 @@ export default function AppRouter() {
                 element={
                     <ProtectedRoute>
                         <PDCAVisualPage />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/reunioes"
+                element={
+                    <ProtectedRoute>
+                        <Reunioes />
                     </ProtectedRoute>
                 }
             />
