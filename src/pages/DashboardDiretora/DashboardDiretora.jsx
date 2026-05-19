@@ -1,4 +1,22 @@
-﻿import { useMemo, useState } from 'react';
+﻿
+function belongsToLeader(os, leader) {
+    if (!os || !leader) return false;
+
+    if (
+        os.responsavel_id === leader.id
+        || (leader.firebaseUid && os.responsavel_uid === leader.firebaseUid)
+        || (leader.email && os.responsavel_email?.toLowerCase() === leader.email.toLowerCase())
+    ) {
+        return true;
+    }
+
+    return Array.isArray(os.co_responsaveis) && os.co_responsaveis.some((responsavel) => (
+        responsavel.id === leader.id
+        || (leader.firebaseUid && responsavel.uid === leader.firebaseUid)
+        || (leader.email && responsavel.email?.toLowerCase() === leader.email.toLowerCase())
+    ));
+}
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ClipboardList, CheckCircle2, Clock, AlertCircle,
@@ -105,9 +123,7 @@ export default function DashboardDiretora() {
     // SIs designadas para Sofia no mês atual
     const minhasSIs = useMemo(() => {
         return ordensMes.filter((os) =>
-            os.responsavel_id === user?.id
-            || os.responsavel_uid === user?.firebaseUid
-            || (user?.email && os.responsavel_email?.toLowerCase() === user.email.toLowerCase())
+            belongsToLeader(os, user)
         );
     }, [ordensMes, user]);
 
@@ -123,12 +139,6 @@ export default function DashboardDiretora() {
     const base = tab === 'minhas' ? minhasSIs : ordensMes;
 
     const ordensFiltradas = useMemo(() => {
-        const belongsToLeader = (o, leader) => (
-            o.responsavel_id === leader.id
-            || (leader.firebaseUid && o.responsavel_uid === leader.firebaseUid)
-            || (leader.email && o.responsavel_email?.toLowerCase() === leader.email.toLowerCase())
-        );
-
         const selectedLeader = lideres.find((l) => l.id === filterLider) || null;
 
         return base
@@ -136,12 +146,6 @@ export default function DashboardDiretora() {
             .filter((o) => !filterStatus || o.status === filterStatus)
             .slice(0, 8);
     }, [base, filterLider, filterStatus, lideres]);
-
-    const belongsToLeader = (o, leader) => (
-        o.responsavel_id === leader.id
-        || (leader.firebaseUid && o.responsavel_uid === leader.firebaseUid)
-        || (leader.email && o.responsavel_email?.toLowerCase() === leader.email.toLowerCase())
-    );
 
     return (
         <AppLayout pageTitle={isAdmin ? 'Dashboard — Administradora' : 'Dashboard — Diretora'}>
@@ -378,7 +382,7 @@ export default function DashboardDiretora() {
                     </div>
 
                     {/* Lista */}
-                    <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+                    <div className="space-y-2.5 max-h-[30rem] overflow-y-auto pr-1">
                         {ordensFiltradas.length === 0 ? (
                             <p className="text-center text-hotel-gray-md text-sm py-10">
                                 Nenhuma SI encontrada com os filtros selecionados.
@@ -423,7 +427,7 @@ export default function DashboardDiretora() {
                     {ordens.length > 8 && (
                         <button
                             onClick={() => navigate('/ordens')}
-                            className="mt-3 w-full text-xs text-hotel-blue hover:text-hotel-gold font-semibold flex items-center justify-center gap-1 transition-colors"
+                            className="mt-7 flex w-full items-center justify-center gap-1 rounded-xl border border-hotel-gold/30 bg-gradient-to-r from-hotel-gold/10 via-white to-hotel-blue/5 px-4 py-2.5 text-sm font-semibold text-hotel-blue shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-hotel-gold/60 hover:text-hotel-gold hover:shadow-md"
                         >
                             Ver todas <ArrowRight size={14} />
                         </button>

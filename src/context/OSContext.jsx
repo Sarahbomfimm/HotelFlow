@@ -51,6 +51,7 @@ function normalizeOrder(id, data) {
         responsavel_uid: data.responsavel_uid || '',
         responsavel_email: data.responsavel_email || '',
         responsavel_nome: data.responsavel_nome || '',
+        co_responsaveis: Array.isArray(data.co_responsaveis) ? data.co_responsaveis : [],
         prazo: toIsoDate(data.prazo),
         status: data.status || StatusOS.ABERTO,
         etapa_pdca: data.etapa_pdca || PDCAStep.PLAN,
@@ -70,9 +71,43 @@ function normalizeIdentityValue(value) {
     return String(value || '').trim().toLowerCase();
 }
 
+function matchesCoResponsavel(order, actor) {
+    if (!order || !actor || !Array.isArray(order.co_responsaveis)) {
+        return false;
+    }
+
+    const actorIds = [actor.id, actor.firebaseUid]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+    const actorEmail = normalizeIdentityValue(actor.email);
+    const actorName = normalizeIdentityValue(actor.nome);
+
+    return order.co_responsaveis.some((responsavel) => {
+        const responsavelIds = [responsavel.id, responsavel.uid]
+            .map(normalizeIdentityValue)
+            .filter(Boolean);
+
+        if (actorIds.some((id) => responsavelIds.includes(id))) {
+            return true;
+        }
+
+        const responsavelEmail = normalizeIdentityValue(responsavel.email);
+        if (actorEmail && responsavelEmail && actorEmail === responsavelEmail) {
+            return true;
+        }
+
+        const responsavelNome = normalizeIdentityValue(responsavel.nome);
+        return actorName && responsavelNome && actorName === responsavelNome;
+    });
+}
+
 function matchesOrderActor(order, actor, prefix) {
     if (!order || !actor) {
         return false;
+    }
+
+    if (prefix === 'responsavel' && matchesCoResponsavel(order, actor)) {
+        return true;
     }
 
     const actorIds = [actor.id, actor.firebaseUid]
@@ -212,11 +247,18 @@ export function OSProvider({ children }) {
             throw new Error('Nao foi possivel salvar a solicitacao interna no Firestore. Verifique as regras do banco.');
         }
 
-        if (dados.responsavel_id || dados.responsavel_uid || dados.responsavel_email) {
+        const todoosResponsaveis = [
+            (dados.responsavel_id || dados.responsavel_uid || dados.responsavel_email)
+                ? { uid: dados.responsavel_uid || dados.responsavel_id, email: dados.responsavel_email, nome: dados.responsavel_nome, telefone: dados.responsavel_telefone, telegram_chat_id: dados.responsavel_telegram_chat_id }
+                : null,
+            ...(Array.isArray(dados.co_responsaveis) ? dados.co_responsaveis.map((c) => ({ uid: c.uid || c.id, email: c.email, nome: c.nome, telefone: c.telefone, telegram_chat_id: c.telegram_chat_id })) : []),
+        ].filter(Boolean);
+
+        for (const resp of todoosResponsaveis) {
             try {
                 await createUserNotification({
-                    recipientUid: dados.responsavel_uid || dados.responsavel_id,
-                    recipientEmail: dados.responsavel_email,
+                    recipientUid: resp.uid,
+                    recipientEmail: resp.email,
                 }, {
                     message: `Nova SI: "${titulo}" atribuída a você (${dados.departamento}).`,
                     type: 'new_os',
@@ -228,43 +270,26 @@ export function OSProvider({ children }) {
 
             // Envia notificação via WhatsApp (se configurado e se o telefone estiver disponível)
             try {
-                if (dados.responsavel_telefone) {
+                if (resp.telefone) {
                     await enviarNotificacaoWhatsApp(
-                        {
-                            nome: dados.responsavel_nome,
-                            telefone: dados.responsavel_telefone,
-                        },
-                        {
-                            titulo,
-                            descricao: dados.descricao,
-                            departamento: dados.departamento,
-                            prazo: dados.prazo,
-                            criado_em: new Date().toISOString(),
-                        }
+                        { nome: resp.nome, telefone: resp.telefone },
+                        { titulo, descricao: dados.descricao, departamento: dados.departamento, prazo: dados.prazo, criado_em: new Date().toISOString() }
                     );
                 }
             } catch (error) {
-                // Nao impede a criacao da SI se o WhatsApp falhar
                 console.warn('Erro ao enviar notificação WhatsApp:', error.message);
             }
 
             // Envia notificação via Telegram (se o chat_id estiver configurado)
             try {
-                if (dados.responsavel_telegram_chat_id) {
+                if (resp.telegram_chat_id) {
                     await enviarNotificacaoTelegram(
-                        dados.responsavel_telegram_chat_id,
-                        {
-                            titulo,
-                            descricao: dados.descricao,
-                            departamento: dados.departamento,
-                            prazo: dados.prazo,
-                            criado_em: new Date().toISOString(),
-                        },
-                        dados.responsavel_nome,
+                        resp.telegram_chat_id,
+                        { titulo, descricao: dados.descricao, departamento: dados.departamento, prazo: dados.prazo, criado_em: new Date().toISOString() },
+                        resp.nome,
                     );
                 }
             } catch (error) {
-                // Nao impede a criacao da SI se o Telegram falhar
                 console.warn('Erro ao enviar notificação Telegram:', error.message);
             }
         }
@@ -451,13 +476,11 @@ export function OSProvider({ children }) {
     /** Filtra OS pelo departamento do líder */
     const getOSPorLider = useCallback(
         (departamentos, usuario) =>
-            ordens.filter((os) =>
-                departamentos.includes(os.departamento) ||
-                (usuario && (
-                    matchesOrderActor(os, usuario, 'criado_por')
-                    || matchesOrderActor(os, usuario, 'responsavel')
-                ))
-            ),
+            ordens.filter((os) => {
+                if (departamentos.includes(os.departamento)) return true;
+                if (!usuario) return false;
+                return matchesOrderActor(os, usuario, 'criado_por') || matchesOrderActor(os, usuario, 'responsavel');
+            }),
         [ordens],
     );
 

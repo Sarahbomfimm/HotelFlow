@@ -32,6 +32,36 @@ function matchesOrderActor(order, actor, prefix) {
         return false;
     }
 
+    if (prefix === 'responsavel' && Array.isArray(order.co_responsaveis)) {
+        const actorIds = [actor.id, actor.firebaseUid]
+            .map(normalizeIdentityValue)
+            .filter(Boolean);
+        const actorEmail = normalizeIdentityValue(actor.email);
+        const actorName = normalizeIdentityValue(actor.nome);
+
+        const isCoResponsavel = order.co_responsaveis.some((responsavel) => {
+            const responsavelIds = [responsavel.id, responsavel.uid]
+                .map(normalizeIdentityValue)
+                .filter(Boolean);
+
+            if (actorIds.some((id) => responsavelIds.includes(id))) {
+                return true;
+            }
+
+            const responsavelEmail = normalizeIdentityValue(responsavel.email);
+            if (actorEmail && responsavelEmail && actorEmail === responsavelEmail) {
+                return true;
+            }
+
+            const responsavelNome = normalizeIdentityValue(responsavel.nome);
+            return actorName && responsavelNome && actorName === responsavelNome;
+        });
+
+        if (isCoResponsavel) {
+            return true;
+        }
+    }
+
     const actorIds = [actor.id, actor.firebaseUid]
         .map(normalizeIdentityValue)
         .filter(Boolean);
@@ -293,7 +323,8 @@ export default function ListaOS() {
                     o.titulo.toLowerCase().includes(q) ||
                     o.descricao.toLowerCase().includes(q) ||
                     o.responsavel_nome.toLowerCase().includes(q) ||
-                    o.departamento.toLowerCase().includes(q)
+                    o.departamento.toLowerCase().includes(q) ||
+                    (Array.isArray(o.co_responsaveis) && o.co_responsaveis.some((c) => c.nome?.toLowerCase().includes(q)))
                 );
             })
             .sort(compareOrdersByCompletion);
@@ -564,10 +595,13 @@ export default function ListaOS() {
                             <div>
                                 <span className="font-semibold text-hotel-blue">Responsável:</span>{' '}
                                 {os.responsavel_nome}
-                            </div>
                             <div>
-                                <span className="font-semibold text-hotel-blue">Etapa PDCA:</span>{' '}
-                                {os.etapa_pdca || PDCAStep.PLAN}
+                                <span className="font-semibold text-hotel-blue">Responsável:</span>{' '}
+                                {os.responsavel_nome}
+                                {Array.isArray(os.co_responsaveis) && os.co_responsaveis.length > 0 && (
+                                    <span className="text-hotel-gray-md"> + {os.co_responsaveis.map((c) => c.nome).join(', ')}</span>
+                                )}
+                            </div>
                             </div>
                         </div>
 

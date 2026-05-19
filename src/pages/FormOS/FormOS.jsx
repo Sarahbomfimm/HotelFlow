@@ -34,18 +34,18 @@ export default function FormOS() {
     const [osCriada, setOsCriada] = useState(null);
     const [showAlert, setShowAlert] = useState(false);
     const [submitError, setSubmitError] = useState('');
-    const [liderSelecionadoId, setLiderSelecionadoId] = useState('');
+    const [lideresSelecionados, setLideresSelecionados] = useState(new Set());
     const prazoInputRef = useRef(null);
 
     const lideresDoDept = form.departamento ? getLeadersByDepartment(form.departamento) : [];
     const multiploLideres = lideresDoDept.length > 1;
     const liderInfo = multiploLideres
-        ? lideresDoDept.find((l) => l.id === liderSelecionadoId) || null
+        ? (lideresSelecionados.size > 0 ? lideresDoDept.find((l) => lideresSelecionados.has(l.id)) || null : null)
         : lideresDoDept[0] || null;
 
     const set = (field) => (e) => {
         setForm((prev) => ({ ...prev, [field]: e.target.value }));
-        if (field === 'departamento') setLiderSelecionadoId('');
+        if (field === 'departamento') setLideresSelecionados(new Set());
         if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
         if (submitError) setSubmitError('');
     };
@@ -146,7 +146,7 @@ export default function FormOS() {
         const errs = validate();
         if (Object.keys(errs).length > 0) { setErrors(errs); return; }
         if (!liderInfo) {
-            setErrors((prev) => ({ ...prev, departamento: lideresDoDept.length > 1 ? 'Selecione o líder responsável.' : 'Nao existe lider cadastrado para esse departamento.' }));
+            setErrors((prev) => ({ ...prev, departamento: lideresDoDept.length > 1 ? 'Selecione pelo menos um líder responsável.' : 'Nao existe lider cadastrado para esse departamento.' }));
             return;
         }
 
@@ -155,6 +155,9 @@ export default function FormOS() {
             await new Promise((r) => setTimeout(r, 400));
 
             const responsavel = liderInfo;
+            const coResponsaveis = multiploLideres
+                ? lideresDoDept.filter((l) => lideresSelecionados.has(l.id) && l.id !== responsavel.id)
+                : [];
 
             const nova = await criarOS(
                 {
@@ -167,14 +170,23 @@ export default function FormOS() {
                     responsavel_nome: responsavel.nome,
                     responsavel_telefone: responsavel.telefone || null,
                     responsavel_telegram_chat_id: responsavel.telegram_chat_id || null,
+                    co_responsaveis: coResponsaveis.map((l) => ({
+                        id: l.id,
+                        uid: l.firebaseUid || l.id,
+                        email: l.email,
+                        nome: l.nome,
+                        telefone: l.telefone || null,
+                        telegram_chat_id: l.telegram_chat_id || null,
+                    })),
                     prazo: toLocalEndOfDayISO(form.prazo),
                     imagem: form.imagem,
                 },
                 user,
             );
 
+            const todosNomes = [responsavel.nome, ...coResponsaveis.map((l) => l.nome)].join(', ');
             addNotification(
-                `Nova SI: "${form.titulo.trim()}" criada${isDiretora ? ` e atribuída a ${responsavel.nome} (${form.departamento})` : ''}.`,
+                `Nova SI: "${form.titulo.trim()}" criada${isDiretora ? ` e atribuída a ${todosNomes} (${form.departamento})` : ''}.`,
                 'new_os',
             );
 
@@ -336,31 +348,44 @@ export default function FormOS() {
                     {lideresDoDept.length > 0 && (
                         multiploLideres ? (
                             <div className="animate-fadeIn space-y-2">
-                                <label className="label" htmlFor="lider-select">
+                                <label className="label">
                                     <User size={14} className="inline mr-1.5" />Atribuir para
+                                    <span className="ml-1 text-hotel-gray-md font-normal">(selecione um ou mais)</span>
                                 </label>
-                                <select
-                                    id="lider-select"
-                                    className={`input cursor-pointer ${!liderSelecionadoId && errors.departamento ? 'border-red-400 ring-1 ring-red-300' : ''}`}
-                                    value={liderSelecionadoId}
-                                    onChange={(e) => {
-                                        setLiderSelecionadoId(e.target.value);
-                                        if (errors.departamento) setErrors((prev) => ({ ...prev, departamento: '' }));
-                                    }}
-                                >
-                                    <option value="">Selecione o líder responsável...</option>
-                                    {lideresDoDept.map((l) => (
-                                        <option key={l.id} value={l.id}>{l.nome}</option>
-                                    ))}
-                                </select>
-                                {liderInfo && (
-                                    <div className="flex items-center gap-3 rounded-lg border border-hotel-gray bg-hotel-light p-3">
-                                        <div className="w-8 h-8 rounded-full bg-hotel-gold flex items-center justify-center font-bold text-white text-sm shrink-0">
-                                            {liderInfo.nome[0].toUpperCase()}
-                                        </div>
-                                        <p className="text-sm font-semibold text-hotel-blue font-body">{liderInfo.nome}</p>
-                                        <User size={15} className="text-hotel-gold ml-auto" />
-                                    </div>
+                                <div className={`flex flex-wrap gap-2 rounded-lg border p-3 bg-hotel-light transition-colors ${lideresSelecionados.size === 0 && errors.departamento ? 'border-red-400 ring-1 ring-red-300' : 'border-hotel-gray'}`}>
+                                    {lideresDoDept.map((l, idx) => {
+                                        const selecionado = lideresSelecionados.has(l.id);
+                                        const isPrimario = selecionado && [...lideresSelecionados][0] === l.id;
+                                        return (
+                                            <button
+                                                key={l.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setLideresSelecionados((prev) => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(l.id)) next.delete(l.id);
+                                                        else next.add(l.id);
+                                                        return next;
+                                                    });
+                                                    if (errors.departamento) setErrors((prev) => ({ ...prev, departamento: '' }));
+                                                }}
+                                                className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold font-body transition-all border ${
+                                                    selecionado
+                                                        ? 'bg-hotel-blue text-white border-hotel-blue shadow-sm'
+                                                        : 'bg-white text-hotel-blue border-hotel-gray hover:border-hotel-blue/50'
+                                                }`}
+                                            >
+                                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${selecionado ? 'bg-hotel-gold text-white' : 'bg-hotel-gray text-hotel-gray-md'}`}>
+                                                    {l.nome[0].toUpperCase()}
+                                                </span>
+                                                {l.nome}
+                                                {isPrimario && <span className="ml-1 text-[10px] text-hotel-gold font-bold uppercase tracking-wide">principal</span>}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {lideresSelecionados.size > 1 && (
+                                    <p className="text-xs text-hotel-gray-md font-body">O primeiro selecionado será o responsável principal; os demais serão co-responsáveis.</p>
                                 )}
                             </div>
                         ) : (

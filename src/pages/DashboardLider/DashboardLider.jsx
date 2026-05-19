@@ -1,4 +1,22 @@
-﻿import { useMemo, useState } from 'react';
+﻿
+function matchesAssignedLeader(os, leader) {
+    if (!os || !leader) return false;
+
+    if (
+        os.responsavel_id === leader.id
+        || (leader.firebaseUid && os.responsavel_uid === leader.firebaseUid)
+        || (leader.email && os.responsavel_email?.toLowerCase() === leader.email.toLowerCase())
+    ) {
+        return true;
+    }
+
+    return Array.isArray(os.co_responsaveis) && os.co_responsaveis.some((responsavel) => (
+        responsavel.id === leader.id
+        || (leader.firebaseUid && responsavel.uid === leader.firebaseUid)
+        || (leader.email && responsavel.email?.toLowerCase() === leader.email.toLowerCase())
+    ));
+}
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ClipboardList, CheckCircle2, Clock, AlertCircle, Send, PlusCircle,
@@ -24,6 +42,36 @@ function normalizeIdentityValue(value) {
 function matchesOrderActor(order, actor, prefix) {
     if (!order || !actor) {
         return false;
+    }
+
+    if (prefix === 'responsavel' && Array.isArray(order.co_responsaveis)) {
+        const actorIds = [actor.id, actor.firebaseUid]
+            .map(normalizeIdentityValue)
+            .filter(Boolean);
+        const actorEmail = normalizeIdentityValue(actor.email);
+        const actorName = normalizeIdentityValue(actor.nome);
+
+        const isCoResponsavel = order.co_responsaveis.some((responsavel) => {
+            const responsavelIds = [responsavel.id, responsavel.uid]
+                .map(normalizeIdentityValue)
+                .filter(Boolean);
+
+            if (actorIds.some((id) => responsavelIds.includes(id))) {
+                return true;
+            }
+
+            const responsavelEmail = normalizeIdentityValue(responsavel.email);
+            if (actorEmail && responsavelEmail && actorEmail === responsavelEmail) {
+                return true;
+            }
+
+            const responsavelNome = normalizeIdentityValue(responsavel.nome);
+            return actorName && responsavelNome && actorName === responsavelNome;
+        });
+
+        if (isCoResponsavel) {
+            return true;
+        }
     }
 
     const actorIds = [actor.id, actor.firebaseUid]
@@ -351,7 +399,7 @@ export default function DashboardLider() {
 
                 <div className="grid gap-6 lg:grid-cols-3">
                     {/* Todas as OS */}
-                    <div className="lg:col-span-2 card animate-fadeIn">
+                    <div className="lg:col-span-2 card animate-fadeIn flex min-h-[42rem] flex-col">
                         {/* Abas */}
                         <div className="flex gap-1 mb-4 border-b border-hotel-gray">
                             <button
@@ -383,13 +431,13 @@ export default function DashboardLider() {
                                 ? 'Nenhuma SI atribuída a você no momento.'
                                 : 'Você não abriu nenhuma SI para outro departamento.';
                             return (
-                                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                                <div className="flex-1 space-y-3 min-h-[34rem] overflow-y-auto pr-1">
                                     {lista.length === 0 ? (
                                         <p className="text-center text-hotel-gray-md text-sm py-10">{msgVazia}</p>
                                     ) : (
                                         lista.map((os) => {
                                             const atrasada = os.status !== StatusOS.CONCLUIDO && isPast(parseISO(os.prazo));
-                                            const isResponsavel = user?.id === os.responsavel_id || user?.firebaseUid === os.responsavel_uid;
+                                            const isResponsavel = matchesAssignedLeader(os, user);
                                             const podeAtualizar = os.status !== StatusOS.CONCLUIDO && isResponsavel;
                                             return (
                                                 <div

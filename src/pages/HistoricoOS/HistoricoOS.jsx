@@ -8,6 +8,12 @@ import { useUsers } from '../../context/UsersContext';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+function matchesLeader(os, leaderId) {
+    if (!leaderId) return true;
+    if (os.responsavel_id === leaderId) return true;
+    return Array.isArray(os.co_responsaveis) && os.co_responsaveis.some((responsavel) => responsavel.id === leaderId);
+}
+
 export default function HistoricoOS() {
     const { ordens } = useOS();
     const { lideres } = useUsers();
@@ -19,7 +25,7 @@ export default function HistoricoOS() {
     const comHistorico = useMemo(() =>
         ordens
             .filter((o) => o.historico.length > 0)
-            .filter((o) => !filterLider || o.responsavel_id === filterLider)
+            .filter((o) => matchesLeader(o, filterLider))
             .filter((o) => {
                 if (!search) return true;
                 const q = search.toLowerCase();
