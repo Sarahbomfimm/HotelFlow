@@ -614,17 +614,24 @@ export default function ListaOS() {
 
                         {os.historico?.length > 0 && (
                             <div className="pt-1">
-                                <p className="text-xs font-semibold text-hotel-blue font-body mb-2 flex items-center gap-1.5">
+                                <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-hotel-blue font-body">
                                     <Clock3 size={12} /> Histórico de atualizações
                                 </p>
-                                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                <div className="max-h-56 space-y-3 overflow-y-auto pr-1">
                                     {[...os.historico].reverse().map((h, i) => (
-                                        <div key={i} className="flex flex-col text-xs font-body border-l-2 border-hotel-gold/50 pl-2.5 py-0.5">
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                <span className="font-semibold text-hotel-blue">{h.usuario_nome}</span>
-                                                <span className="text-hotel-gray-md">· {format(parseISO(h.data), 'dd/MM/yyyy HH:mm')}</span>
+                                        <div key={i} className="relative rounded-2xl border border-hotel-gray/40 bg-hotel-light/20 px-3 py-3 text-xs font-body shadow-[0_1px_0_rgba(4,21,35,0.02)]">
+                                            <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-hotel-gold/70" />
+                                            <div className="pl-3">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="inline-flex items-center rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-semibold text-hotel-blue">
+                                                        {h.usuario_nome}
+                                                    </span>
+                                                    <span className="text-[11px] text-hotel-gray-md">
+                                                        {format(parseISO(h.data), 'dd/MM/yyyy HH:mm')}
+                                                    </span>
+                                                </div>
+                                                <p className="mt-2 text-sm leading-5 text-gray-700">{h.descricao}</p>
                                             </div>
-                                            <p className="text-gray-700 mt-0.5">{h.descricao}</p>
                                         </div>
                                     ))}
                                 </div>

@@ -217,7 +217,7 @@ export default function PDCAVisualPage() {
                                         </span>
                                         <div>
                                             <p className="text-sm font-semibold text-hotel-blue">{stage.label}</p>
-                                            <p className="text-[11px] text-hotel-gray-md">{stage.items.length} item(ns)</p>
+                                            <p className="text-[11px] text-hotel-gray-md">{stage.items.length} {stage.items.length === 1 ? 'item' : 'itens'}</p>
                                         </div>
                                     </div>
                                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${style.badge}`}>

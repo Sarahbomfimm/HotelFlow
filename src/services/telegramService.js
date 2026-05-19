@@ -36,6 +36,26 @@ export async function enviarNotificacaoTelegram(telegramChatId, os, nomeResponsa
     }
 }
 
+export async function enviarNotificacaoTelegramReuniao(telegramChatId, reuniao, nomeParticipante) {
+    if (!telegramChatId) {
+        console.warn('Chat ID do Telegram não configurado. Notificação não será enviada.');
+        return { success: false, message: 'Chat ID não configurado' };
+    }
+
+    try {
+        const mensagem = montarMensagemReuniao(nomeParticipante, reuniao);
+
+        if (isElectron || isDev) {
+            return await enviarDireto(telegramChatId, mensagem);
+        }
+
+        return await enviarViaServerless(telegramChatId, mensagem);
+    } catch (error) {
+        console.error('Erro ao enviar Telegram:', error);
+        return { success: false, message: error.message || 'Erro ao enviar Telegram' };
+    }
+}
+
 async function enviarDireto(chatId, text) {
     if (!TELEGRAM_BOT_TOKEN) {
         console.warn('VITE_TELEGRAM_BOT_TOKEN não configurado no .env');
@@ -88,6 +108,25 @@ function montarMensagem(nomeResponsavel, os) {
         `🏢 Departamento: ${os.departamento}\n` +
         `📅 Prazo: ${dataPrazo}\n` +
         `🗓️ Criada em: ${dataAtribuicao}\n\n` +
+        `Acesse o HotelFlow para mais detalhes.`
+    );
+}
+
+function montarMensagemReuniao(nomeParticipante, reuniao) {
+    const dataInicio = new Date(reuniao.data_inicio);
+    const dataFormatada = dataInicio.toLocaleDateString('pt-BR');
+    const horaFormatada = dataInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+    return (
+        `📅 Nova Reunião Agendada\n\n` +
+        `Olá ${nomeParticipante}! 👋\n\n` +
+        `Você foi adicionado(a) como participante de uma reunião:\n\n` +
+        `📝 ${reuniao.titulo}\n` +
+        `📍 Sala: ${reuniao.sala || 'Não informada'}\n` +
+        `🗓️ Data: ${dataFormatada}\n` +
+        `⏰ Horário: ${horaFormatada}\n` +
+        `👤 Criada por: ${reuniao.criado_por_nome || 'HotelFlow'}\n` +
+        `${reuniao.descricao ? `\n📌 ${reuniao.descricao}\n` : ''}\n` +
         `Acesse o HotelFlow para mais detalhes.`
     );
 }

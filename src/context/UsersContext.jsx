@@ -68,6 +68,10 @@ function mergeUsersWithFallback(firebaseUsers) {
     return Array.from(merged.values());
 }
 
+function isDepartmentResponsible(user) {
+    return [UserRole.LIDER, UserRole.ADMIN, UserRole.DIRETORA].includes(user?.role);
+}
+
 export function UsersProvider({ children }) {
     const { user, authReady } = useAuth();
     const [users, setUsers] = useState(sanitizeMockUsers);
@@ -162,7 +166,7 @@ export function UsersProvider({ children }) {
         const mapping = {};
 
         normalizedUsers.forEach((responsavel) => {
-            if (!Array.isArray(responsavel.departamentos) || responsavel.departamentos.length === 0) {
+            if (!isDepartmentResponsible(responsavel) || !Array.isArray(responsavel.departamentos) || responsavel.departamentos.length === 0) {
                 return;
             }
 
@@ -188,7 +192,7 @@ export function UsersProvider({ children }) {
 
     const getLeadersByDepartment = useCallback(
         (departamento) => normalizedUsers.filter(
-            (u) => u.role === UserRole.LIDER && Array.isArray(u.departamentos) && u.departamentos.includes(departamento),
+            (u) => isDepartmentResponsible(u) && Array.isArray(u.departamentos) && u.departamentos.includes(departamento),
         ).map((u) => ({
             id: u.id,
             firebaseUid: u.firebaseUid || null,

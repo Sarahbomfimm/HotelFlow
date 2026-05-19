@@ -16,7 +16,7 @@ function matchesAssignedLeader(os, leader) {
         || (leader.email && responsavel.email?.toLowerCase() === leader.email.toLowerCase())
     ));
 }
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ClipboardList, CheckCircle2, Clock, AlertCircle, Send, PlusCircle,
@@ -34,6 +34,7 @@ import { format, isPast, parseISO, differenceInDays, isSameMonth } from 'date-fn
 import { ptBR } from 'date-fns/locale';
 
 const DEPARTAMENTO_TESTE = 'Teste';
+const TELEGRAM_PROMO_EVENT = 'hotelflow:open-telegram-banner';
 
 function normalizeIdentityValue(value) {
     return String(value || '').trim().toLowerCase();
@@ -156,6 +157,7 @@ export default function DashboardLider() {
     const [telegramInput, setTelegramInput] = useState('');
     const [telegramSaving, setTelegramSaving] = useState(false);
     const [showTelegramForm, setShowTelegramForm] = useState(false);
+    const telegramBannerRef = useRef(null);
 
     const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'HotelFloww_Bot';
     const telegramBotLink = `https://t.me/${telegramBotUsername}`;
@@ -264,6 +266,22 @@ export default function DashboardLider() {
         }
     };
 
+    useEffect(() => {
+        const openTelegramBanner = () => {
+            if (currentUserProfile?.telegram_chat_id) return;
+            setShowTelegramForm(true);
+            telegramBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            sessionStorage.removeItem(TELEGRAM_PROMO_EVENT);
+        };
+
+        if (sessionStorage.getItem(TELEGRAM_PROMO_EVENT) === '1') {
+            openTelegramBanner();
+        }
+
+        window.addEventListener(TELEGRAM_PROMO_EVENT, openTelegramBanner);
+        return () => window.removeEventListener(TELEGRAM_PROMO_EVENT, openTelegramBanner);
+    }, [currentUserProfile?.telegram_chat_id]);
+
     return (
         <>
             <AppLayout pageTitle={`Dashboard — ${user?.nome}`}>
@@ -292,7 +310,7 @@ export default function DashboardLider() {
 
                 {/* Banner Conectar Telegram */}
                 {!currentUserProfile?.telegram_chat_id && (
-                    <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                    <div ref={telegramBannerRef} className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-start gap-3">
                                 <Send size={20} className="text-blue-500 flex-shrink-0 mt-0.5" />

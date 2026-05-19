@@ -5,6 +5,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { UsersProvider } from './context/UsersContext';
 import { ReuniaoProvider } from './context/ReuniaoContext';
 import ToastNotifications from './components/ToastNotifications/ToastNotifications';
+import TelegramPromoModal from './components/TelegramPromoModal/TelegramPromoModal';
 import AppRouter from './router';
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
                         <ReuniaoProvider>
                             <NotificationProvider>
                                 <AppRouter />
+                                <TelegramPromoModal />
                                 <ToastNotifications />
                             </NotificationProvider>
                         </ReuniaoProvider>

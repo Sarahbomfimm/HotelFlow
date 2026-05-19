@@ -3,10 +3,46 @@ import {
     collection, query, getDocs, addDoc, updateDoc, deleteDoc, doc, where, orderBy,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../services/firebase';
+import { createUserNotification } from '../services/notifications';
+import { enviarNotificacaoTelegramReuniao } from '../services/telegramService';
 import { useAuth } from './AuthContext';
 import { StatusReuniao } from '../models/Reuniao';
 
 const ReuniaoContext = createContext(null);
+
+function normalizeText(value) {
+    return String(value || '').trim();
+}
+
+function sameParticipants(left = [], right = []) {
+    const leftIds = left.map((item) => item.id).filter(Boolean).sort();
+    const rightIds = right.map((item) => item.id).filter(Boolean).sort();
+    return leftIds.length === rightIds.length && leftIds.every((id, index) => id === rightIds[index]);
+}
+
+function buildHistoricoEntry(usuarioNome, descricao) {
+    return {
+        data: new Date().toISOString(),
+        usuario_nome: usuarioNome || 'Sistema',
+        descricao,
+    };
+}
+
+function describeMeetingChanges(anterior, proxima) {
+    const changes = [];
+
+    if (normalizeText(anterior.titulo) !== normalizeText(proxima.titulo)) changes.push('Título');
+    if (normalizeText(anterior.data_inicio) !== normalizeText(proxima.data_inicio)) changes.push('Data e hora de início');
+    if (normalizeText(anterior.data_fim) !== normalizeText(proxima.data_fim)) changes.push('Data e hora de término');
+    if (normalizeText(anterior.hora_fim) !== normalizeText(proxima.hora_fim)) changes.push('Horário de término');
+    if (normalizeText(anterior.sala) !== normalizeText(proxima.sala)) changes.push('Sala');
+    if (normalizeText(anterior.recorrencia) !== normalizeText(proxima.recorrencia)) changes.push('Recorrência');
+    if (normalizeText(anterior.descricao) !== normalizeText(proxima.descricao)) changes.push('Pauta');
+    if (normalizeText(anterior.ata) !== normalizeText(proxima.ata)) changes.push('Ata');
+    if (!sameParticipants(anterior.participantes, proxima.participantes)) changes.push('Participantes');
+
+    return changes;
+}
 
 export function ReuniaoProvider({ children }) {
     const { user } = useAuth();
@@ -61,6 +97,7 @@ export function ReuniaoProvider({ children }) {
                 visivel_para: visivelPara,
                 status: StatusReuniao.AGENDADA,
                 criado_em: new Date().toISOString(),
+                historico: [buildHistoricoEntry(reuniaoData.criado_por_nome, 'Reunião criada.')],
             });
 
             const novaReuniao = {
@@ -69,7 +106,29 @@ export function ReuniaoProvider({ children }) {
                 visivel_para: visivelPara,
                 status: StatusReuniao.AGENDADA,
                 criado_em: new Date().toISOString(),
+                historico: [buildHistoricoEntry(reuniaoData.criado_por_nome, 'Reunião criada.')],
             };
+
+            const participantes = (reuniaoData.participantes || []).filter(
+                (participante) => participante.id && participante.id !== reuniaoData.criado_por_id,
+            );
+
+            await Promise.allSettled(participantes.map(async (participante) => {
+                await createUserNotification(
+                    {
+                        recipientUid: participante.id,
+                        recipientEmail: participante.email,
+                    },
+                    {
+                        message: `Você foi adicionado(a) à reunião "${reuniaoData.titulo}" em ${new Date(reuniaoData.data_inicio).toLocaleDateString('pt-BR')}.`,
+                        type: 'info',
+                    },
+                );
+
+                if (participante.telegram_chat_id) {
+                    await enviarNotificacaoTelegramReuniao(participante.telegram_chat_id, novaReuniao, participante.nome);
+                }
+            }));
 
             setReunioes((prev) => [...prev, novaReuniao].sort((a, b) => new Date(a.data_inicio) - new Date(b.data_inicio)));
             return novaReuniao;
@@ -84,22 +143,37 @@ export function ReuniaoProvider({ children }) {
         }
 
         try {
+            const reuniaoAtual = reunioes.find((item) => item.id === id);
             // Recalcula visivel_para ao atualizar
             const participanteIds = (dados.participantes || []).map((p) => p.id).filter(Boolean);
             const visivelPara = [...new Set([dados.criado_por_id, ...participanteIds].filter(Boolean))];
-            const payload = { ...dados, visivel_para: visivelPara, atualizado_em: new Date().toISOString() };
+            const camposAlterados = reuniaoAtual ? describeMeetingChanges(reuniaoAtual, dados) : [];
+            const historico = [
+                ...(Array.isArray(reuniaoAtual?.historico) ? reuniaoAtual.historico : []),
+                buildHistoricoEntry(
+                    user?.nome,
+                    camposAlterados.length > 0
+                        ? `Reunião atualizada. Campo(s): ${camposAlterados.join(', ')}.`
+                        : 'Reunião atualizada.',
+                ),
+            ];
+            const payload = { ...dados, visivel_para: visivelPara, atualizado_em: new Date().toISOString(), historico };
 
             await updateDoc(doc(db, 'reunioes', id), payload);
 
+            const reuniaoAtualizada = { ...reuniaoAtual, ...payload, id };
+
             setReunioes((prev) =>
                 prev
-                    .map((r) => (r.id === id ? { ...r, ...payload } : r))
+                    .map((r) => (r.id === id ? reuniaoAtualizada : r))
                     .sort((a, b) => new Date(a.data_inicio) - new Date(b.data_inicio))
             );
+
+            return reuniaoAtualizada;
         } catch (err) {
             throw new Error(`Erro ao atualizar reunião: ${err.message}`);
         }
-    }, []);
+    }, [reunioes, user?.nome]);
 
     const deletarReuniao = useCallback(async (id) => {
         if (!isFirebaseConfigured || !db) {

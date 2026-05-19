@@ -17,13 +17,20 @@ export default function Header({ pageTitle = '', onMenuClick }) {
             </button>
 
             {/* Título da página */}
-            <div className="flex-1 min-w-0">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
                 <h2 className="truncate font-heading text-sm font-semibold text-white sm:text-base">{pageTitle}</h2>
             </div>
 
             {/* Ações */}
             <div className="flex items-center gap-2 sm:gap-3">
                 <NotificationBell />
+                <div className="hidden h-10 w-[84px] items-center justify-center rounded-xl bg-white px-1 py-1 shadow-sm sm:flex">
+                    <img
+                        src="/pajucara hotel flow logo pequena 2.png"
+                        alt="Pajucara Hotel"
+                        className="h-full w-full scale-110 rounded-lg object-contain"
+                    />
+                </div>
 
                 {/* Avatar */}
                 <div className="flex items-center gap-2 border-l border-white/20 pl-2 sm:pl-3">

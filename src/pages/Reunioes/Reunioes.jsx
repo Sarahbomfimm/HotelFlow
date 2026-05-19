@@ -3,7 +3,7 @@ import AppLayout from '../../components/Layout/AppLayout';
 import ConfirmModal from '../../components/Modal/ConfirmModal';
 import {
     CalendarDays, Clock3, MapPin, X, Users,
-    BellRing, Plus, CalendarRange, ChevronLeft, ChevronRight, Edit2, Trash2, AlertCircle, Save,
+    BellRing, Plus, CalendarRange, ChevronLeft, ChevronRight, Edit2, Trash2, AlertCircle, Save, Eye,
 } from 'lucide-react';
 import { useReuniao } from '../../context/ReuniaoContext';
 import { useAuth } from '../../context/AuthContext';
@@ -28,7 +28,15 @@ function SeletorParticipantes({ participantes, onChange, todosUsers, currentUser
     );
 
     const adicionar = (user) => {
-        onChange([...participantes, { id: user.id, nome: user.nome, email: user.email }]);
+        onChange([
+            ...participantes,
+            {
+                id: user.id,
+                nome: user.nome,
+                email: user.email,
+                telegram_chat_id: user.telegram_chat_id || null,
+            },
+        ]);
         setBusca('');
     };
 
@@ -281,17 +289,65 @@ function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUser
     );
 }
 
+function HistoricoReuniaoModal({ isOpen, onClose, historico = [] }) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-hotel-gray/20 px-5 py-4 sm:px-6">
+                    <div>
+                        <h2 className="font-heading text-xl font-bold text-hotel-blue">Log de alterações</h2>
+                        <p className="mt-1 text-sm text-hotel-gray-md">Veja o histórico da reunião quando precisar.</p>
+                    </div>
+                    <button onClick={onClose} className="text-hotel-gray-md transition-colors hover:text-hotel-blue" aria-label="Fechar histórico">
+                        <X size={22} />
+                    </button>
+                </div>
+
+                <div className="max-h-[70vh] space-y-3 overflow-y-auto p-5 sm:p-6">
+                    {[...historico].reverse().map((item, index) => (
+                        <div key={`${item.data}-${index}`} className="flex gap-3 rounded-2xl border border-hotel-gray/40 bg-hotel-light/20 px-4 py-4">
+                            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hotel-blue/10 text-hotel-blue">
+                                <Clock3 size={14} />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-sm font-semibold text-hotel-blue">{item.usuario_nome}</p>
+                                <p className="mt-0.5 text-xs text-hotel-gray-md">
+                                    {format(new Date(item.data), 'dd/MM/yyyy HH:mm')}
+                                </p>
+                                <p className="mt-1.5 text-sm leading-6 text-hotel-gray-md">{item.descricao}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="flex justify-end border-t border-hotel-gray/20 px-5 py-4 sm:px-6">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="inline-flex items-center justify-center rounded-xl bg-hotel-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-hotel-blue/90"
+                    >
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function Reunioes() {
     const { reunioes, criarReuniao, atualizarReuniao, deletarReuniao, reunioesPorMes } = useReuniao();
     const { user } = useAuth();
     const { addNotification } = useNotification();
-    const { users: todosUsers } = useUsers();
+    const { users: todosUsers, currentUserProfile } = useUsers();
     const [mesAtual, setMesAtual] = useState(new Date());
     const [formularioAberto, setFormularioAberto] = useState(false);
     const [reuniaoEditando, setReuniaoEditando] = useState(null);
     const [reuniaoSelecionada, setReuniaoSelecionada] = useState(null);
     const [diaSelecionado, setDiaSelecionado] = useState(new Date());
     const [confirmDelete, setConfirmDelete] = useState(null); // id da reunião a deletar
+    const [historicoAberto, setHistoricoAberto] = useState(false);
     const detalheReuniaoRef = useRef(null);
 
     const diasMes = useMemo(() => {
@@ -317,10 +373,14 @@ export default function Reunioes() {
             };
 
             if (reuniaoEditando?.id) {
-                await atualizarReuniao(reuniaoEditando.id, payload);
+                const reuniaoAtualizada = await atualizarReuniao(reuniaoEditando.id, payload);
+                if (reuniaoSelecionada?.id === reuniaoEditando.id) {
+                    setReuniaoSelecionada(reuniaoAtualizada);
+                }
                 addNotification('Reunião atualizada com sucesso!', 'success');
             } else {
-                await criarReuniao(payload);
+                const novaReuniao = await criarReuniao(payload);
+                setReuniaoSelecionada(novaReuniao);
                 addNotification('Reunião criada com sucesso!', 'success');
             }
 
@@ -359,6 +419,7 @@ export default function Reunioes() {
 
     const reunioesDiaSelecionado = reunioesPorDia(diaSelecionado);
     const proximaReuniao = reunioesDoMes.find((r) => new Date(r.data_inicio) >= new Date());
+    const setorUsuario = currentUserProfile?.departamentos?.[0] || user?.departamentos?.[0] || 'Administração';
 
     const totalParticipantesUnicos = useMemo(() => {
         const ids = new Set();
@@ -371,6 +432,7 @@ export default function Reunioes() {
 
     useEffect(() => {
         if (!reuniaoSelecionada) {
+            setHistoricoAberto(false);
             return;
         }
 
@@ -386,7 +448,7 @@ export default function Reunioes() {
                     <div className="grid gap-8 px-6 py-7 lg:px-8 lg:py-8">
                         <div>
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-white/70">
-                                <CalendarRange size={14} className="text-hotel-gold" /> Administração
+                                <CalendarRange size={14} className="text-hotel-gold" /> {setorUsuario}
                             </div>
                             <h1 className="mt-4 max-w-xl font-heading text-3xl font-bold leading-tight lg:text-4xl">
                                 Calendário de reuniões corporativas
@@ -776,6 +838,16 @@ export default function Reunioes() {
                                 >
                                     <Edit2 size={14} /> Editar
                                 </button>
+                                {Array.isArray(reuniaoSelecionada.historico) && reuniaoSelecionada.historico.length > 0 && (
+                                    <button
+                                        onClick={() => setHistoricoAberto(true)}
+                                        className="inline-flex w-full items-center justify-center rounded-xl border border-hotel-blue/15 bg-hotel-blue/5 px-4 py-2.5 text-hotel-blue transition-colors hover:bg-hotel-blue/10 sm:w-auto sm:px-3"
+                                        aria-label="Ver log de alterações"
+                                        title="Ver log de alterações"
+                                    >
+                                        <Eye size={16} />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </section>
@@ -789,6 +861,12 @@ export default function Reunioes() {
                 onConfirm={confirmarDelecao}
                 onCancel={() => setConfirmDelete(null)}
                 danger
+            />
+
+            <HistoricoReuniaoModal
+                isOpen={historicoAberto}
+                onClose={() => setHistoricoAberto(false)}
+                historico={reuniaoSelecionada?.historico || []}
             />
 
             <FormularioReuniao

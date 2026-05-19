@@ -145,6 +145,62 @@ function capitalizeFirstLetter(value) {
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function normalizeHistoryValue(field, value) {
+    if (field === 'prazo') {
+        return value ? toIsoDate(value).slice(0, 10) : '';
+    }
+
+    if (field === 'co_responsaveis') {
+        return JSON.stringify(
+            (Array.isArray(value) ? value : [])
+                .map((item) => item?.nome || item?.id || '')
+                .filter(Boolean)
+                .sort(),
+        );
+    }
+
+    return String(value ?? '').trim();
+}
+
+function formatHistoryValue(field, value) {
+    if (!value) {
+        return 'vazio';
+    }
+
+    if (field === 'prazo') {
+        const normalized = toIsoDate(value);
+        return normalized ? new Date(normalized).toLocaleDateString('pt-BR') : 'vazio';
+    }
+
+    if (field === 'co_responsaveis') {
+        const nomes = (Array.isArray(value) ? value : [])
+            .map((item) => item?.nome || item?.id || '')
+            .filter(Boolean);
+        return nomes.length > 0 ? nomes.join(', ') : 'vazio';
+    }
+
+    return String(value).trim() || 'vazio';
+}
+
+function buildOrderHistoryDescription(order, updates) {
+    const labels = {
+        titulo: 'Título',
+        descricao: 'Descrição',
+        departamento: 'Departamento',
+        prazo: 'Prazo',
+        responsavel_nome: 'Responsável',
+        etapa_pdca: 'Etapa PDCA',
+        co_responsaveis: 'Co-responsáveis',
+    };
+
+    const relevantFields = Object.keys(updates).filter((field) => labels[field]);
+    const changes = relevantFields
+        .filter((field) => normalizeHistoryValue(field, order?.[field]) !== normalizeHistoryValue(field, updates[field]))
+        .map((field) => `${labels[field]}: ${formatHistoryValue(field, order?.[field])} -> ${formatHistoryValue(field, updates[field])}`);
+
+    return changes.length > 0 ? `SI editada. ${changes.join(' | ')}` : 'SI editada.';
+}
+
 function isManagementRole(role) {
     return role === UserRole.DIRETORA || role === UserRole.ADMIN;
 }
@@ -376,17 +432,10 @@ export function OSProvider({ children }) {
             throw new Error('Apenas a Diretoria ou quem criou esta SI pode editá-la.');
         }
 
-        const campos = Object.keys(atualizacoes)
-            .filter((campo) => !['imagem', 'responsavel_id', 'responsavel_uid', 'responsavel_email'].includes(campo))
-            .map((campo) => {
-                const labels = { titulo: 'Título', descricao: 'Descrição', departamento: 'Departamento', prazo: 'Prazo', responsavel_nome: 'Responsável', etapa_pdca: 'Etapa PDCA' };
-                return labels[campo] || campo;
-            }).join(', ');
-
         const entrada = {
             data: new Date().toISOString(),
             usuario_nome: usuario.nome,
-            descricao: `SI editada. Campo(s) alterado(s): ${campos || 'dados'}.`,
+            descricao: buildOrderHistoryDescription(os, atualizacoes),
         };
 
         let imagem = os.imagem || null;
