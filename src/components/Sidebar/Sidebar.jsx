@@ -14,12 +14,14 @@ const liderLinks = [
     { to: '/ordens', label: 'Minhas SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
+    { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
 ];
 const diretoraLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
+    { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/historico', label: 'Histórico', icon: History },
 ];
 const adminLinks = [
