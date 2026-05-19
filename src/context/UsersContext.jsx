@@ -186,6 +186,20 @@ export function UsersProvider({ children }) {
         [deptLeaderMap],
     );
 
+    const getLeadersByDepartment = useCallback(
+        (departamento) => normalizedUsers.filter(
+            (u) => u.role === UserRole.LIDER && Array.isArray(u.departamentos) && u.departamentos.includes(departamento),
+        ).map((u) => ({
+            id: u.id,
+            firebaseUid: u.firebaseUid || null,
+            nome: u.nome,
+            email: u.email,
+            telefone: u.telefone || null,
+            telegram_chat_id: u.telegram_chat_id || null,
+        })),
+        [normalizedUsers],
+    );
+
     const availableDepartments = useMemo(() => {
         const dynamicDepartments = normalizedUsers.flatMap((item) =>
             Array.isArray(item.departamentos) ? item.departamentos : [],
@@ -261,7 +275,7 @@ export function UsersProvider({ children }) {
     }, [currentUserProfile, user]);
 
     return (
-        <UsersContext.Provider value={{ users: normalizedUsers, usersFromFirestore, lideres, deptLeaderMap, getLeaderByDepartment, availableDepartments, currentUserProfile, updateTelegramChatId, loading }}>
+        <UsersContext.Provider value={{ users: normalizedUsers, usersFromFirestore, lideres, deptLeaderMap, getLeaderByDepartment, getLeadersByDepartment, availableDepartments, currentUserProfile, updateTelegramChatId, loading }}>
             {children}
         </UsersContext.Provider>
     );

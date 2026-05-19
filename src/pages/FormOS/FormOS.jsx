@@ -14,7 +14,7 @@ export default function FormOS() {
     const { criarOS } = useOS();
     const { user } = useAuth();
     const { addNotification } = useNotification();
-    const { getLeaderByDepartment, availableDepartments } = useUsers();
+    const { getLeaderByDepartment, getLeadersByDepartment, availableDepartments } = useUsers();
     const navigate = useNavigate();
     const isDiretora = user?.role === UserRole.DIRETORA || user?.role === UserRole.ADMIN;
     const cloudinaryCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim();
@@ -34,12 +34,18 @@ export default function FormOS() {
     const [osCriada, setOsCriada] = useState(null);
     const [showAlert, setShowAlert] = useState(false);
     const [submitError, setSubmitError] = useState('');
+    const [liderSelecionadoId, setLiderSelecionadoId] = useState('');
     const prazoInputRef = useRef(null);
 
-    const liderInfo = form.departamento ? getLeaderByDepartment(form.departamento) : null;
+    const lideresDoDept = form.departamento ? getLeadersByDepartment(form.departamento) : [];
+    const multiploLideres = lideresDoDept.length > 1;
+    const liderInfo = multiploLideres
+        ? lideresDoDept.find((l) => l.id === liderSelecionadoId) || null
+        : lideresDoDept[0] || null;
 
     const set = (field) => (e) => {
         setForm((prev) => ({ ...prev, [field]: e.target.value }));
+        if (field === 'departamento') setLiderSelecionadoId('');
         if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
         if (submitError) setSubmitError('');
     };
@@ -140,7 +146,7 @@ export default function FormOS() {
         const errs = validate();
         if (Object.keys(errs).length > 0) { setErrors(errs); return; }
         if (!liderInfo) {
-            setErrors((prev) => ({ ...prev, departamento: 'Nao existe lider cadastrado para esse departamento.' }));
+            setErrors((prev) => ({ ...prev, departamento: lideresDoDept.length > 1 ? 'Selecione o líder responsável.' : 'Nao existe lider cadastrado para esse departamento.' }));
             return;
         }
 
@@ -326,18 +332,49 @@ export default function FormOS() {
                         )}
                     </div>
 
-                    {/* Líder responsável (automático) */}
-                    {liderInfo && (
-                        <div className="flex flex-col gap-3 rounded-lg border border-hotel-gray bg-hotel-light p-3 animate-fadeIn sm:flex-row sm:items-center">
-                            <div className="w-9 h-9 rounded-full bg-hotel-gold flex items-center justify-center font-bold text-white text-sm">
-                                {liderInfo.nome[0].toUpperCase()}
+                    {/* Líder responsável */}
+                    {lideresDoDept.length > 0 && (
+                        multiploLideres ? (
+                            <div className="animate-fadeIn space-y-2">
+                                <label className="label" htmlFor="lider-select">
+                                    <User size={14} className="inline mr-1.5" />Atribuir para
+                                </label>
+                                <select
+                                    id="lider-select"
+                                    className={`input cursor-pointer ${!liderSelecionadoId && errors.departamento ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                    value={liderSelecionadoId}
+                                    onChange={(e) => {
+                                        setLiderSelecionadoId(e.target.value);
+                                        if (errors.departamento) setErrors((prev) => ({ ...prev, departamento: '' }));
+                                    }}
+                                >
+                                    <option value="">Selecione o líder responsável...</option>
+                                    {lideresDoDept.map((l) => (
+                                        <option key={l.id} value={l.id}>{l.nome}</option>
+                                    ))}
+                                </select>
+                                {liderInfo && (
+                                    <div className="flex items-center gap-3 rounded-lg border border-hotel-gray bg-hotel-light p-3">
+                                        <div className="w-8 h-8 rounded-full bg-hotel-gold flex items-center justify-center font-bold text-white text-sm shrink-0">
+                                            {liderInfo.nome[0].toUpperCase()}
+                                        </div>
+                                        <p className="text-sm font-semibold text-hotel-blue font-body">{liderInfo.nome}</p>
+                                        <User size={15} className="text-hotel-gold ml-auto" />
+                                    </div>
+                                )}
                             </div>
-                            <div>
-                                <p className="text-xs text-hotel-gray-md font-body">Responsável {isDiretora ? 'automático' : ''}</p>
-                                <p className="text-sm font-semibold text-hotel-blue font-body">{liderInfo.nome}</p>
+                        ) : (
+                            <div className="flex flex-col gap-3 rounded-lg border border-hotel-gray bg-hotel-light p-3 animate-fadeIn sm:flex-row sm:items-center">
+                                <div className="w-9 h-9 rounded-full bg-hotel-gold flex items-center justify-center font-bold text-white text-sm">
+                                    {liderInfo.nome[0].toUpperCase()}
+                                </div>
+                                <div>
+                                    <p className="text-xs text-hotel-gray-md font-body">Responsável {isDiretora ? 'automático' : ''}</p>
+                                    <p className="text-sm font-semibold text-hotel-blue font-body">{liderInfo.nome}</p>
+                                </div>
+                                <User size={16} className="text-hotel-gold sm:ml-auto" />
                             </div>
-                            <User size={16} className="text-hotel-gold sm:ml-auto" />
-                        </div>
+                        )
                     )}
 
                     {/* Botões */}
