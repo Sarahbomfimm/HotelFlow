@@ -128,6 +128,10 @@ export default function GeminiFloatingButton() {
     const panelRef = useRef(null);
     const messagesEndRef = useRef(null);
 
+    if (!user || location.pathname === '/login') {
+        return null;
+    }
+
     useEffect(() => {
         const handlePointerDown = (event) => {
             if (!panelRef.current?.contains(event.target)) {
@@ -203,12 +207,6 @@ export default function GeminiFloatingButton() {
         setMessages([INITIAL_MESSAGE]);
         setDraft('');
     };
-
-    const shouldRender = Boolean(user) && location.pathname !== '/login';
-
-    if (!shouldRender) {
-        return null;
-    }
 
     return (
         <div ref={panelRef} className="fixed bottom-5 right-5 z-40">
