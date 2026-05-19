@@ -595,13 +595,9 @@ export default function ListaOS() {
                             <div>
                                 <span className="font-semibold text-hotel-blue">Responsável:</span>{' '}
                                 {os.responsavel_nome}
-                            <div>
-                                <span className="font-semibold text-hotel-blue">Responsável:</span>{' '}
-                                {os.responsavel_nome}
                                 {Array.isArray(os.co_responsaveis) && os.co_responsaveis.length > 0 && (
                                     <span className="text-hotel-gray-md"> + {os.co_responsaveis.map((c) => c.nome).join(', ')}</span>
                                 )}
-                            </div>
                             </div>
                         </div>
 
