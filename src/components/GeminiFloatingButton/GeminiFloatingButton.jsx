@@ -15,6 +15,8 @@ const QUICK_QUESTIONS = [
     'Como criar uma SI?',
     'Como funciona o PDCA Visual?',
     'Como registrar progresso em uma SI?',
+    'Como funciona o prazo estimado da SI?',
+    'Como ler o histórico em timeline?',
     'Como funcionam as reuniões?',
     'Como ativar o Telegram?',
     'Quem consegue acessar o painel admin?',
@@ -26,6 +28,8 @@ function normalizeText(value) {
     return String(value || '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
         .toLowerCase();
 }
 
@@ -42,73 +46,145 @@ function getRoleLabel(role) {
     return 'lider';
 }
 
-function buildAnswer(question, role) {
+function hasAnyToken(normalizedQuestion, tokens) {
+    return tokens.some((token) => normalizedQuestion.includes(normalizeText(token)));
+}
+
+function getPathHint(pathname) {
+    if (pathname === '/lista-os') return 'ordens';
+    if (pathname === '/nova-os') return 'nova-si';
+    if (pathname === '/pdca-visual') return 'pdca';
+    if (pathname === '/historico-os') return 'historico';
+    if (pathname === '/reunioes') return 'reunioes';
+    if (pathname === '/admin') return 'admin';
+    return 'geral';
+}
+
+function buildAnswer(question, role, pathname) {
     const normalizedQuestion = normalizeText(question);
     const roleLabel = getRoleLabel(role);
+    const pathHint = getPathHint(pathname);
 
-    const answers = [
+    const intents = [
         {
+            id: 'criar-si',
             keywords: ['criar si', 'criar uma si', 'nova si', 'abrir si', 'solicitacao interna', 'solicitacao', 'os'],
+            strong: ['como criar', 'abrir solicitacao', 'abrir si'],
             response: 'Como criar uma SI:\n1. Acesse Nova SI pelo dashboard.\n2. Preencha título, descrição, departamento e prazo.\n3. Escolha o responsável do departamento.\n4. Se houver mais de um responsável, selecione um ou mais.\n5. Envie e acompanhe pela lista de SIs.',
         },
         {
+            id: 'responsavel',
             keywords: ['responsavel', 'lider', 'atribuir', 'departamento'],
+            strong: ['quem pode receber', 'como escolher responsavel', 'atribuicao'],
             response: 'Como funciona a atribuição de responsável:\n1. O departamento define quem pode receber a SI.\n2. Se existir apenas um responsável, ele é usado automaticamente.\n3. Se existir mais de um, você escolhe no formulário.\n4. Admin, diretoria e líder com departamento vinculado podem aparecer nessa seleção.',
         },
         {
+            id: 'pdca',
             keywords: ['pdca', 'pdca visual', 'planejar', 'executar', 'checar', 'agir'],
+            strong: ['etapas pdca', 'quadro pdca', 'painel pdca'],
             response: 'Como usar o PDCA Visual:\n1. Abra a tela PDCA Visual.\n2. Veja as SIs separadas por Planejar, Executar, Checar e Agir.\n3. Abra o card para entender o contexto da demanda.\n4. Use a evolução por etapa para acompanhar o avanço operacional.',
         },
         {
+            id: 'progresso',
             keywords: ['progresso', 'observacao', 'registrar progresso', 'status'],
-            response: 'Como registrar progresso em uma SI:\n1. Entre em Ordens e abra a SI desejada.\n2. Clique em Registrar progresso.\n3. Informe a observação da etapa atual do PDCA.\n4. Avance o status quando necessário.\n5. Consulte o histórico para ver as alterações.',
+            strong: ['atualizar progresso', 'adicionar observacao', 'registrar andamento'],
+            response: 'Como registrar progresso em uma SI:\n1. Entre em Ordens e abra a SI desejada.\n2. Clique em Registrar progresso.\n3. (Novo) Se quiser, preencha o Prazo estimado de entrega com a data que você acredita que conclui.\n4. Informe a observação e a etapa atual do PDCA.\n5. Esse prazo estimado fica visível para quem acompanha a SI e também aparece no histórico em timeline.',
         },
         {
+            id: 'prazo-estimado',
+            keywords: ['prazo estimado', 'estimativa entrega', 'previsao entrega', 'estimativa si'],
+            strong: ['prazo previsto', 'data estimada', 'quando entrega'],
+            response: 'Como funciona o prazo estimado da SI:\n1. O prazo oficial continua sendo o definido na criação da SI.\n2. O responsável pode informar um Prazo estimado de entrega ao registrar progresso.\n3. Esse campo é opcional e pode ser atualizado em novos registros de progresso.\n4. A estimativa aparece no card da SI e no histórico, para dar visibilidade da previsão real de conclusão.',
+        },
+        {
+            id: 'reunioes',
             keywords: ['reuniao', 'reunioes', 'participante', 'ata'],
+            strong: ['como criar reuniao', 'agenda de reuniao'],
             response: 'Como funcionam as reuniões:\n1. Acesse Reuniões e crie uma nova reunião.\n2. Defina data, pauta e participantes.\n3. Salve para notificar os participantes.\n4. Se houver Telegram configurado, os avisos também podem ir por lá.\n5. Use o histórico da reunião para rastrear mudanças.',
         },
         {
-            keywords: ['historico', 'alteracao', 'antes', 'depois'],
-            response: 'Como ler o histórico:\n1. Abra a SI ou reunião desejada.\n2. Vá na área de histórico.\n3. Veja apenas campos alterados.\n4. Cada item mostra antes e depois para facilitar auditoria.',
+            id: 'historico',
+            keywords: ['historico', 'alteracao', 'antes', 'depois', 'timeline', 'linha do tempo'],
+            strong: ['ver historico', 'auditoria de alteracoes', 'eventos da si'],
+            response: 'Como ler o histórico em timeline:\n1. Abra a SI e expanda os detalhes.\n2. Na seção Histórico de atualizações, os eventos aparecem em ordem com data/hora e usuário.\n3. Cada item mostra claramente o que foi feito (criação, mudança de status, progresso, edição).\n4. Quando houver, o Prazo estimado informado no progresso aparece junto do evento.\n5. Use a timeline para entender evolução e contexto da SI sem confusão.',
         },
         {
+            id: 'telegram',
             keywords: ['telegram', 'bot', 'notificacao'],
+            strong: ['conectar telegram', 'chat id', 'alerta telegram'],
             response: 'Como ativar Telegram:\n1. Acesse o dashboard.\n2. Abra o bloco/banner de conexão Telegram.\n3. Vincule seu chat ID.\n4. Após ativar, você pode receber alertas de SI e reuniões no Telegram.',
         },
         {
+            id: 'dashboard',
             keywords: ['dashboard', 'painel inicial', 'resumo'],
+            strong: ['indicadores', 'visao geral'],
             response: `Como usar o dashboard (${roleLabel}):\n1. Veja os indicadores principais da operação.\n2. Use os atalhos para abrir SI ou navegar para listas.\n3. Clique nos blocos de PDCA para filtrar rapidamente as demandas.\n4. Confira o painel como visão diária da equipe.`,
         },
         {
+            id: 'filtros',
             keywords: ['filtro', 'lista', 'ordens', 'buscar'],
+            strong: ['filtrar si', 'buscar solicitacao', 'lista os'],
             response: 'Como filtrar as ordens:\n1. Abra Ordens.\n2. Pesquise por texto livre no campo de busca.\n3. Combine filtros por status, etapa PDCA, responsável, departamento e prazo.\n4. Limpe filtros para voltar ao panorama geral.',
         },
         {
+            id: 'admin',
             keywords: ['admin', 'gerenciamento', 'painel administrativo', 'usuario', 'usuarios'],
+            strong: ['gerenciar usuarios', 'painel admin', 'cadastro de usuario'],
             response: 'Painel administrativo:\n1. Acesso exclusivo para admin.\n2. Gerencie usuários, papéis e departamentos.\n3. Atualize dados de contato e Telegram.\n4. Faça ajustes de cadastro sincronizados com Firebase.',
         },
         {
+            id: 'permissoes',
             keywords: ['quem acessa', 'permissao', 'perfil', 'papel', 'acesso'],
+            strong: ['tipos de usuario', 'nivel de acesso'],
             response: 'Perfis e permissões:\n1. Admin: acesso total e gerenciamento do sistema.\n2. Diretoria: visão gerencial completa e histórico.\n3. Líder: foco em SIs, PDCA Visual e reuniões da operação.',
+        },
+        {
+            id: 'editar-excluir',
+            keywords: ['editar si', 'alterar si', 'excluir si', 'apagar si', 'remover si'],
+            strong: ['quem pode editar', 'quem pode excluir'],
+            response: 'Edição e exclusão de SI:\n1. Diretoria/Admin podem editar SIs.\n2. Quem criou a SI também pode editar.\n3. Exclusão é permitida para quem criou a SI.\n4. Toda edição relevante gera registro no histórico da SI.',
+        },
+        {
+            id: 'status',
+            keywords: ['status', 'aberto', 'em andamento', 'concluido', 'finalizar'],
+            strong: ['fluxo de status', 'mudar status'],
+            response: 'Fluxo de status da SI:\n1. Aberto: SI criada e aguardando início.\n2. Em Andamento: responsável iniciou a execução.\n3. Concluído: demanda finalizada.\n4. Mudanças de status ficam registradas no histórico para rastreabilidade.',
+        },
+        {
+            id: 'exportacao',
+            keywords: ['exportar', 'csv', 'baixar lista', 'relatorio'],
+            strong: ['exportar ordens', 'planilha de si'],
+            response: 'Exportação de SIs:\n1. Aplique os filtros desejados na Lista de Ordens.\n2. Use a opção de exportar para gerar arquivo CSV.\n3. O arquivo sai com os dados já filtrados para análise e acompanhamento.',
         },
     ];
 
     let bestMatch = null;
     let bestScore = 0;
 
-    answers.forEach((answer) => {
-        const score = answer.keywords.reduce(
-            (total, keyword) => total + (keywordMatches(normalizedQuestion, keyword) ? 1 : 0),
+    intents.forEach((intent) => {
+        const keywordScore = intent.keywords.reduce(
+            (total, keyword) => total + (keywordMatches(normalizedQuestion, keyword) ? 2 : 0),
+            0,
+        );
+        const strongScore = (intent.strong || []).reduce(
+            (total, keyword) => total + (keywordMatches(normalizedQuestion, keyword) ? 3 : 0),
             0,
         );
 
+        const questionTokens = normalizedQuestion.split(' ').filter(Boolean);
+        const tokenOverlap = questionTokens.filter((token) =>
+            intent.keywords.some((keyword) => normalizeText(keyword).includes(token)),
+        ).length;
+
+        const score = keywordScore + strongScore + Math.min(tokenOverlap, 3);
+
         if (score > bestScore) {
-            bestMatch = answer;
+            bestMatch = intent;
             bestScore = score;
         }
     });
 
-    if (bestMatch) {
+    if (bestMatch && bestScore >= 2) {
         return bestMatch.response;
     }
 
@@ -116,7 +192,27 @@ function buildAnswer(question, role) {
         return 'Oi. Posso te orientar sobre SI, PDCA Visual, reuniões, Telegram, filtros, histórico e painel administrativo. Se quiser, escolha uma pergunta rápida acima.';
     }
 
-    return 'Ainda não encontrei uma resposta exata para isso, mas posso te ajudar melhor se você perguntar sobre criação de SI, responsáveis, PDCA Visual, progresso, reuniões, histórico, Telegram, dashboard, filtros ou painel administrativo.';
+    if (pathHint === 'ordens') {
+        return 'Posso te ajudar nessa tela de Ordens com: filtros, mudança de status, registro de progresso, prazo estimado, edição/exclusão e leitura do histórico em timeline. Me diga em uma frase o que você quer fazer.';
+    }
+
+    if (pathHint === 'nova-si') {
+        return 'Nessa tela você cria uma SI preenchendo título, descrição, departamento, prazo e responsável. Se quiser, te guio passo a passo para preencher sem erro.';
+    }
+
+    if (pathHint === 'pdca') {
+        return 'No PDCA Visual você acompanha SIs por etapa (PLAN, DO, CHECK e ACT), com filtros de período e departamento. Posso te orientar para encontrar gargalos rapidamente.';
+    }
+
+    if (pathHint === 'historico') {
+        return 'No Histórico você vê a timeline das alterações de cada SI com data, usuário e descrição do evento. Se quiser, te mostro como auditar mudanças específicas.';
+    }
+
+    if (hasAnyToken(normalizedQuestion, ['erro', 'bug', 'nao funciona', 'travou', 'falhou'])) {
+        return 'Vamos resolver isso juntos. Me diga: 1) em qual tela aconteceu, 2) o que você tentou fazer, 3) qual mensagem apareceu. Com esses 3 pontos eu te passo um diagnóstico rápido.';
+    }
+
+    return 'Consigo te ajudar com praticamente todo o HotelFlow: criação/edição de SI, responsáveis, status, progresso com prazo estimado, histórico em timeline, PDCA Visual, reuniões, Telegram, filtros, exportação e permissões. Me manda sua dúvida em formato de objetivo (ex.: "quero X na tela Y") que eu te guio passo a passo.';
 }
 
 export default function GeminiFloatingButton() {
@@ -173,7 +269,7 @@ export default function GeminiFloatingButton() {
         const assistantMessage = {
             id: `assistant-${Date.now() + 1}`,
             role: 'assistant',
-            content: buildAnswer(trimmedQuestion, user?.role),
+            content: buildAnswer(trimmedQuestion, user?.role, location.pathname),
         };
 
         setMessages((current) => {

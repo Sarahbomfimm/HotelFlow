@@ -9,12 +9,14 @@ import { PDCALabel, PDCAStep } from '../../models/OrdemDeServico';
 export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCancel }) {
     const [obs, setObs] = useState('');
     const [etapaPdca, setEtapaPdca] = useState(PDCAStep.PLAN);
+    const [prazoEstimado, setPrazoEstimado] = useState('');
     const textRef = useRef(null);
 
     useEffect(() => {
         if (isOpen) {
             setObs('');
             setEtapaPdca(os?.etapa_pdca || PDCAStep.PLAN);
+            setPrazoEstimado('');
             setTimeout(() => textRef.current?.focus(), 80);
             const handler = (e) => { if (e.key === 'Escape') onCancel(); };
             window.addEventListener('keydown', handler);
@@ -26,8 +28,9 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
 
     const handleConfirm = () => {
         if (!obs.trim()) return;
-        onConfirm(obs.trim(), etapaPdca);
+        onConfirm(obs.trim(), etapaPdca, prazoEstimado);
         setObs('');
+        setPrazoEstimado('');
     };
 
     return (
@@ -50,6 +53,17 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
                 </div>
 
                 <div className="px-6 pb-5">
+                    <label className="label mt-3" htmlFor="prazo-estimado">
+                        Prazo estimado de entrega <span className="text-hotel-gray-md font-normal">(opcional)</span>
+                    </label>
+                    <input
+                        id="prazo-estimado"
+                        type="date"
+                        className="input"
+                        value={prazoEstimado}
+                        onChange={e => setPrazoEstimado(e.target.value)}
+                    />
+
                     <label className="label mt-3" htmlFor="progresso-etapa-pdca">
                         Etapa PDCA atual
                     </label>

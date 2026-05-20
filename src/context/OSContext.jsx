@@ -467,7 +467,7 @@ export function OSProvider({ children }) {
     }, [ordens]);
 
     /** Adiciona observação de progresso sem alterar status */
-    const adicionarObservacao = useCallback(async (osId, texto, usuario, etapaPdca) => {
+    const adicionarObservacao = useCallback(async (osId, texto, usuario, etapaPdca, prazoEstimado) => {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
@@ -475,6 +475,7 @@ export function OSProvider({ children }) {
             data: new Date().toISOString(),
             usuario_nome: usuario.nome,
             descricao: `Progresso${etapaPdca ? ` [${etapaPdca}]` : ''}: ${texto}`,
+            prazo_estimado: prazoEstimado || null,
         };
 
         const historico = [...os.historico, entrada];
@@ -482,6 +483,10 @@ export function OSProvider({ children }) {
             historico,
             etapa_pdca: etapaPdca || os.etapa_pdca,
         };
+        // Atualiza o campo prazo_estimado na OS se informado
+        if (prazoEstimado) {
+            payload.prazo_estimado = prazoEstimado;
+        }
 
         if (!isFirebaseConfigured || !db) {
             setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));

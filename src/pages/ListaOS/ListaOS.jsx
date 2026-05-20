@@ -445,9 +445,9 @@ export default function ListaOS() {
         );
     };
 
-    const handleAdicionarObs = async (texto, etapaPdca) => {
+    const handleAdicionarObs = async (texto, etapaPdca, prazoEstimado) => {
         const { os } = adicionarObsModal;
-        await adicionarObservacao(os.id, texto, user, etapaPdca);
+        await adicionarObservacao(os.id, texto, user, etapaPdca, prazoEstimado);
         addNotification(`Progresso registrado na SI “${os.titulo}”.`, 'info');
         setAdicionarObsModal({ open: false, os: null });
     };
@@ -511,6 +511,12 @@ export default function ListaOS() {
                             Prazo: <strong className={atrasada ? 'text-red-500' : ''}>
                                 {format(parseISO(os.prazo), 'dd/MM/yyyy')}
                             </strong>
+                            {os.prazo_estimado && (
+                                <>
+                                    {' · Prazo estimado: '}
+                                    <strong className="text-hotel-gold">{format(parseISO(os.prazo_estimado), 'dd/MM/yyyy')}</strong>
+                                </>
+                            )}
                         </p>
                     </div>
 
@@ -617,23 +623,27 @@ export default function ListaOS() {
                                 <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-hotel-blue font-body">
                                     <Clock3 size={12} /> Histórico de atualizações
                                 </p>
-                                <div className="max-h-56 space-y-3 overflow-y-auto pr-1">
-                                    {[...os.historico].reverse().map((h, i) => (
-                                        <div key={i} className="relative rounded-2xl border border-hotel-gray/40 bg-hotel-light/20 px-3 py-3 text-xs font-body shadow-[0_1px_0_rgba(4,21,35,0.02)]">
-                                            <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-hotel-gold/70" />
-                                            <div className="pl-3">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="inline-flex items-center rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-semibold text-hotel-blue">
-                                                        {h.usuario_nome}
-                                                    </span>
-                                                    <span className="text-[11px] text-hotel-gray-md">
-                                                        {format(parseISO(h.data), 'dd/MM/yyyy HH:mm')}
-                                                    </span>
-                                                </div>
-                                                <p className="mt-2 text-sm leading-5 text-gray-700">{h.descricao}</p>
-                                            </div>
-                                        </div>
-                                    ))}
+                                <div className="max-h-56 overflow-y-auto pr-1">
+                                    <ol className="relative ml-3 space-y-5 border-l-2 border-hotel-gray">
+                                        {[...os.historico].reverse().map((h, i) => (
+                                            <li key={i} className="ml-5 relative">
+                                                {/* Ponto da timeline */}
+                                                <span className="absolute -left-[29px] top-0.5 w-4 h-4 rounded-full bg-hotel-gold border-2 border-white shadow-sm" />
+                                                <p className="text-xs text-hotel-gray-md font-body">
+                                                    {format(parseISO(h.data), "dd/MM/yyyy 'às' HH:mm")}
+                                                    {' · '}
+                                                    <strong className="text-hotel-blue">{h.usuario_nome}</strong>
+                                                    {h.prazo_estimado && (
+                                                        <>
+                                                            {' · Prazo estimado: '}
+                                                            <span className="text-hotel-gold font-semibold">{format(parseISO(h.prazo_estimado), 'dd/MM/yyyy')}</span>
+                                                        </>
+                                                    )}
+                                                </p>
+                                                <p className="text-sm font-body text-gray-700 mt-0.5">{h.descricao}</p>
+                                            </li>
+                                        ))}
+                                    </ol>
                                 </div>
                             </div>
                         )}
@@ -811,12 +821,12 @@ export default function ListaOS() {
                 onConfirm={confirmarStatusChange}
                 onCancel={() => setObsModal({ open: false, os: null, novoStatus: null })}
             />
-            <AdicionarObservacaoModal
-                isOpen={adicionarObsModal.open}
-                os={adicionarObsModal.os}
-                onConfirm={handleAdicionarObs}
-                onCancel={() => setAdicionarObsModal({ open: false, os: null })}
-            />
+                        <AdicionarObservacaoModal
+                            isOpen={adicionarObsModal.open}
+                            os={adicionarObsModal.os}
+                            onConfirm={handleAdicionarObs}
+                            onCancel={() => setAdicionarObsModal({ open: false, os: null })}
+                        />
         </AppLayout>
     );
 }
