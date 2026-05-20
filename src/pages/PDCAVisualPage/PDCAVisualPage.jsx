@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, ClipboardList, Clock3, Building2, CalendarRange } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import { useOS } from '../../context/OSContext';
+import { useAuth } from '../../context/AuthContext';
 import { PDCALabel, PDCAStep, StatusLabel, StatusOS } from '../../models/OrdemDeServico';
+import { UserRole } from '../../models/User';
 import { format, isPast, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
@@ -43,6 +45,7 @@ function progressPercent(step) {
 
 export default function PDCAVisualPage() {
     const { ordens } = useOS();
+    const { user } = useAuth();
     const [selectedDepartment, setSelectedDepartment] = useState('');
     const [periodRange, setPeriodRange] = useState([null, null]);
 
@@ -60,6 +63,12 @@ export default function PDCAVisualPage() {
     const base = useMemo(() => {
         return ordens
             .filter((os) => os.departamento !== 'Teste')
+            .filter((os) => {
+                if (user?.role === UserRole.LIDER) {
+                    return os.responsavel_id === user.id;
+                }
+                return true;
+            })
             .filter((os) => {
                 if (!selectedDepartment) {
                     return true;
@@ -84,7 +93,7 @@ export default function PDCAVisualPage() {
 
                 return new Date(os.prazo) <= endDate;
             });
-    }, [ordens, periodEnd, periodStart, selectedDepartment]);
+    }, [ordens, periodEnd, periodStart, selectedDepartment, user]);
 
     const stats = useMemo(() => {
         const abertas = base.filter((os) => os.status === StatusOS.ABERTO).length;
