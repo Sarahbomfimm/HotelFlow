@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, ChevronDown, ChevronUp, Trash2, X,
     Edit3, Clock3, ArrowLeft, CalendarRange, Image as ImageIcon,
-    Download,
+    Download, Paperclip,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
@@ -445,11 +445,18 @@ export default function ListaOS() {
         );
     };
 
-    const handleAdicionarObs = async (texto, etapaPdca, prazoEstimado) => {
+    const handleAdicionarObs = async (texto, etapaPdca, prazoEstimado, anexoPdfFile) => {
         const { os } = adicionarObsModal;
-        await adicionarObservacao(os.id, texto, user, etapaPdca, prazoEstimado);
-        addNotification(`Progresso registrado na SI “${os.titulo}”.`, 'info');
-        setAdicionarObsModal({ open: false, os: null });
+        try {
+            const result = await adicionarObservacao(os.id, texto, user, etapaPdca, prazoEstimado, anexoPdfFile);
+            addNotification(`Progresso registrado na SI “${os.titulo}”.`, 'info');
+            if (result?.anexoErro) {
+                addNotification(result.anexoErro, 'warning');
+            }
+            setAdicionarObsModal({ open: false, os: null });
+        } catch (error) {
+            addNotification(error?.message || 'Nao foi possivel registrar o progresso.', 'error');
+        }
     };
 
     const confirmDelete = async () => {
@@ -640,7 +647,23 @@ export default function ListaOS() {
                                                         </>
                                                     )}
                                                 </p>
-                                                <p className="text-sm font-body text-gray-700 mt-0.5">{h.descricao}</p>
+                                                <div className="mt-1.5 rounded-xl border border-hotel-gray/40 bg-hotel-light/30 px-3 py-2.5">
+                                                    <p className="text-sm font-body text-gray-700">{h.descricao}</p>
+                                                    {h.anexo_pdf_url && (
+                                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                            <span className="inline-flex items-center gap-1 rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-semibold text-hotel-blue">
+                                                                <Paperclip size={11} /> PDF anexado
+                                                            </span>
+                                                            <a
+                                                                href={h.anexo_pdf_url}
+                                                                download={h.anexo_pdf_nome || 'anexo.pdf'}
+                                                                className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-blue hover:text-hotel-gold"
+                                                            >
+                                                                <Download size={11} /> {h.anexo_pdf_nome || 'Abrir anexo'}
+                                                            </a>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </li>
                                         ))}
                                     </ol>

@@ -16,7 +16,7 @@ import { db, isFirebaseConfigured } from '../services/firebase';
 import { createUserNotification } from '../services/notifications';
 import { enviarNotificacaoWhatsApp } from '../services/whatsappService';
 import { enviarNotificacaoTelegram } from '../services/telegramService';
-import { deleteFileByUrl, uploadServiceOrderImage } from '../services/storage';
+import { deleteFileByUrl, uploadProgressPdf, uploadServiceOrderImage } from '../services/storage';
 import { useAuth } from './AuthContext';
 
 const OSContext = createContext(null);
@@ -467,15 +467,31 @@ export function OSProvider({ children }) {
     }, [ordens]);
 
     /** Adiciona observação de progresso sem alterar status */
-    const adicionarObservacao = useCallback(async (osId, texto, usuario, etapaPdca, prazoEstimado) => {
+    const adicionarObservacao = useCallback(async (osId, texto, usuario, etapaPdca, prazoEstimado, anexoPdfFile) => {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
+
+        let anexoPdfUrl = null;
+        let anexoPdfNome = null;
+        let anexoErro = '';
+        if (anexoPdfFile) {
+            try {
+                const uploadResult = await uploadProgressPdf(anexoPdfFile, osId);
+                anexoPdfUrl = uploadResult?.url || null;
+                anexoPdfNome = uploadResult?.fileName || anexoPdfFile.name || 'anexo.pdf';
+            } catch (error) {
+                anexoErro = error?.message || 'Nao foi possivel enviar o PDF do progresso.';
+            }
+        }
 
         const entrada = {
             data: new Date().toISOString(),
             usuario_nome: usuario.nome,
             descricao: `Progresso${etapaPdca ? ` [${etapaPdca}]` : ''}: ${texto}`,
             prazo_estimado: prazoEstimado || null,
+            anexo_pdf_url: anexoPdfUrl,
+            anexo_pdf_nome: anexoPdfNome,
+            anexo_pdf_erro: anexoErro || null,
         };
 
         const historico = [...os.historico, entrada];
@@ -491,12 +507,19 @@ export function OSProvider({ children }) {
         if (!isFirebaseConfigured || !db) {
             setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));
             setError('');
-            return;
+            return {
+                anexoSalvo: Boolean(anexoPdfUrl),
+                anexoErro,
+            };
         }
 
         await updateDoc(doc(db, 'serviceOrders', osId), payload);
         setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));
         setError('');
+        return {
+            anexoSalvo: Boolean(anexoPdfUrl),
+            anexoErro,
+        };
     }, [ordens]);
 
     /** Remove uma OS (apenas pela diretora) */
