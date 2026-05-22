@@ -17,28 +17,6 @@ function belongsToLeader(os, leader) {
     ));
 }
 
-function isPrimaryResponsible(os, leader) {
-    if (!os || !leader) return false;
-
-    return (
-        os.responsavel_id === leader.id
-        || (leader.firebaseUid && os.responsavel_uid === leader.firebaseUid)
-        || (leader.email && os.responsavel_email?.toLowerCase() === leader.email.toLowerCase())
-    );
-}
-
-function isPrimaryResponsibleInCurrentDepartments(os, leader) {
-    if (!isPrimaryResponsible(os, leader)) {
-        return false;
-    }
-
-    const leaderDepartments = Array.isArray(leader?.departamentos) ? leader.departamentos : [];
-    if (leaderDepartments.length === 0) {
-        return false;
-    }
-
-    return leaderDepartments.includes(os.departamento);
-}
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -482,8 +460,8 @@ export default function DashboardDiretora() {
                     </h3>
                     <div className="space-y-3 flex-1 overflow-y-auto pr-1 min-h-0">
                         {lideres.map((lider) => {
-                            const total = ordensSemTeste.filter((o) => isPrimaryResponsibleInCurrentDepartments(o, lider)).length;
-                            const concl = ordensSemTeste.filter((o) => isPrimaryResponsibleInCurrentDepartments(o, lider) && o.status === StatusOS.CONCLUIDO).length;
+                            const total = ordensSemTeste.filter((o) => belongsToLeader(o, lider)).length;
+                            const concl = ordensSemTeste.filter((o) => belongsToLeader(o, lider) && o.status === StatusOS.CONCLUIDO).length;
                             const pct = total > 0 ? Math.round((concl / total) * 100) : 0;
                             return (
                                 <div key={lider.id} className="space-y-1">

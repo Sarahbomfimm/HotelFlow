@@ -552,11 +552,9 @@ export function OSProvider({ children }) {
                 if (isCreator) return true;
 
                 const isAssigned = matchesOrderActor(os, usuario, 'responsavel');
-                if (!isAssigned) return false;
+                if (isAssigned) return true;
 
-                // Para evitar vazamentos entre setores, líder só vê atribuições
-                // de departamentos que atualmente pertencem a ele.
-                return Array.isArray(departamentos) && departamentos.includes(os.departamento);
+                return false;
             }),
         [ordens],
     );

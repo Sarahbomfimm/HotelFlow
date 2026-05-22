@@ -1,17 +1,18 @@
-﻿import { useState, useEffect } from 'react';
-import { Save, X, CalendarDays, FileText, Building2 } from 'lucide-react';
+﻿import { useState, useEffect, useMemo } from 'react';
+import { Save, X, CalendarDays, FileText, Building2, User } from 'lucide-react';
 import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { PDCAStep, PDCALabel, StatusOS } from '../../models/OrdemDeServico';
+import { UserRole } from '../../models/User';
 import { format, parseISO } from 'date-fns';
 
 export default function EditarOSModal({ os, onClose }) {
     const { editarOS } = useOS();
     const { user } = useAuth();
     const { addNotification } = useNotification();
-    const { getLeaderByDepartment, availableDepartments } = useUsers();
+    const { users, availableDepartments } = useUsers();
 
     const [form, setForm] = useState({
         titulo: '',
@@ -22,6 +23,14 @@ export default function EditarOSModal({ os, onClose }) {
     });
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
+    const [responsaveisSelecionados, setResponsaveisSelecionados] = useState(new Set());
+
+    const assignableUsers = useMemo(
+        () => users
+            .filter((u) => [UserRole.LIDER, UserRole.ADMIN, UserRole.DIRETORA].includes(u.role))
+            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+        [users],
+    );
 
     useEffect(() => {
         if (os) {
@@ -32,6 +41,9 @@ export default function EditarOSModal({ os, onClose }) {
                 etapa_pdca: os.etapa_pdca || PDCAStep.PLAN,
                 prazo: format(parseISO(os.prazo), 'yyyy-MM-dd'),
             });
+            const selecionadosIniciais = [os.responsavel_id, ...(Array.isArray(os.co_responsaveis) ? os.co_responsaveis.map((item) => item.id) : [])]
+                .filter(Boolean);
+            setResponsaveisSelecionados(new Set(selecionadosIniciais));
             setErrors({});
         }
     }, [os]);
@@ -61,6 +73,7 @@ export default function EditarOSModal({ os, onClose }) {
         if (!form.departamento) e.departamento = 'Selecione um departamento.';
         if (!form.etapa_pdca) e.etapa_pdca = 'Selecione a etapa PDCA.';
         if (!form.prazo) e.prazo = 'Prazo é obrigatório.';
+        if (responsaveisSelecionados.size === 0) e.responsaveis = 'Selecione pelo menos uma pessoa para atribuição.';
         return e;
     };
 
@@ -72,7 +85,15 @@ export default function EditarOSModal({ os, onClose }) {
         setLoading(true);
         await new Promise((r) => setTimeout(r, 400));
 
-        const liderInfo = getLeaderByDepartment(form.departamento) || { id: os.responsavel_id, nome: os.responsavel_nome };
+        const responsaveisEscolhidos = assignableUsers.filter((item) => responsaveisSelecionados.has(item.id));
+        const responsavel = responsaveisEscolhidos[0] || null;
+        const coResponsaveis = responsaveisEscolhidos.slice(1);
+
+        if (!responsavel) {
+            setErrors((prev) => ({ ...prev, responsaveis: 'Selecione pelo menos uma pessoa para atribuição.' }));
+            setLoading(false);
+            return;
+        }
 
         await editarOS(
             os.id,
@@ -82,8 +103,20 @@ export default function EditarOSModal({ os, onClose }) {
                 departamento: form.departamento,
                 etapa_pdca: os.status === StatusOS.CONCLUIDO ? PDCAStep.ACT : form.etapa_pdca,
                 prazo: toLocalEndOfDayISO(form.prazo),
-                responsavel_id: liderInfo.id,
-                responsavel_nome: liderInfo.nome,
+                responsavel_id: responsavel.id,
+                responsavel_uid: responsavel.firebaseUid || responsavel.id,
+                responsavel_email: responsavel.email,
+                responsavel_nome: responsavel.nome,
+                responsavel_telefone: responsavel.telefone || null,
+                responsavel_telegram_chat_id: responsavel.telegram_chat_id || null,
+                co_responsaveis: coResponsaveis.map((l) => ({
+                    id: l.id,
+                    uid: l.firebaseUid || l.id,
+                    email: l.email,
+                    nome: l.nome,
+                    telefone: l.telefone || null,
+                    telegram_chat_id: l.telegram_chat_id || null,
+                })),
             },
             user,
         );
@@ -191,6 +224,49 @@ export default function EditarOSModal({ os, onClose }) {
                             />
                             {errors.prazo && <p className="text-red-500 text-xs mt-1">{errors.prazo}</p>}
                         </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="label">
+                            <User size={13} className="inline mr-1.5" />Atribuir para
+                            <span className="ml-1 text-hotel-gray-md font-normal">(selecione uma ou mais pessoas)</span>
+                        </label>
+                        <div className={`flex flex-wrap gap-2 rounded-lg border p-3 bg-hotel-light transition-colors ${responsaveisSelecionados.size === 0 && errors.responsaveis ? 'border-red-400 ring-1 ring-red-300' : 'border-hotel-gray'}`}>
+                            {assignableUsers.map((pessoa) => {
+                                const selecionado = responsaveisSelecionados.has(pessoa.id);
+                                const isPrimario = selecionado && [...responsaveisSelecionados][0] === pessoa.id;
+                                return (
+                                    <button
+                                        key={pessoa.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setResponsaveisSelecionados((prev) => {
+                                                const next = new Set(prev);
+                                                if (next.has(pessoa.id)) next.delete(pessoa.id);
+                                                else next.add(pessoa.id);
+                                                return next;
+                                            });
+                                            if (errors.responsaveis) setErrors((prev) => ({ ...prev, responsaveis: '' }));
+                                        }}
+                                        className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold font-body transition-all border ${
+                                            selecionado
+                                                ? 'bg-hotel-blue text-white border-hotel-blue shadow-sm'
+                                                : 'bg-white text-hotel-blue border-hotel-gray hover:border-hotel-blue/50'
+                                        }`}
+                                    >
+                                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${selecionado ? 'bg-hotel-gold text-white' : 'bg-hotel-gray text-hotel-gray-md'}`}>
+                                            {pessoa.nome[0].toUpperCase()}
+                                        </span>
+                                        {pessoa.nome}
+                                        {isPrimario && <span className="ml-1 text-[10px] text-hotel-gold font-bold uppercase tracking-wide">principal</span>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <p className="text-xs text-hotel-gray-md font-body">
+                            O primeiro selecionado será o responsável principal; os demais serão co-responsáveis.
+                        </p>
+                        {errors.responsaveis && <p className="text-red-500 text-xs mt-1">{errors.responsaveis}</p>}
                     </div>
 
                     {/* Botões */}

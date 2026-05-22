@@ -1,4 +1,4 @@
-﻿import { useRef, useState } from 'react';
+﻿import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Send, ArrowLeft, CalendarDays, User, Building2, FileText, Upload, X, Loader } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
@@ -14,7 +14,7 @@ export default function FormOS() {
     const { criarOS } = useOS();
     const { user } = useAuth();
     const { addNotification } = useNotification();
-    const { getLeaderByDepartment, getLeadersByDepartment, availableDepartments } = useUsers();
+    const { users, availableDepartments } = useUsers();
     const navigate = useNavigate();
     const isDiretora = user?.role === UserRole.DIRETORA || user?.role === UserRole.ADMIN;
     const cloudinaryCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim();
@@ -34,18 +34,18 @@ export default function FormOS() {
     const [osCriada, setOsCriada] = useState(null);
     const [showAlert, setShowAlert] = useState(false);
     const [submitError, setSubmitError] = useState('');
-    const [lideresSelecionados, setLideresSelecionados] = useState(new Set());
+    const [responsaveisSelecionados, setResponsaveisSelecionados] = useState(new Set());
     const prazoInputRef = useRef(null);
 
-    const lideresDoDept = form.departamento ? getLeadersByDepartment(form.departamento) : [];
-    const multiploLideres = lideresDoDept.length > 1;
-    const liderInfo = multiploLideres
-        ? (lideresSelecionados.size > 0 ? lideresDoDept.find((l) => lideresSelecionados.has(l.id)) || null : null)
-        : lideresDoDept[0] || null;
+    const assignableUsers = useMemo(
+        () => users
+            .filter((u) => [UserRole.LIDER, UserRole.ADMIN, UserRole.DIRETORA].includes(u.role))
+            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+        [users],
+    );
 
     const set = (field) => (e) => {
         setForm((prev) => ({ ...prev, [field]: e.target.value }));
-        if (field === 'departamento') setLideresSelecionados(new Set());
         if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
         if (submitError) setSubmitError('');
     };
@@ -131,6 +131,9 @@ export default function FormOS() {
         else if (form.prazo < hoje) {
             e.prazo = 'O prazo não pode ser no passado.';
         }
+        if (responsaveisSelecionados.size === 0) {
+            e.responsaveis = 'Selecione pelo menos uma pessoa para atribuição.';
+        }
         return e;
     };
 
@@ -145,19 +148,18 @@ export default function FormOS() {
         setSubmitError('');
         const errs = validate();
         if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-        if (!liderInfo) {
-            setErrors((prev) => ({ ...prev, departamento: lideresDoDept.length > 1 ? 'Selecione pelo menos um líder responsável.' : 'Nao existe lider cadastrado para esse departamento.' }));
+        const responsaveisEscolhidos = assignableUsers.filter((item) => responsaveisSelecionados.has(item.id));
+        const responsavel = responsaveisEscolhidos[0] || null;
+        const coResponsaveis = responsaveisEscolhidos.slice(1);
+
+        if (!responsavel) {
+            setErrors((prev) => ({ ...prev, responsaveis: 'Selecione pelo menos uma pessoa para atribuição.' }));
             return;
         }
 
         setLoading(true);
         try {
             await new Promise((r) => setTimeout(r, 400));
-
-            const responsavel = liderInfo;
-            const coResponsaveis = multiploLideres
-                ? lideresDoDept.filter((l) => lideresSelecionados.has(l.id) && l.id !== responsavel.id)
-                : [];
 
             const nova = await criarOS(
                 {
@@ -344,30 +346,35 @@ export default function FormOS() {
                         )}
                     </div>
 
-                    {/* Líder responsável */}
-                    {lideresDoDept.length > 0 && (
-                        multiploLideres ? (
-                            <div className="animate-fadeIn space-y-2">
-                                <label className="label">
-                                    <User size={14} className="inline mr-1.5" />Atribuir para
-                                    <span className="ml-1 text-hotel-gray-md font-normal">(selecione um ou mais)</span>
-                                </label>
-                                <div className={`flex flex-wrap gap-2 rounded-lg border p-3 bg-hotel-light transition-colors ${lideresSelecionados.size === 0 && errors.departamento ? 'border-red-400 ring-1 ring-red-300' : 'border-hotel-gray'}`}>
-                                    {lideresDoDept.map((l, idx) => {
-                                        const selecionado = lideresSelecionados.has(l.id);
-                                        const isPrimario = selecionado && [...lideresSelecionados][0] === l.id;
+                    {/* Atribuição (sem limite e independente de setor) */}
+                    <div className="animate-fadeIn space-y-2">
+                        <label className="label">
+                            <User size={14} className="inline mr-1.5" />Atribuir para
+                            <span className="ml-1 text-hotel-gray-md font-normal">(selecione uma ou mais pessoas)</span>
+                        </label>
+
+                        {assignableUsers.length === 0 ? (
+                            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+                                Nenhuma pessoa disponível para atribuição no momento.
+                            </p>
+                        ) : (
+                            <>
+                                <div className={`flex flex-wrap gap-2 rounded-lg border p-3 bg-hotel-light transition-colors ${responsaveisSelecionados.size === 0 && errors.responsaveis ? 'border-red-400 ring-1 ring-red-300' : 'border-hotel-gray'}`}>
+                                    {assignableUsers.map((pessoa) => {
+                                        const selecionado = responsaveisSelecionados.has(pessoa.id);
+                                        const isPrimario = selecionado && [...responsaveisSelecionados][0] === pessoa.id;
                                         return (
                                             <button
-                                                key={l.id}
+                                                key={pessoa.id}
                                                 type="button"
                                                 onClick={() => {
-                                                    setLideresSelecionados((prev) => {
+                                                    setResponsaveisSelecionados((prev) => {
                                                         const next = new Set(prev);
-                                                        if (next.has(l.id)) next.delete(l.id);
-                                                        else next.add(l.id);
+                                                        if (next.has(pessoa.id)) next.delete(pessoa.id);
+                                                        else next.add(pessoa.id);
                                                         return next;
                                                     });
-                                                    if (errors.departamento) setErrors((prev) => ({ ...prev, departamento: '' }));
+                                                    if (errors.responsaveis) setErrors((prev) => ({ ...prev, responsaveis: '' }));
                                                 }}
                                                 className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold font-body transition-all border ${
                                                     selecionado
@@ -376,31 +383,21 @@ export default function FormOS() {
                                                 }`}
                                             >
                                                 <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${selecionado ? 'bg-hotel-gold text-white' : 'bg-hotel-gray text-hotel-gray-md'}`}>
-                                                    {l.nome[0].toUpperCase()}
+                                                    {pessoa.nome[0].toUpperCase()}
                                                 </span>
-                                                {l.nome}
+                                                {pessoa.nome}
                                                 {isPrimario && <span className="ml-1 text-[10px] text-hotel-gold font-bold uppercase tracking-wide">principal</span>}
                                             </button>
                                         );
                                     })}
                                 </div>
-                                {lideresSelecionados.size > 1 && (
-                                    <p className="text-xs text-hotel-gray-md font-body">O primeiro selecionado será o responsável principal; os demais serão co-responsáveis.</p>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col gap-3 rounded-lg border border-hotel-gray bg-hotel-light p-3 animate-fadeIn sm:flex-row sm:items-center">
-                                <div className="w-9 h-9 rounded-full bg-hotel-gold flex items-center justify-center font-bold text-white text-sm">
-                                    {liderInfo.nome[0].toUpperCase()}
-                                </div>
-                                <div>
-                                    <p className="text-xs text-hotel-gray-md font-body">Responsável {isDiretora ? 'automático' : ''}</p>
-                                    <p className="text-sm font-semibold text-hotel-blue font-body">{liderInfo.nome}</p>
-                                </div>
-                                <User size={16} className="text-hotel-gold sm:ml-auto" />
-                            </div>
-                        )
-                    )}
+                                <p className="text-xs text-hotel-gray-md font-body">
+                                    O primeiro selecionado será o responsável principal; os demais serão co-responsáveis.
+                                </p>
+                            </>
+                        )}
+                        {errors.responsaveis && <p className="text-red-500 text-xs mt-1">{errors.responsaveis}</p>}
+                    </div>
 
                     {/* Botões */}
                     <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
