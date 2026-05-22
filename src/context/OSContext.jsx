@@ -550,12 +550,13 @@ export function OSProvider({ children }) {
         setError('');
     }, [ordens]);
 
-    /** Filtra OS pelo departamento do líder */
+    /** Filtra OS visíveis para líder (somente próprias) */
     const getOSPorLider = useCallback(
-        (departamentos, usuario) =>
+        (_departamentos, usuario) =>
             ordens.filter((os) => {
-                if (departamentos.includes(os.departamento)) return true;
                 if (!usuario) return false;
+                // Lider deve ver apenas SIs em que participa diretamente
+                // (criador, responsavel principal ou co-responsavel).
                 return matchesOrderActor(os, usuario, 'criado_por') || matchesOrderActor(os, usuario, 'responsavel');
             }),
         [ordens],
