@@ -80,7 +80,6 @@ function matchesCoResponsavel(order, actor) {
         .map(normalizeIdentityValue)
         .filter(Boolean);
     const actorEmail = normalizeIdentityValue(actor.email);
-    const actorName = normalizeIdentityValue(actor.nome);
 
     return order.co_responsaveis.some((responsavel) => {
         const responsavelIds = [responsavel.id, responsavel.uid]
@@ -96,8 +95,7 @@ function matchesCoResponsavel(order, actor) {
             return true;
         }
 
-        const responsavelNome = normalizeIdentityValue(responsavel.nome);
-        return actorName && responsavelNome && actorName === responsavelNome;
+        return false;
     });
 }
 
@@ -124,12 +122,6 @@ function matchesOrderActor(order, actor, prefix) {
     const actorEmail = normalizeIdentityValue(actor.email);
     const orderEmail = normalizeIdentityValue(order[`${prefix}_email`]);
     if (actorEmail && orderEmail && actorEmail === orderEmail) {
-        return true;
-    }
-
-    const actorName = normalizeIdentityValue(actor.nome);
-    const orderName = normalizeIdentityValue(order[`${prefix}_nome`]);
-    if (actorName && orderName && actorName === orderName) {
         return true;
     }
 
@@ -550,14 +542,21 @@ export function OSProvider({ children }) {
         setError('');
     }, [ordens]);
 
-    /** Filtra OS visíveis para líder (somente próprias) */
+    /** Filtra OS visíveis para líder */
     const getOSPorLider = useCallback(
-        (_departamentos, usuario) =>
+        (departamentos, usuario) =>
             ordens.filter((os) => {
                 if (!usuario) return false;
-                // Lider deve ver apenas SIs em que participa diretamente
-                // (criador, responsavel principal ou co-responsavel).
-                return matchesOrderActor(os, usuario, 'criado_por') || matchesOrderActor(os, usuario, 'responsavel');
+
+                const isCreator = matchesOrderActor(os, usuario, 'criado_por');
+                if (isCreator) return true;
+
+                const isAssigned = matchesOrderActor(os, usuario, 'responsavel');
+                if (!isAssigned) return false;
+
+                // Para evitar vazamentos entre setores, líder só vê atribuições
+                // de departamentos que atualmente pertencem a ele.
+                return Array.isArray(departamentos) && departamentos.includes(os.departamento);
             }),
         [ordens],
     );

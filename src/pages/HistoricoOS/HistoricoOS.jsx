@@ -4,9 +4,60 @@ import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
 import StatusBadge from '../../components/Badge/StatusBadge';
 import { useOS } from '../../context/OSContext';
+import { useAuth } from '../../context/AuthContext';
 import { useUsers } from '../../context/UsersContext';
+import { UserRole } from '../../models/User';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+function normalizeIdentityValue(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function matchesOrderActor(order, actor, prefix) {
+    if (!order || !actor) {
+        return false;
+    }
+
+    if (prefix === 'responsavel' && Array.isArray(order.co_responsaveis)) {
+        const actorIds = [actor.id, actor.firebaseUid]
+            .map(normalizeIdentityValue)
+            .filter(Boolean);
+        const actorEmail = normalizeIdentityValue(actor.email);
+
+        const isCoResponsavel = order.co_responsaveis.some((responsavel) => {
+            const responsavelIds = [responsavel.id, responsavel.uid]
+                .map(normalizeIdentityValue)
+                .filter(Boolean);
+
+            if (actorIds.some((id) => responsavelIds.includes(id))) {
+                return true;
+            }
+
+            const responsavelEmail = normalizeIdentityValue(responsavel.email);
+            return actorEmail && responsavelEmail && actorEmail === responsavelEmail;
+        });
+
+        if (isCoResponsavel) {
+            return true;
+        }
+    }
+
+    const actorIds = [actor.id, actor.firebaseUid]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+    const orderIds = [order[`${prefix}_id`], order[`${prefix}_uid`]]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+
+    if (actorIds.some((id) => orderIds.includes(id))) {
+        return true;
+    }
+
+    const actorEmail = normalizeIdentityValue(actor.email);
+    const orderEmail = normalizeIdentityValue(order[`${prefix}_email`]);
+    return actorEmail && orderEmail && actorEmail === orderEmail;
+}
 
 function matchesLeader(os, leaderId) {
     if (!leaderId) return true;
@@ -16,14 +67,28 @@ function matchesLeader(os, leaderId) {
 
 export default function HistoricoOS() {
     const { ordens } = useOS();
-    const { lideres } = useUsers();
+    const { user } = useAuth();
+    const { lideres, currentUserProfile } = useUsers();
     const [filterLider, setFilterLider] = useState('');
     const [search, setSearch] = useState('');
     const [expanded, setExpanded] = useState(null);
+    const actor = currentUserProfile || user;
+    const isManagement = actor?.role === UserRole.DIRETORA || actor?.role === UserRole.ADMIN;
+    const actorDepartments = actor?.departamentos || [];
+
+    const ordensVisiveis = useMemo(() => {
+        if (isManagement) {
+            return ordens;
+        }
+
+        return ordens.filter((o) =>
+            matchesOrderActor(o, actor, 'criado_por')
+            || (matchesOrderActor(o, actor, 'responsavel') && actorDepartments.includes(o.departamento)));
+    }, [isManagement, ordens, actor, actorDepartments]);
 
     // Apenas SI com histórico de alterações (>1 entrada)
     const comHistorico = useMemo(() =>
-        ordens
+        ordensVisiveis
             .filter((o) => o.historico.length > 0)
             .filter((o) => matchesLeader(o, filterLider))
             .filter((o) => {
@@ -37,7 +102,7 @@ export default function HistoricoOS() {
                 const lastB = b.historico[b.historico.length - 1]?.data ?? b.criado_em;
                 return new Date(lastB) - new Date(lastA);
             }),
-        [ordens, filterLider, search]);
+        [ordensVisiveis, filterLider, search]);
 
     return (
         <AppLayout pageTitle="Histórico de Alterações">
@@ -63,14 +128,16 @@ export default function HistoricoOS() {
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <select
-                        value={filterLider}
-                        onChange={(e) => setFilterLider(e.target.value)}
-                        className="input w-full py-2 text-sm sm:w-auto"
-                    >
-                        <option value="">Todos SI líderes</option>
-                        {lideres.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
-                    </select>
+                    {isManagement && (
+                        <select
+                            value={filterLider}
+                            onChange={(e) => setFilterLider(e.target.value)}
+                            className="input w-full py-2 text-sm sm:w-auto"
+                        >
+                            <option value="">Todos SI líderes</option>
+                            {lideres.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+                        </select>
+                    )}
                     {(search || filterLider) && (
                         <button
                             onClick={() => { setSearch(''); setFilterLider(''); }}

@@ -37,7 +37,6 @@ function matchesOrderActor(order, actor, prefix) {
             .map(normalizeIdentityValue)
             .filter(Boolean);
         const actorEmail = normalizeIdentityValue(actor.email);
-        const actorName = normalizeIdentityValue(actor.nome);
 
         const isCoResponsavel = order.co_responsaveis.some((responsavel) => {
             const responsavelIds = [responsavel.id, responsavel.uid]
@@ -53,8 +52,7 @@ function matchesOrderActor(order, actor, prefix) {
                 return true;
             }
 
-            const responsavelNome = normalizeIdentityValue(responsavel.nome);
-            return actorName && responsavelNome && actorName === responsavelNome;
+            return false;
         });
 
         if (isCoResponsavel) {
@@ -76,12 +74,6 @@ function matchesOrderActor(order, actor, prefix) {
     const actorEmail = normalizeIdentityValue(actor.email);
     const orderEmail = normalizeIdentityValue(order[`${prefix}_email`]);
     if (actorEmail && orderEmail && actorEmail === orderEmail) {
-        return true;
-    }
-
-    const actorName = normalizeIdentityValue(actor.nome);
-    const orderName = normalizeIdentityValue(order[`${prefix}_nome`]);
-    if (actorName && orderName && actorName === orderName) {
         return true;
     }
 
@@ -220,10 +212,12 @@ export default function ListaOS() {
     const { ordens, getOSPorLider, atualizarStatus, excluirOS, adicionarObservacao, error: ordensError } = useOS();
     const { user } = useAuth();
     const { addNotification } = useNotification();
-    const { lideres, availableDepartments } = useUsers();
+    const { lideres, availableDepartments, currentUserProfile } = useUsers();
     const navigate = useNavigate();
     const location = useLocation();
-    const isDiretora = user?.role === UserRole.DIRETORA || user?.role === UserRole.ADMIN;
+    const actor = currentUserProfile || user;
+    const actorDepartments = actor?.departamentos || [];
+    const isDiretora = actor?.role === UserRole.DIRETORA || actor?.role === UserRole.ADMIN;
     const isAbertasPorMimRoute = location.pathname === '/ordens/abertas-por-mim';
 
     // Inicializa filtros a partir de state passado pelo dashboard
@@ -269,8 +263,8 @@ export default function ListaOS() {
     }, [locState.expandOsId]);
 
     const base = useMemo(() =>
-        isDiretora ? ordens : getOSPorLider(user?.departamentos || [], user),
-        [isDiretora, ordens, getOSPorLider, user],
+        isDiretora ? ordens : getOSPorLider(actorDepartments, actor),
+        [isDiretora, ordens, getOSPorLider, actorDepartments, actor],
     );
 
     const filtered = useMemo(() => {
@@ -292,11 +286,11 @@ export default function ListaOS() {
             .filter((o) => filterDept.length === 0 || filterDept.includes(o.departamento))
             .filter((o) => {
                 if (!locState.onlyMine) return true;
-                return matchesOrderActor(o, user, 'responsavel');
+                return matchesOrderActor(o, actor, 'responsavel');
             })
             .filter((o) => {
                 if (!shouldShowOnlyCreatedByMe) return true;
-                return matchesOrderActor(o, user, 'criado_por');
+                return matchesOrderActor(o, actor, 'criado_por');
             })
             .filter((o) => {
                 if (!shouldShowOnlyCurrentMonth) return true;
@@ -343,7 +337,7 @@ export default function ListaOS() {
         shouldShowOnlyCreatedByMe,
         shouldShowOnlyOverdue,
         lideres,
-        user,
+        actor,
     ]);
 
     const activeOrders = useMemo(

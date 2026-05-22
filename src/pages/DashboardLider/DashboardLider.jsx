@@ -50,7 +50,6 @@ function matchesOrderActor(order, actor, prefix) {
             .map(normalizeIdentityValue)
             .filter(Boolean);
         const actorEmail = normalizeIdentityValue(actor.email);
-        const actorName = normalizeIdentityValue(actor.nome);
 
         const isCoResponsavel = order.co_responsaveis.some((responsavel) => {
             const responsavelIds = [responsavel.id, responsavel.uid]
@@ -66,8 +65,7 @@ function matchesOrderActor(order, actor, prefix) {
                 return true;
             }
 
-            const responsavelNome = normalizeIdentityValue(responsavel.nome);
-            return actorName && responsavelNome && actorName === responsavelNome;
+            return false;
         });
 
         if (isCoResponsavel) {
@@ -92,13 +90,28 @@ function matchesOrderActor(order, actor, prefix) {
         return true;
     }
 
-    const actorName = normalizeIdentityValue(actor.nome);
-    const orderName = normalizeIdentityValue(order[`${prefix}_nome`]);
-    if (actorName && orderName && actorName === orderName) {
+    return false;
+}
+
+function isPrimaryResponsible(order, actor) {
+    if (!order || !actor) {
+        return false;
+    }
+
+    const actorIds = [actor.id, actor.firebaseUid]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+    const orderIds = [order.responsavel_id, order.responsavel_uid]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+
+    if (actorIds.some((id) => orderIds.includes(id))) {
         return true;
     }
 
-    return false;
+    const actorEmail = normalizeIdentityValue(actor.email);
+    const orderEmail = normalizeIdentityValue(order.responsavel_email);
+    return actorEmail && orderEmail && actorEmail === orderEmail;
 }
 
 function StatCard({ icon: Icon, label, value, colorClass, onClick }) {
@@ -163,10 +176,12 @@ export default function DashboardLider() {
     const telegramBotLink = `https://t.me/${telegramBotUsername}`;
 
     const hoje = new Date();
+    const actor = currentUserProfile || user;
+    const actorDepartments = actor?.departamentos || [];
 
     const ordens = useMemo(
-        () => getOSPorLider(user?.departamentos || [], user),
-        [getOSPorLider, user],
+        () => getOSPorLider(actorDepartments, actor),
+        [getOSPorLider, actorDepartments, actor],
     );
     const ordensSemTeste = useMemo(
         () => ordens.filter((o) => o.departamento !== DEPARTAMENTO_TESTE),
@@ -181,17 +196,17 @@ export default function DashboardLider() {
 
     const minhasSIs = useMemo(
         () => ordensMes.filter((o) =>
-            matchesOrderActor(o, user, 'responsavel')
+            isPrimaryResponsible(o, actor)
         ),
-        [ordensMes, user],
+        [ordensMes, actor],
     );
 
     const abertosPorMim = useMemo(
         () => ordensMes.filter(
-            (o) => matchesOrderActor(o, user, 'criado_por')
-                && !matchesOrderActor(o, user, 'responsavel'),
+            (o) => matchesOrderActor(o, actor, 'criado_por')
+                && !isPrimaryResponsible(o, actor),
         ),
-        [ordensMes, user],
+        [ordensMes, actor],
     );
 
     const stats = useMemo(() => ({
