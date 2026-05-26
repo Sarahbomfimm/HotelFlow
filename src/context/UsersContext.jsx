@@ -4,6 +4,7 @@ import { USERS } from '../data/mockData';
 import { DEPARTAMENTOS } from '../models/OrdemDeServico';
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { UserRole } from '../models/User';
+import { normalizePermissions } from '../services/permissions';
 import { useAuth } from './AuthContext';
 
 const UsersContext = createContext(null);
@@ -62,10 +63,14 @@ function mergeUsersWithFallback(firebaseUsers) {
             departamentos: Array.isArray(user.departamentos)
                 ? user.departamentos
                 : fallbackUser?.departamentos || [],
+            permissions: normalizePermissions(user.role || fallbackUser?.role, user.permissions || fallbackUser?.permissions),
         });
     });
 
-    return Array.from(merged.values());
+    return Array.from(merged.values()).map((item) => ({
+        ...item,
+        permissions: normalizePermissions(item.role, item.permissions),
+    }));
 }
 
 function isDepartmentResponsible(user) {
@@ -112,6 +117,7 @@ export function UsersProvider({ children }) {
                     departamentos: Array.isArray(userDoc.data().departamentos)
                         ? userDoc.data().departamentos
                         : [],
+                    permissions: normalizePermissions(userDoc.data().role, userDoc.data().permissions),
                 }));
 
                 setUsersFromFirestore(firebaseUsers);

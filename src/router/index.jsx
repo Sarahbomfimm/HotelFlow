@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute/ProtectedRoute';
 import { UserRole } from '../models/User';
 import { useAuth } from '../context/AuthContext';
+import { PERMISSIONS } from '../services/permissions';
 
 import Login from '../pages/Login/Login';
 import DashboardDiretora from '../pages/DashboardDiretora/DashboardDiretora';
@@ -64,7 +65,7 @@ export default function AppRouter() {
             <Route
                 path="/reunioes"
                 element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requiredPermission={PERMISSIONS.REUNIOES_ACCESS}>
                         <Reunioes />
                     </ProtectedRoute>
                 }
@@ -72,7 +73,7 @@ export default function AppRouter() {
             <Route
                 path="/auditorias"
                 element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requiredPermission={PERMISSIONS.AUDITORIAS_ACCESS}>
                         <Navigate to="/auditorias/visualizar" replace />
                     </ProtectedRoute>
                 }
@@ -80,7 +81,7 @@ export default function AppRouter() {
             <Route
                 path="/auditorias/nova"
                 element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requiredPermission={PERMISSIONS.AUDITORIAS_CREATE}>
                         <Auditorias mode="nova" />
                     </ProtectedRoute>
                 }
@@ -88,7 +89,7 @@ export default function AppRouter() {
             <Route
                 path="/auditorias/visualizar"
                 element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requiredPermission={PERMISSIONS.AUDITORIAS_ACCESS}>
                         <Auditorias mode="visualizar" />
                     </ProtectedRoute>
                 }
@@ -106,7 +107,7 @@ export default function AppRouter() {
             <Route
                 path="/historico"
                 element={
-                    <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.DIRETORA]}>
+                    <ProtectedRoute requiredPermission={PERMISSIONS.HISTORICO_ACCESS}>
                         <HistoricoOS />
                     </ProtectedRoute>
                 }

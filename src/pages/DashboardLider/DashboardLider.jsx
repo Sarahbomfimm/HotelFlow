@@ -30,6 +30,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useUsers } from '../../context/UsersContext';
 import { useNotification } from '../../context/NotificationContext';
 import { StatusOS, StatusLabel, PDCAStep } from '../../models/OrdemDeServico';
+import { hasPermission, PERMISSIONS } from '../../services/permissions';
 import { format, isPast, parseISO, differenceInDays, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -177,6 +178,7 @@ export default function DashboardLider() {
 
     const hoje = new Date();
     const actor = currentUserProfile || user;
+    const canFinalizeSI = hasPermission(actor, PERMISSIONS.SI_FINALIZE);
     const actorDepartments = actor?.departamentos || [];
 
     const ordens = useMemo(
@@ -245,7 +247,7 @@ export default function DashboardLider() {
     const solicitarStatus = async (os, status) => {
         // Ao iniciar, não exige observação — o líder ainda vai ler e trabalhar na OS
         if (status === StatusOS.EM_ANDAMENTO) {
-            await atualizarStatus(os.id, status, user, '');
+            await atualizarStatus(os.id, status, actor, '');
             addNotification(`SI "${os.titulo}" iniciada.`, 'info');
             return;
         }
@@ -255,7 +257,7 @@ export default function DashboardLider() {
     const confirmarStatus = async (observacao) => {
         const { os, novoStatus } = obsModal;
         setObsModal({ open: false, os: null, novoStatus: null });
-        await atualizarStatus(os.id, novoStatus, user, observacao);
+        await atualizarStatus(os.id, novoStatus, actor, observacao);
         addNotification(
             `SI "${os.titulo}" atualizada para ${StatusLabel[novoStatus]}.`,
             novoStatus === StatusOS.CONCLUIDO ? 'success' : 'info',
@@ -470,8 +472,10 @@ export default function DashboardLider() {
                                     ) : (
                                         lista.map((os) => {
                                             const atrasada = os.status !== StatusOS.CONCLUIDO && isPast(parseISO(os.prazo));
-                                            const isResponsavel = matchesAssignedLeader(os, user);
-                                            const podeAtualizar = os.status !== StatusOS.CONCLUIDO && isResponsavel;
+                                            const isResponsavel = matchesAssignedLeader(os, actor);
+                                            const podeAtualizar = os.status !== StatusOS.CONCLUIDO
+                                                && isResponsavel
+                                                && (os.status !== StatusOS.EM_ANDAMENTO || canFinalizeSI);
                                             return (
                                                 <div
                                                     key={os.id}

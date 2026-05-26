@@ -10,6 +10,7 @@ import { UserRole } from '../../models/User';
 import { auth, db, isFirebaseConfigured } from '../../services/firebase';
 import { collection, deleteDoc, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import { normalizePermissions, PERMISSION_DEFINITIONS } from '../../services/permissions';
 import {
     normalizeAuditLink,
     saveAuditLinks,
@@ -78,6 +79,7 @@ export default function AdminPanel() {
         telegram_chat_id: '',
         role: UserRole.LIDER,
         departamentosText: '',
+        permissions: normalizePermissions(UserRole.LIDER),
     });
     const [editingId, setEditingId] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
@@ -160,6 +162,7 @@ export default function AdminPanel() {
                 telegram_chat_id: formData.telegram_chat_id.trim() || null,
                 role: formData.role,
                 departamentos,
+                permissions: normalizePermissions(formData.role, formData.permissions),
             };
 
             if (!editingId) {
@@ -260,6 +263,7 @@ export default function AdminPanel() {
             telegram_chat_id: '',
             role: UserRole.LIDER,
             departamentosText: '',
+            permissions: normalizePermissions(UserRole.LIDER),
         });
         setEditingId(null);
         setShowPassword(false);
@@ -274,6 +278,7 @@ export default function AdminPanel() {
             telegram_chat_id: user.telegram_chat_id || '',
             role: user.role || UserRole.LIDER,
             departamentosText: Array.isArray(user.departamentos) ? user.departamentos.join(', ') : '',
+            permissions: normalizePermissions(user.role || UserRole.LIDER, user.permissions),
         });
         setEditingId(user.id);
         setShowForm(true);
@@ -427,7 +432,14 @@ export default function AdminPanel() {
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <select
                                     value={formData.role}
-                                    onChange={(e) => setFormData((prev) => ({ ...prev, role: e.target.value }))}
+                                    onChange={(e) => {
+                                        const nextRole = e.target.value;
+                                        setFormData((prev) => ({
+                                            ...prev,
+                                            role: nextRole,
+                                            permissions: normalizePermissions(nextRole, prev.permissions),
+                                        }));
+                                    }}
                                     className="input"
                                 >
                                     <option value={UserRole.ADMIN}>Admin</option>
@@ -441,6 +453,37 @@ export default function AdminPanel() {
                                     onChange={(e) => setFormData((prev) => ({ ...prev, departamentosText: e.target.value }))}
                                     className="input"
                                 />
+                            </div>
+
+                            <div className="rounded-xl border border-hotel-gray bg-white p-4">
+                                <div className="mb-3">
+                                    <h4 className="font-semibold text-hotel-blue">Permissões operacionais</h4>
+                                    <p className="mt-1 text-xs text-hotel-gray-md">
+                                        Use estes controles para liberar ou bloquear áreas específicas sem depender de alteração em código.
+                                    </p>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    {PERMISSION_DEFINITIONS.map((permission) => (
+                                        <label key={permission.key} className="flex items-start gap-3 rounded-xl border border-hotel-gray/70 bg-hotel-light/40 px-3 py-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={Boolean(formData.permissions?.[permission.key])}
+                                                onChange={(e) => setFormData((prev) => ({
+                                                    ...prev,
+                                                    permissions: {
+                                                        ...prev.permissions,
+                                                        [permission.key]: e.target.checked,
+                                                    },
+                                                }))}
+                                                className="mt-0.5 h-4 w-4 rounded border-hotel-gray text-hotel-blue focus:ring-hotel-blue"
+                                            />
+                                            <span className="min-w-0">
+                                                <span className="block text-sm font-semibold text-hotel-blue">{permission.label}</span>
+                                                <span className="mt-0.5 block text-xs text-hotel-gray-md">{permission.description}</span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="flex gap-2">
@@ -475,6 +518,7 @@ export default function AdminPanel() {
                                     <th className="px-4 py-3 text-left">Email</th>
                                     <th className="px-4 py-3 text-left">Role</th>
                                     <th className="px-4 py-3 text-left">Departamentos</th>
+                                    <th className="px-4 py-3 text-left">Permissões</th>
                                     <th className="px-4 py-3 text-left">Telefone</th>
                                     <th className="px-4 py-3 text-center">Ações</th>
                                 </tr>
@@ -500,6 +544,11 @@ export default function AdminPanel() {
                                             {Array.isArray(row.departamentos) && row.departamentos.length > 0
                                                 ? row.departamentos.join(', ')
                                                 : '—'}
+                                        </td>
+                                        <td className="px-4 py-3 text-xs text-hotel-gray-md">
+                                            {PERMISSION_DEFINITIONS.filter((permission) => normalizePermissions(row.role, row.permissions)[permission.key])
+                                                .map((permission) => permission.label)
+                                                .join(', ') || '—'}
                                         </td>
                                         <td className="px-4 py-3 text-xs">{row.telefone || '—'}</td>
                                         <td className="px-4 py-3">

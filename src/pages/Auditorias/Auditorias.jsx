@@ -20,6 +20,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
 import { DEPARTAMENTOS } from '../../models/OrdemDeServico';
+import { hasPermission, PERMISSIONS } from '../../services/permissions';
 import {
     deleteAudit,
     getAuditLinkByDepartment,
@@ -115,6 +116,8 @@ export default function Auditorias({ mode }) {
     const { addNotification } = useNotification();
     const { currentUserProfile } = useUsers();
     const profile = currentUserProfile || user;
+    const canCreateAuditorias = hasPermission(profile, PERMISSIONS.AUDITORIAS_CREATE);
+    const canManageAuditorias = hasPermission(profile, PERMISSIONS.AUDITORIAS_MANAGE);
 
     const allDepartments = useMemo(() => {
         const ordered = [...DEPARTAMENTOS].sort((a, b) => a.localeCompare(b, 'pt-BR'));
@@ -153,7 +156,7 @@ export default function Auditorias({ mode }) {
         observacoes: '',
     });
 
-    const showCreateSection = mode !== 'visualizar';
+    const showCreateSection = mode !== 'visualizar' && canCreateAuditorias;
     const showVisualizationSection = mode !== 'nova';
 
     useEffect(() => {
@@ -414,22 +417,24 @@ export default function Auditorias({ mode }) {
                                 <p className="mt-4 max-w-2xl text-sm leading-6 text-white/75 lg:text-base">
                                     Registre auditorias mês a mês, acompanhe a evolução por setor e priorize planos de ação com base na nota final.
                                 </p>
-                                <div className="mt-6">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (showCreateSection) {
-                                                document.getElementById('nova-auditoria-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                                return;
-                                            }
+                                {canCreateAuditorias && (
+                                    <div className="mt-6">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (showCreateSection) {
+                                                    document.getElementById('nova-auditoria-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                    return;
+                                                }
 
-                                            navigate('/auditorias/nova');
-                                        }}
-                                        className="inline-flex items-center gap-2 rounded-xl bg-hotel-gold px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-hotel-gold/20 transition-transform hover:-translate-y-0.5"
-                                    >
-                                        <Plus size={16} /> Nova Auditoria
-                                    </button>
-                                </div>
+                                                navigate('/auditorias/nova');
+                                            }}
+                                            className="inline-flex items-center gap-2 rounded-xl bg-hotel-gold px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-hotel-gold/20 transition-transform hover:-translate-y-0.5"
+                                        >
+                                            <Plus size={16} /> Nova Auditoria
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm transition-transform hover:-translate-y-0.5">
@@ -791,7 +796,7 @@ export default function Auditorias({ mode }) {
                                                         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${label.tone}`}>
                                                             {label.text} • {totalScore}/{MAX_TOTAL}
                                                         </span>
-                                                        {profile?.role === UserRole.ADMIN && (
+                                                        {canManageAuditorias && (
                                                             <div className="flex items-center gap-1">
                                                                 <button
                                                                     onClick={() => handleEditStart(audit)}

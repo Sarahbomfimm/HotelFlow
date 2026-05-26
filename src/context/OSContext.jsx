@@ -13,6 +13,7 @@ import { INITIAL_OS } from '../data/mockData';
 import { StatusOS, StatusLabel, PDCAStep } from '../models/OrdemDeServico';
 import { UserRole } from '../models/User';
 import { db, isFirebaseConfigured } from '../services/firebase';
+import { hasPermission, PERMISSIONS } from '../services/permissions';
 import { createUserNotification } from '../services/notifications';
 import { enviarNotificacaoWhatsApp } from '../services/whatsappService';
 import { enviarNotificacaoTelegram } from '../services/telegramService';
@@ -350,6 +351,10 @@ export function OSProvider({ children }) {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
+        if (novoStatus === StatusOS.CONCLUIDO && !hasPermission(usuario, PERMISSIONS.SI_FINALIZE)) {
+            throw new Error('Você não tem permissão para finalizar SI.');
+        }
+
         // O responsável pode alterar o fluxo normal; diretoria/admin podem concluir qualquer SI.
         const isResponsavel = matchesOrderActor(os, usuario, 'responsavel');
         const isManagement = isManagementRole(usuario?.role);
@@ -415,6 +420,10 @@ export function OSProvider({ children }) {
     const editarOS = useCallback(async (osId, atualizacoes, usuario) => {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
+
+        if (!hasPermission(usuario, PERMISSIONS.SI_EDIT)) {
+            throw new Error('Você não tem permissão para editar SI.');
+        }
 
         // Diretora pode editar qualquer SI; demais usuários apenas as criadas por si mesmos.
         const isDiretora = isManagementRole(usuario?.role);

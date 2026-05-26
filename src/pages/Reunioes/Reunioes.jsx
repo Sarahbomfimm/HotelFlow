@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { RecorrenciaLabel, StatusLabel, RecorrenciaReuniao } from '../../models/Reuniao';
+import { hasPermission, PERMISSIONS } from '../../services/permissions';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -343,6 +344,7 @@ export default function Reunioes() {
     const { addNotification } = useNotification();
     const { users: todosUsers, currentUserProfile } = useUsers();
     const actor = currentUserProfile || user;
+    const canManageReunioes = hasPermission(actor, PERMISSIONS.REUNIOES_MANAGE);
     const [mesAtual, setMesAtual] = useState(new Date());
     const [formularioAberto, setFormularioAberto] = useState(false);
     const [reuniaoEditando, setReuniaoEditando] = useState(null);
@@ -458,14 +460,16 @@ export default function Reunioes() {
                                 Agende, gerencie salas, participantes, registre atas e acompanhe ações em um único ambiente.
                             </p>
 
-                            <div className="mt-6">
-                                <button
-                                    onClick={() => { setReuniaoEditando(null); setFormularioAberto(true); }}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-hotel-gold px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-hotel-gold/20 transition-transform hover:-translate-y-0.5"
-                                >
-                                    <Plus size={16} /> Nova reunião
-                                </button>
-                            </div>
+                            {canManageReunioes && (
+                                <div className="mt-6">
+                                    <button
+                                        onClick={() => { setReuniaoEditando(null); setFormularioAberto(true); }}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-hotel-gold px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-hotel-gold/20 transition-transform hover:-translate-y-0.5"
+                                    >
+                                        <Plus size={16} /> Nova reunião
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </section>
@@ -651,7 +655,9 @@ export default function Reunioes() {
                                     <AlertCircle size={22} className="text-hotel-gray-md/50" />
                                 </div>
                                 <p className="text-sm font-semibold text-hotel-blue">Nenhuma reunião este mês</p>
-                                <p className="mt-1 text-xs text-hotel-gray-md">Clique em "Nova reunião" para agendar.</p>
+                                <p className="mt-1 text-xs text-hotel-gray-md">
+                                    {canManageReunioes ? 'Clique em "Nova reunião" para agendar.' : 'Você tem acesso de consulta, mas não pode criar reuniões.'}
+                                </p>
                             </div>
                         ) : (
                             <div className="max-h-[420px] overflow-y-auto divide-y divide-hotel-gray/10">
@@ -827,18 +833,22 @@ export default function Reunioes() {
                             )}
 
                             <div className="flex flex-col-reverse gap-2 border-t border-hotel-gray/20 pt-2 sm:flex-row sm:justify-end">
-                                <button
-                                    onClick={() => handleDeletarReuniao(reuniaoSelecionada.id)}
-                                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 sm:w-auto"
-                                >
-                                    <Trash2 size={16} /> Excluir
-                                </button>
-                                <button
-                                    onClick={() => { setReuniaoEditando(reuniaoSelecionada); setFormularioAberto(true); }}
-                                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-hotel-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-hotel-blue/90 sm:w-auto"
-                                >
-                                    <Edit2 size={14} /> Editar
-                                </button>
+                                {canManageReunioes && (
+                                    <>
+                                        <button
+                                            onClick={() => handleDeletarReuniao(reuniaoSelecionada.id)}
+                                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 sm:w-auto"
+                                        >
+                                            <Trash2 size={16} /> Excluir
+                                        </button>
+                                        <button
+                                            onClick={() => { setReuniaoEditando(reuniaoSelecionada); setFormularioAberto(true); }}
+                                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-hotel-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-hotel-blue/90 sm:w-auto"
+                                        >
+                                            <Edit2 size={14} /> Editar
+                                        </button>
+                                    </>
+                                )}
                                 {Array.isArray(reuniaoSelecionada.historico) && reuniaoSelecionada.historico.length > 0 && (
                                     <button
                                         onClick={() => setHistoricoAberto(true)}

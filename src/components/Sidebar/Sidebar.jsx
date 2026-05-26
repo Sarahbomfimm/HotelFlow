@@ -8,6 +8,7 @@ import Logo from '../Logo/Logo';
 import { useAuth } from '../../context/AuthContext';
 import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
+import { hasPermission, PERMISSIONS } from '../../services/permissions';
 
 const liderLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -45,6 +46,10 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const [auditoriasExpanded, setAuditoriasExpanded] = useState(location.pathname.startsWith('/auditorias'));
 
     const displayUser = currentUserProfile || user;
+    const canAccessAuditorias = hasPermission(displayUser, PERMISSIONS.AUDITORIAS_ACCESS);
+    const canCreateAuditorias = hasPermission(displayUser, PERMISSIONS.AUDITORIAS_CREATE);
+    const canAccessReunioes = hasPermission(displayUser, PERMISSIONS.REUNIOES_ACCESS);
+    const canAccessHistorico = hasPermission(displayUser, PERMISSIONS.HISTORICO_ACCESS);
 
     const isManagementRole = displayUser?.role === UserRole.ADMIN || displayUser?.role === UserRole.DIRETORA;
     const links = displayUser?.role === UserRole.ADMIN
@@ -52,6 +57,12 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
         : isManagementRole
             ? diretoraLinks
             : liderLinks;
+    const visibleLinks = links.filter((link) => {
+        if (link.to === '/auditorias/visualizar') return canAccessAuditorias;
+        if (link.to === '/reunioes') return canAccessReunioes;
+        if (link.to === '/historico') return canAccessHistorico;
+        return true;
+    });
     const showLabels = !collapsed || mobileMenuOpen;
     const showAuditoriasSubmenu = showLabels && auditoriasExpanded;
     const profileSubtitle = displayUser?.role === UserRole.ADMIN
@@ -137,7 +148,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
 
             {/* Navegação */}
             <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4">
-                {links.map(({ to, label, icon: Icon }) => {
+                {visibleLinks.map(({ to, label, icon: Icon }) => {
                     const isAuditoriasLink = to === '/auditorias/visualizar';
 
                     if (!isAuditoriasLink) {
@@ -189,20 +200,22 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
                                 )}
                             </NavLink>
 
-                            {showAuditoriasSubmenu && (
+                            {showAuditoriasSubmenu && canAccessAuditorias && (
                                 <div className="ml-8 mt-1 space-y-1 border-l border-white/15 pl-3">
-                                    <NavLink
-                                        to="/auditorias/nova"
-                                        onClick={() => onCloseMobile?.()}
-                                        className={({ isActive }) =>
-                                            `inline-flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
-                                                isActive ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
-                                            }`
-                                        }
-                                    >
-                                        <Plus size={14} className="flex-shrink-0" />
-                                        Nova Auditoria
-                                    </NavLink>
+                                    {canCreateAuditorias && (
+                                        <NavLink
+                                            to="/auditorias/nova"
+                                            onClick={() => onCloseMobile?.()}
+                                            className={({ isActive }) =>
+                                                `inline-flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
+                                                    isActive ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+                                                }`
+                                            }
+                                        >
+                                            <Plus size={14} className="flex-shrink-0" />
+                                            Nova Auditoria
+                                        </NavLink>
+                                    )}
                                     <NavLink
                                         to="/auditorias/visualizar"
                                         onClick={() => onCloseMobile?.()}

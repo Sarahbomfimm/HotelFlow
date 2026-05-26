@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
+import { hasPermission, PERMISSIONS } from '../../services/permissions';
 import { StatusOS, StatusLabel, PDCAStep, PDCALabel } from '../../models/OrdemDeServico';
 import { format, isPast, parseISO, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -218,6 +219,8 @@ export default function ListaOS() {
     const actor = currentUserProfile || user;
     const actorDepartments = actor?.departamentos || [];
     const isDiretora = actor?.role === UserRole.DIRETORA || actor?.role === UserRole.ADMIN;
+    const canFinalizeSI = hasPermission(actor, PERMISSIONS.SI_FINALIZE);
+    const canEditSI = hasPermission(actor, PERMISSIONS.SI_EDIT);
     const isAbertasPorMimRoute = location.pathname === '/ordens/abertas-por-mim';
 
     // Inicializa filtros a partir de state passado pelo dashboard
@@ -422,7 +425,7 @@ export default function ListaOS() {
     const solicitarStatusChange = async (os, status) => {
         // Líder iniciando: não pede observação imediatamente
         if (!isDiretora && status === StatusOS.EM_ANDAMENTO) {
-            await atualizarStatus(os.id, status, user, '');
+            await atualizarStatus(os.id, status, actor, '');
             addNotification(`SI "${os.titulo}" iniciada.`, 'info');
             return;
         }
@@ -432,7 +435,7 @@ export default function ListaOS() {
     const confirmarStatusChange = async (observacao) => {
         const { os, novoStatus } = obsModal;
         setObsModal({ open: false, os: null, novoStatus: null });
-        await atualizarStatus(os.id, novoStatus, user, observacao);
+        await atualizarStatus(os.id, novoStatus, actor, observacao);
         addNotification(
             `SI "${os.titulo}" atualizada para ${StatusLabel[novoStatus]}.`,
             novoStatus === StatusOS.CONCLUIDO ? 'success' : 'info',
@@ -442,7 +445,7 @@ export default function ListaOS() {
     const handleAdicionarObs = async (texto, etapaPdca, prazoEstimado, anexoPdfFile) => {
         const { os } = adicionarObsModal;
         try {
-            const result = await adicionarObservacao(os.id, texto, user, etapaPdca, prazoEstimado, anexoPdfFile);
+            const result = await adicionarObservacao(os.id, texto, actor, etapaPdca, prazoEstimado, anexoPdfFile);
             addNotification(`Progresso registrado na SI “${os.titulo}”.`, 'info');
             if (result?.anexoErro) {
                 addNotification(result.anexoErro, 'warning');
@@ -456,7 +459,7 @@ export default function ListaOS() {
     const confirmDelete = async () => {
         if (!toDelete) return;
         try {
-            await excluirOS(toDelete.id, user);
+            await excluirOS(toDelete.id, actor);
             addNotification(`SI "${toDelete.titulo}" excluída.`, 'warning');
             setToDelete(null);
         } catch (error) {
@@ -477,11 +480,19 @@ export default function ListaOS() {
     const renderOrderCard = (os) => {
         const atrasada = os.status !== StatusOS.CONCLUIDO && isPast(parseISO(os.prazo));
         const isExpanded = expanded === os.id;
-        const isResponsavel = matchesOrderActor(os, user, 'responsavel');
-        const canManagementFinalize = isDiretora && os.status !== StatusOS.CONCLUIDO && !isResponsavel;
-        const podeAtualizar = os.status !== StatusOS.CONCLUIDO && isResponsavel;
-        const isCriador = matchesOrderActor(os, user, 'criado_por');
-        const podeEditar = isDiretora || isCriador;
+        const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
+        const canManagementFinalize = canFinalizeSI && isDiretora && os.status !== StatusOS.CONCLUIDO && !isResponsavel;
+        const hasDownloadables = Boolean(
+            os.imagem || (Array.isArray(os.historico) && os.historico.some((h) => h.anexo_pdf_url)),
+        );
+        const podeAtualizar = os.status !== StatusOS.CONCLUIDO
+            && isResponsavel
+            && (os.status !== StatusOS.EM_ANDAMENTO || canFinalizeSI);
+        const podeRegistrarProgressoSemFinalizar = os.status === StatusOS.EM_ANDAMENTO
+            && isResponsavel
+            && !canFinalizeSI;
+        const isCriador = matchesOrderActor(os, actor, 'criado_por');
+        const podeEditar = canEditSI && (isDiretora || isCriador);
         const podeExcluir = isCriador;
 
         return (
@@ -538,6 +549,15 @@ export default function ListaOS() {
                                 Finalizar
                             </button>
                         )}
+                        {!podeAtualizar && !canManagementFinalize && podeRegistrarProgressoSemFinalizar && (
+                            <button
+                                onClick={() => setAdicionarObsModal({ open: true, os })}
+                                className="group relative flex-1 overflow-hidden rounded-lg border border-sky-300/70 bg-gradient-to-r from-sky-50 via-white to-cyan-50 px-3 py-1.5 text-xs font-semibold text-sky-800 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-400 hover:shadow-md hover:shadow-sky-200/50 focus:outline-none focus:ring-2 focus:ring-sky-300/60 sm:flex-none"
+                            >
+                                <span className="pointer-events-none absolute inset-0 -z-0 bg-gradient-to-r from-sky-500/0 via-sky-500/10 to-cyan-500/0 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                                Registrar progresso
+                            </button>
+                        )}
                         {podeEditar && (
                             <button
                                 onClick={() => setToEdit(os)}
@@ -558,10 +578,17 @@ export default function ListaOS() {
                         )}
                         <button
                             onClick={() => setExpanded(isExpanded ? null : os.id)}
-                            className="p-1.5 rounded-lg text-hotel-gray-md hover:text-hotel-blue transition-colors"
-                            aria-label={isExpanded ? 'Recolher' : 'Expandir'}
+                            className={`group inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-hotel-gold/40 ${
+                                hasDownloadables
+                                    ? 'border-hotel-gold/70 bg-gradient-to-r from-amber-50 to-yellow-50 text-hotel-blue hover:border-hotel-gold hover:from-amber-100 hover:to-yellow-100'
+                                    : 'border-hotel-gray/70 bg-gradient-to-r from-white to-slate-50 text-hotel-gray-md hover:border-hotel-blue/40 hover:text-hotel-blue'
+                            }`}
+                            aria-label={isExpanded ? 'Recolher detalhes da SI' : 'Expandir detalhes da SI para visualizar e baixar anexos'}
+                            title={isExpanded ? 'Recolher detalhes' : (hasDownloadables ? 'Clique para ver e baixar anexos' : 'Clique para ver detalhes')}
                         >
-                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            {!isExpanded && hasDownloadables && <Download size={13} className="transition-transform duration-200 group-hover:scale-110" />}
+                            <span className="hidden sm:inline">{isExpanded ? 'Recolher' : (hasDownloadables ? 'Ver anexos' : 'Detalhes')}</span>
+                            {isExpanded ? <ChevronUp size={17} className="transition-transform duration-200 group-hover:-translate-y-0.5" /> : <ChevronDown size={17} className={`transition-transform duration-200 group-hover:translate-y-0.5 ${!isExpanded && hasDownloadables ? 'animate-bounce' : ''}`} />}
                         </button>
                     </div>
                 </div>

@@ -12,7 +12,8 @@ export default function EditarOSModal({ os, onClose }) {
     const { editarOS } = useOS();
     const { user } = useAuth();
     const { addNotification } = useNotification();
-    const { users, availableDepartments } = useUsers();
+    const { users, availableDepartments, currentUserProfile } = useUsers();
+    const actor = currentUserProfile || user;
 
     const [form, setForm] = useState({
         titulo: '',
@@ -118,7 +119,7 @@ export default function EditarOSModal({ os, onClose }) {
                     telegram_chat_id: l.telegram_chat_id || null,
                 })),
             },
-            user,
+            actor,
         );
 
         addNotification(`SI "${form.titulo.trim()}" foi editada com sucesso.`, 'success');
