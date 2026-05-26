@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Users, ArrowLeft, Plus, Edit2, Trash2, Eye, EyeOff, KeyRound,
+    Users, ArrowLeft, Plus, Edit2, Trash2, Eye, EyeOff, KeyRound, ClipboardCheck, ExternalLink,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import { useUsers } from '../../context/UsersContext';
@@ -10,6 +10,11 @@ import { UserRole } from '../../models/User';
 import { auth, db, isFirebaseConfigured } from '../../services/firebase';
 import { collection, deleteDoc, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import {
+    normalizeAuditLink,
+    saveAuditLinks,
+    subscribeAuditLinks,
+} from '../../services/auditoriasStorage';
 
 const FIREBASE_API_KEY = import.meta.env.VITE_FIREBASE_API_KEY?.trim();
 
@@ -60,7 +65,7 @@ function buildEmailDocId(email) {
 }
 
 export default function AdminPanel() {
-    const { usersFromFirestore } = useUsers();
+    const { usersFromFirestore, availableDepartments } = useUsers();
     const { addNotification } = useNotification();
     const navigate = useNavigate();
 
@@ -78,11 +83,51 @@ export default function AdminPanel() {
     const [showPassword, setShowPassword] = useState(false);
     const [saving, setSaving] = useState(false);
     const [sendingResetTo, setSendingResetTo] = useState('');
+    const [auditLinksByDepartment, setAuditLinksByDepartment] = useState({});
 
     const sortedUsers = useMemo(
         () => [...usersFromFirestore].sort((a, b) => (a?.nome || '').localeCompare(b?.nome || '')),
         [usersFromFirestore],
     );
+
+    const sortedDepartments = useMemo(
+        () => availableDepartments.filter((dep) => dep !== 'Teste').sort((a, b) => a.localeCompare(b, 'pt-BR')),
+        [availableDepartments],
+    );
+
+    useEffect(() => {
+        const unsubscribe = subscribeAuditLinks(
+            setAuditLinksByDepartment,
+            () => addNotification('Nao foi possível carregar os links das auditorias do Firestore. Usando cache local.', 'warning'),
+        );
+
+        return unsubscribe;
+    }, [addNotification]);
+
+    const handleAuditLinkChange = (department, value) => {
+        setAuditLinksByDepartment((prev) => ({
+            ...prev,
+            [department]: value,
+        }));
+    };
+
+    const handleSaveAuditLinks = async () => {
+        const sanitized = sortedDepartments.reduce((acc, department) => {
+            const normalized = normalizeAuditLink(auditLinksByDepartment?.[department]);
+            if (normalized) {
+                acc[department] = normalized;
+            }
+            return acc;
+        }, {});
+
+        try {
+            const savedLinks = await saveAuditLinks(sanitized);
+            setAuditLinksByDepartment(savedLinks);
+            addNotification('Links das auditorias por departamento salvos com sucesso.', 'success');
+        } catch (error) {
+            addNotification(`Erro ao salvar links das auditorias: ${error.message}`, 'error');
+        }
+    };
 
     const handleSaveUser = async () => {
         const nome = formData.nome.trim();
@@ -255,6 +300,54 @@ export default function AdminPanel() {
                 <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-body text-amber-800">
                     Criação de conta já sincroniza Firebase Auth + Firestore. Edição/deleção sincroniza Firestore.
                     Alteração de senha para contas existentes é feita por e-mail de redefinição.
+                </div>
+
+                <div className="mb-6 rounded-xl border border-hotel-gray bg-white p-4 shadow-sm">
+                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="flex items-center gap-2 text-sm font-semibold font-body text-hotel-blue">
+                                <ClipboardCheck size={17} /> Links das Auditorias por Departamento
+                            </p>
+                            <p className="mt-1 text-xs text-hotel-gray-md font-body">
+                                Configure aqui o link do Google Sheets de cada setor para que o botão "Acessar Auditoria" apareça automaticamente após salvar.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleSaveAuditLinks}
+                            className="rounded-lg bg-hotel-blue px-4 py-2 text-sm font-semibold font-body text-white transition-colors hover:bg-hotel-blue/90"
+                        >
+                            Salvar links
+                        </button>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        {sortedDepartments.map((department) => {
+                            const savedLink = normalizeAuditLink(auditLinksByDepartment?.[department]);
+                            return (
+                                <div key={department} className="rounded-xl border border-hotel-gray bg-hotel-light/40 p-3">
+                                    <label className="label mb-2 block">{department}</label>
+                                    <input
+                                        type="url"
+                                        placeholder="Cole o link do Google Sheets deste departamento"
+                                        value={auditLinksByDepartment?.[department] || ''}
+                                        onChange={(e) => handleAuditLinkChange(department, e.target.value)}
+                                        className="input"
+                                    />
+                                    {savedLink && (
+                                        <a
+                                            href={savedLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-hotel-blue hover:text-hotel-gold"
+                                        >
+                                            <ExternalLink size={13} /> Abrir link atual
+                                        </a>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 <div>

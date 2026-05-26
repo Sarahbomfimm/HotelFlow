@@ -32,6 +32,7 @@ function SeletorParticipantes({ participantes, onChange, todosUsers, currentUser
             ...participantes,
             {
                 id: user.id,
+                uid: user.firebaseUid || user.id,
                 nome: user.nome,
                 email: user.email,
                 telegram_chat_id: user.telegram_chat_id || null,
@@ -341,6 +342,7 @@ export default function Reunioes() {
     const { user } = useAuth();
     const { addNotification } = useNotification();
     const { users: todosUsers, currentUserProfile } = useUsers();
+    const actor = currentUserProfile || user;
     const [mesAtual, setMesAtual] = useState(new Date());
     const [formularioAberto, setFormularioAberto] = useState(false);
     const [reuniaoEditando, setReuniaoEditando] = useState(null);
@@ -361,15 +363,14 @@ export default function Reunioes() {
     const handleSalvarReuniao = async (dados) => {
         try {
             const dataCompleta = `${dados.data_inicio}T${dados.hora_inicio}`;
-            const participanteIds = (dados.participantes || []).map((p) => p.id).filter(Boolean);
-            const visivelPara = [...new Set([user?.id, ...participanteIds].filter(Boolean))];
             const payload = {
                 ...dados,
                 data_inicio: dataCompleta,
                 data_fim: `${dados.data_inicio}T${dados.hora_fim}`,
-                criado_por_id: user?.id,
-                criado_por_nome: user?.nome,
-                visivel_para: visivelPara,
+                criado_por_id: actor?.id,
+                criado_por_uid: actor?.firebaseUid || actor?.id,
+                criado_por_email: actor?.email || '',
+                criado_por_nome: actor?.nome,
             };
 
             if (reuniaoEditando?.id) {
@@ -419,7 +420,7 @@ export default function Reunioes() {
 
     const reunioesDiaSelecionado = reunioesPorDia(diaSelecionado);
     const proximaReuniao = reunioesDoMes.find((r) => new Date(r.data_inicio) >= new Date());
-    const setorUsuario = currentUserProfile?.departamentos?.[0] || user?.departamentos?.[0] || 'Administração';
+    const setorUsuario = actor?.departamentos?.[0] || 'Administração';
 
     const totalParticipantesUnicos = useMemo(() => {
         const ids = new Set();

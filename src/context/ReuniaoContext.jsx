@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
-    collection, query, getDocs, addDoc, updateDoc, deleteDoc, doc, where, orderBy,
+    collection, query, addDoc, updateDoc, deleteDoc, doc, where, onSnapshot,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { createUserNotification } from '../services/notifications';
@@ -28,6 +28,19 @@ function buildHistoricoEntry(usuarioNome, descricao) {
     };
 }
 
+function normalizeIdentityValue(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function buildVisibilityKeys(entity) {
+    return Array.from(new Set([
+        entity?.id,
+        entity?.uid,
+        entity?.firebaseUid,
+        normalizeIdentityValue(entity?.email),
+    ].map((value) => String(value || '').trim()).filter(Boolean)));
+}
+
 function describeMeetingChanges(anterior, proxima) {
     const changes = [];
 
@@ -51,35 +64,45 @@ export function ReuniaoProvider({ children }) {
     const [error, setError] = useState(null);
 
     const fetchReunioes = useCallback(async () => {
-        if (!isFirebaseConfigured || !db || !user?.id) {
+        const actorKeys = buildVisibilityKeys(user);
+
+        if (!isFirebaseConfigured || !db || actorKeys.length === 0) {
             setReunioes([]);
             return;
         }
 
         setLoading(true);
         setError(null);
-        try {
-            const q = query(
-                collection(db, 'reunioes'),
-                where('visivel_para', 'array-contains', user.id),
-                orderBy('data_inicio', 'asc'),
-            );
-            const snapshot = await getDocs(q);
-            const data = snapshot.docs.map((d) => ({
-                id: d.id,
-                ...d.data(),
-            }));
+        const q = query(
+            collection(db, 'reunioes'),
+            where('visivel_para', 'array-contains-any', actorKeys.slice(0, 10)),
+        );
+
+        return onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs
+                .map((d) => ({
+                    id: d.id,
+                    ...d.data(),
+                }))
+                .sort((a, b) => new Date(a.data_inicio) - new Date(b.data_inicio));
+
             setReunioes(data);
-        } catch (err) {
+            setLoading(false);
+            setError(null);
+        }, (err) => {
             setError(err.message || 'Erro ao buscar reuniões');
             setReunioes([]);
-        } finally {
             setLoading(false);
-        }
-    }, [user?.id]);
+        });
+    }, [user]);
 
     useEffect(() => {
-        fetchReunioes();
+        const unsubscribe = fetchReunioes();
+        return () => {
+            if (typeof unsubscribe === 'function') {
+                unsubscribe();
+            }
+        };
     }, [fetchReunioes]);
 
     const criarReuniao = useCallback(async (reuniaoData) => {
@@ -89,8 +112,14 @@ export function ReuniaoProvider({ children }) {
 
         try {
             // visivel_para: criador + todos os participantes selecionados
-            const participanteIds = (reuniaoData.participantes || []).map((p) => p.id).filter(Boolean);
-            const visivelPara = [...new Set([reuniaoData.criado_por_id, ...participanteIds].filter(Boolean))];
+            const visivelPara = Array.from(new Set([
+                ...buildVisibilityKeys({
+                    id: reuniaoData.criado_por_id,
+                    firebaseUid: reuniaoData.criado_por_uid,
+                    email: reuniaoData.criado_por_email,
+                }),
+                ...(reuniaoData.participantes || []).flatMap((p) => buildVisibilityKeys(p)),
+            ]));
 
             const docRef = await addDoc(collection(db, 'reunioes'), {
                 ...reuniaoData,
@@ -145,8 +174,14 @@ export function ReuniaoProvider({ children }) {
         try {
             const reuniaoAtual = reunioes.find((item) => item.id === id);
             // Recalcula visivel_para ao atualizar
-            const participanteIds = (dados.participantes || []).map((p) => p.id).filter(Boolean);
-            const visivelPara = [...new Set([dados.criado_por_id, ...participanteIds].filter(Boolean))];
+            const visivelPara = Array.from(new Set([
+                ...buildVisibilityKeys({
+                    id: dados.criado_por_id,
+                    firebaseUid: dados.criado_por_uid,
+                    email: dados.criado_por_email,
+                }),
+                ...(dados.participantes || []).flatMap((p) => buildVisibilityKeys(p)),
+            ]));
             const camposAlterados = reuniaoAtual ? describeMeetingChanges(reuniaoAtual, dados) : [];
             const historico = [
                 ...(Array.isArray(reuniaoAtual?.historico) ? reuniaoAtual.historico : []),
