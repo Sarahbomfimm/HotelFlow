@@ -1,9 +1,9 @@
-﻿import { NavLink, useNavigate } from 'react-router-dom';
+﻿import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, History, ChartNoAxesCombined, CalendarDays,
-    LogOut, ChevronLeft, ChevronRight, X, Settings,
+    LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Logo from '../Logo/Logo';
 import { useAuth } from '../../context/AuthContext';
 import { useUsers } from '../../context/UsersContext';
@@ -15,6 +15,7 @@ const liderLinks = [
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
+    { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
 ];
 const diretoraLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -22,6 +23,7 @@ const diretoraLinks = [
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
+    { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/historico', label: 'Histórico', icon: History },
 ];
 const adminLinks = [
@@ -30,6 +32,7 @@ const adminLinks = [
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
+    { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/historico', label: 'Histórico', icon: History },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
@@ -37,7 +40,9 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const { user, logout } = useAuth();
     const { currentUserProfile } = useUsers();
     const navigate = useNavigate();
+    const location = useLocation();
     const [collapsed, setCollapsed] = useState(false);
+    const [auditoriasExpanded, setAuditoriasExpanded] = useState(location.pathname.startsWith('/auditorias'));
 
     const displayUser = currentUserProfile || user;
 
@@ -48,6 +53,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
             ? diretoraLinks
             : liderLinks;
     const showLabels = !collapsed || mobileMenuOpen;
+    const showAuditoriasSubmenu = showLabels && auditoriasExpanded;
     const profileSubtitle = displayUser?.role === UserRole.ADMIN
         ? 'Adm'
         : displayUser?.role === UserRole.DIRETORA
@@ -72,6 +78,12 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
         onCloseMobile?.();
         navigate('/login');
     };
+
+    useEffect(() => {
+        if (location.pathname.startsWith('/auditorias')) {
+            setAuditoriasExpanded(true);
+        }
+    }, [location.pathname]);
 
     return (
         <aside
@@ -125,21 +137,89 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
 
             {/* Navegação */}
             <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4">
-                {links.map(({ to, label, icon: Icon }) => (
-                    <NavLink
-                        key={to}
-                        to={to}
-                        end={to === '/ordens'}
-                        onClick={() => onCloseMobile?.()}
-                        className={({ isActive }) =>
-                            `sidebar-link ${isActive ? 'active' : ''} ${collapsed ? 'lg:justify-center lg:px-2' : ''}`
-                        }
-                        title={!showLabels ? label : undefined}
-                    >
-                        <Icon size={19} className="flex-shrink-0" />
-                        {showLabels && <span className="truncate">{label}</span>}
-                    </NavLink>
-                ))}
+                {links.map(({ to, label, icon: Icon }) => {
+                    const isAuditoriasLink = to === '/auditorias/visualizar';
+
+                    if (!isAuditoriasLink) {
+                        return (
+                            <NavLink
+                                key={to}
+                                to={to}
+                                end={to === '/ordens'}
+                                onClick={() => onCloseMobile?.()}
+                                className={({ isActive }) =>
+                                    `sidebar-link ${isActive ? 'active' : ''} ${collapsed ? 'lg:justify-center lg:px-2' : ''}`
+                                }
+                                title={!showLabels ? label : undefined}
+                            >
+                                <Icon size={19} className="flex-shrink-0" />
+                                {showLabels && <span className="truncate">{label}</span>}
+                            </NavLink>
+                        );
+                    }
+
+                    return (
+                        <div key={to}>
+                            <NavLink
+                                to={to}
+                                onClick={() => onCloseMobile?.()}
+                                className={({ isActive }) =>
+                                    `sidebar-link ${isActive ? 'active' : ''} ${collapsed ? 'lg:justify-center lg:px-2' : ''}`
+                                }
+                                title={!showLabels ? label : undefined}
+                            >
+                                <Icon size={19} className="flex-shrink-0" />
+                                {showLabels && <span className="truncate">{label}</span>}
+                                {showLabels && (
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            setAuditoriasExpanded((value) => !value);
+                                        }}
+                                        className="ml-auto inline-flex rounded-md p-0.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                                        aria-label={auditoriasExpanded ? 'Recolher auditorias' : 'Expandir auditorias'}
+                                    >
+                                        <ChevronRight
+                                            size={16}
+                                            className={`transition-transform ${auditoriasExpanded ? 'rotate-90 text-white' : 'text-white/70'}`}
+                                        />
+                                    </button>
+                                )}
+                            </NavLink>
+
+                            {showAuditoriasSubmenu && (
+                                <div className="ml-8 mt-1 space-y-1 border-l border-white/15 pl-3">
+                                    <NavLink
+                                        to="/auditorias/nova"
+                                        onClick={() => onCloseMobile?.()}
+                                        className={({ isActive }) =>
+                                            `inline-flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
+                                                isActive ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+                                            }`
+                                        }
+                                    >
+                                        <Plus size={14} className="flex-shrink-0" />
+                                        Nova Auditoria
+                                    </NavLink>
+                                    <NavLink
+                                        to="/auditorias/visualizar"
+                                        onClick={() => onCloseMobile?.()}
+                                        className={({ isActive }) =>
+                                            `inline-flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
+                                                isActive ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+                                            }`
+                                        }
+                                    >
+                                        <Eye size={14} className="flex-shrink-0" />
+                                        Visualizar Auditorias
+                                    </NavLink>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
             </nav>
 
             {/* Logout */}

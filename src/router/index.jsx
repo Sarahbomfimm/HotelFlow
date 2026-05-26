@@ -12,6 +12,7 @@ import ListaOS from '../pages/ListaOS/ListaOS';
 import HistoricoOS from '../pages/HistoricoOS/HistoricoOS';
 import PDCAVisualPage from '../pages/PDCAVisualPage/PDCAVisualPage';
 import Reunioes from '../pages/Reunioes/Reunioes';
+import Auditorias from '../pages/Auditorias/Auditorias';
 
 function DashboardRouter() {
     const { user } = useAuth();
@@ -65,6 +66,30 @@ export default function AppRouter() {
                 element={
                     <ProtectedRoute>
                         <Reunioes />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/auditorias"
+                element={
+                    <ProtectedRoute>
+                        <Navigate to="/auditorias/visualizar" replace />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/auditorias/nova"
+                element={
+                    <ProtectedRoute>
+                        <Auditorias mode="nova" />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/auditorias/visualizar"
+                element={
+                    <ProtectedRoute>
+                        <Auditorias mode="visualizar" />
                     </ProtectedRoute>
                 }
             />
