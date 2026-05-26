@@ -32,18 +32,19 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
     };
 
     useEffect(() => {
-        if (isOpen) {
-            setObs('');
-            setEtapaPdca(os?.etapa_pdca || PDCAStep.PLAN);
-            setPrazoEstimado('');
-            setAnexoPdf(null);
-            setAnexoErro('');
-            setTimeout(() => textRef.current?.focus(), 80);
-            const handler = (e) => { if (e.key === 'Escape') onCancel(); };
-            window.addEventListener('keydown', handler);
-            return () => window.removeEventListener('keydown', handler);
-        }
-    }, [isOpen, onCancel, os]);
+        if (!isOpen) return undefined;
+
+        setObs('');
+        setEtapaPdca(os?.etapa_pdca || PDCAStep.PLAN);
+        setPrazoEstimado('');
+        setAnexoPdf(null);
+        setAnexoErro('');
+        setTimeout(() => textRef.current?.focus(), 80);
+
+        const handler = (e) => { if (e.key === 'Escape') onCancel(); };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [isOpen, onCancel, os?.id, os?.etapa_pdca]);
 
     if (!isOpen || !os) return null;
 
