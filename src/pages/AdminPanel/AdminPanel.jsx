@@ -316,6 +316,11 @@ export default function AdminPanel() {
     };
 
     const handleEditUser = (user) => {
+        if (user?.role === UserRole.LIDER) {
+            navigate(`/admin/lideres/${user.id}/editar`);
+            return;
+        }
+
         setFormData({
             nome: user.nome || '',
             email: user.email || '',
@@ -552,6 +557,7 @@ export default function AdminPanel() {
                                                 <span className="min-w-0">
                                                     <span className="block text-sm font-semibold text-slate-900">{permission.label}</span>
                                                     <span className="mt-0.5 block text-xs text-slate-500">{permission.description}</span>
+                                                    <span className="mt-1 block text-[11px] text-slate-400">{permission.key}</span>
                                                 </span>
                                             </label>
                                             );
@@ -634,7 +640,7 @@ export default function AdminPanel() {
                                                         type="button"
                                                         onClick={() => handleEditUser(row)}
                                                         className="rounded-lg border border-slate-300 bg-white p-1.5 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
-                                                        title="Editar"
+                                                        title={row.role === UserRole.LIDER ? 'Editar líder em ambiente dedicado' : 'Editar'}
                                                     >
                                                         <Edit2 size={16} />
                                                     </button>
@@ -690,7 +696,7 @@ export default function AdminPanel() {
                                             onClick={() => handleEditUser(row)}
                                             className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700"
                                         >
-                                            <Edit2 size={13} /> Editar
+                                            <Edit2 size={13} /> {row.role === UserRole.LIDER ? 'Editar líder' : 'Editar'}
                                         </button>
                                         <button
                                             type="button"

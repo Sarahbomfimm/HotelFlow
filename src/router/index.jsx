@@ -8,6 +8,7 @@ import Login from '../pages/Login/Login';
 import DashboardDiretora from '../pages/DashboardDiretora/DashboardDiretora';
 import DashboardLider from '../pages/DashboardLider/DashboardLider';
 import AdminPanel from '../pages/AdminPanel/AdminPanel';
+import EditLeader from '../pages/AdminPanel/EditLeader';
 import FormOS from '../pages/FormOS/FormOS';
 import ListaOS from '../pages/ListaOS/ListaOS';
 import HistoricoOS from '../pages/HistoricoOS/HistoricoOS';
@@ -99,7 +100,7 @@ export default function AppRouter() {
             <Route
                 path="/nova-os"
                 element={
-                    <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.DIRETORA, UserRole.LIDER]}>
+                    <ProtectedRoute requiredPermission={PERMISSIONS.SI_CREATE_ACCESS}>
                         <FormOS />
                     </ProtectedRoute>
                 }
@@ -117,8 +118,16 @@ export default function AppRouter() {
             <Route
                 path="/admin"
                 element={
-                    <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                    <ProtectedRoute requiredPermission={PERMISSIONS.ADMIN_PANEL_ACCESS}>
                         <AdminPanel />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/admin/lideres/:userId/editar"
+                element={
+                    <ProtectedRoute requiredPermission={PERMISSIONS.ADMIN_PANEL_ACCESS}>
+                        <EditLeader />
                     </ProtectedRoute>
                 }
             />

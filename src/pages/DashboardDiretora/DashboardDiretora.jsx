@@ -430,11 +430,20 @@ export default function DashboardDiretora() {
                                                 </div>
 
                                                 <p className="font-semibold font-body text-hotel-blue text-sm mt-1">{os.titulo}</p>
-                                                <p className="text-xs text-hotel-gray-md font-body mt-2">
-                                                    Prazo: <strong className={atrasada ? 'text-red-500' : 'text-hotel-blue'}>
-                                                        {format(parseISO(os.prazo), 'dd/MM/yyyy')}
-                                                    </strong>
-                                                </p>
+                                                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-body">
+                                                    <span className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/60 bg-hotel-light px-2 py-0.5 text-hotel-gray-md">
+                                                        Prazo oficial:
+                                                        <strong className={atrasada ? 'text-red-500' : 'text-hotel-blue'}>
+                                                            {format(parseISO(os.prazo), 'dd/MM/yyyy')}
+                                                        </strong>
+                                                    </span>
+                                                    {os.prazo_estimado && (
+                                                        <span className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/60 bg-hotel-light px-2 py-0.5 text-hotel-gray-md">
+                                                            Prazo do líder:
+                                                            <strong className="text-hotel-gold">{format(parseISO(os.prazo_estimado), 'dd/MM/yyyy')}</strong>
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

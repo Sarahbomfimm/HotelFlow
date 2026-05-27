@@ -480,6 +480,9 @@ export default function ListaOS() {
     const renderOrderCard = (os) => {
         const atrasada = os.status !== StatusOS.CONCLUIDO && isPast(parseISO(os.prazo));
         const isExpanded = expanded === os.id;
+        const prazoEstimadoCard = os.prazo_estimado
+            || [...(os.historico || [])].reverse().find((entry) => entry?.prazo_estimado)?.prazo_estimado
+            || null;
         const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
         const canManagementFinalize = canFinalizeSI && isDiretora && os.status !== StatusOS.CONCLUIDO && !isResponsavel;
         const hasDownloadables = Boolean(
@@ -519,17 +522,22 @@ export default function ListaOS() {
                         </div>
                         <h4 className="font-semibold font-body text-hotel-blue text-sm">{os.titulo}</h4>
                         <p className="text-xs text-hotel-gray-md font-body mt-0.5">
-                            {isDiretora ? `${os.responsavel_nome} · ` : ''}
-                            Prazo: <strong className={atrasada ? 'text-red-500' : ''}>
-                                {format(parseISO(os.prazo), 'dd/MM/yyyy')}
-                            </strong>
-                            {os.prazo_estimado && (
-                                <>
-                                    {' · Prazo estimado: '}
-                                    <strong className="text-hotel-gold">{format(parseISO(os.prazo_estimado), 'dd/MM/yyyy')}</strong>
-                                </>
-                            )}
+                            {isDiretora ? os.responsavel_nome : 'Responsável da SI'}
                         </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] font-body">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/60 bg-hotel-light px-2 py-0.5 text-hotel-gray-md">
+                                Prazo oficial:
+                                <strong className={atrasada ? 'text-red-500' : 'text-hotel-blue'}>
+                                    {format(parseISO(os.prazo), 'dd/MM/yyyy')}
+                                </strong>
+                            </span>
+                            {prazoEstimadoCard && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/60 bg-hotel-light px-2 py-0.5 text-hotel-gray-md">
+                                    Prazo do líder:
+                                    <strong className="text-hotel-gold">{format(parseISO(prazoEstimadoCard), 'dd/MM/yyyy')}</strong>
+                                </span>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-shrink-0 sm:justify-end">

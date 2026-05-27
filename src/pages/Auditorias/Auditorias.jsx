@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import {
     ClipboardCheck,
     Filter,
@@ -110,6 +110,46 @@ function getAuditTotal(audit) {
     return Math.max(0, Math.min(MAX_TOTAL, legacySum));
 }
 
+function openMonthPicker(event) {
+    const input = event.currentTarget;
+
+    if (typeof input?.showPicker === 'function') {
+        try {
+            input.showPicker();
+            return;
+        } catch {
+            // Ignora navegadores que bloqueiam showPicker e segue com foco padrão.
+        }
+    }
+
+    input?.focus?.();
+}
+
+function ScoreSelector({ value, onChange, compact = false }) {
+    return (
+        <div className={`grid grid-cols-5 rounded-lg border border-hotel-blue/10 bg-hotel-light/40 p-1.5 ${compact ? 'gap-1' : 'gap-1.5'}`}>
+            {[0, 1, 2, 3, 4].map((option) => {
+                const selected = Number(value) === option;
+                return (
+                    <button
+                        key={option}
+                        type="button"
+                        onClick={() => onChange(option)}
+                        className={`rounded-md border px-1.5 py-1.5 text-xs font-semibold transition-all ${
+                            selected
+                                ? 'border-hotel-blue bg-hotel-blue text-white shadow-sm'
+                                : 'border-hotel-gray/50 bg-white text-hotel-gray-md hover:border-hotel-blue/40 hover:text-hotel-blue'
+                        }`}
+                        aria-pressed={selected}
+                    >
+                        {option}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
 export default function Auditorias({ mode }) {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -162,7 +202,7 @@ export default function Auditorias({ mode }) {
     useEffect(() => {
         const unsubscribeAudits = subscribeAudits(
             setAudits,
-            () => addNotification('Nao foi possível carregar as auditorias do Firestore. Usando cache local.', 'warning'),
+            () => addNotification('Não foi possível carregar as auditorias do Firestore. Usando cache local.', 'warning'),
         );
         const unsubscribe = subscribeAuditLinks(setAuditLinksByDepartment);
         return () => {
@@ -208,15 +248,51 @@ export default function Auditorias({ mode }) {
         return sums[0];
     }, [visibleAudits]);
 
-    const sectorsAudited = useMemo(
-        () => new Set(visibleAudits.map((audit) => audit.setor)).size,
+    // Exclui 'Teste' da contagem de cobertura independente do perfil
+    const departmentsForCoverage = useMemo(
+        () => allowedDepartments.filter((dep) => dep !== 'Teste'),
+        [allowedDepartments],
+    );
+
+    const sectorsAuditedCount = useMemo(
+        () => new Set(visibleAudits.filter((a) => a.setor !== 'Teste').map((a) => a.setor)).size,
         [visibleAudits],
     );
 
     const coveragePercent = useMemo(() => {
-        if (!allowedDepartments.length) return 0;
-        return Math.round((sectorsAudited / allowedDepartments.length) * 100);
-    }, [allowedDepartments.length, sectorsAudited]);
+        if (!departmentsForCoverage.length) return 0;
+        return Math.round((sectorsAuditedCount / departmentsForCoverage.length) * 100);
+    }, [departmentsForCoverage.length, sectorsAuditedCount]);
+
+    // Melhor auditoria já registrada para setores deste usuário (para a visão de quem só visualiza)
+    const bestAuditEver = useMemo(() => {
+        const scope = audits.filter((a) => {
+            if (a.setor === 'Teste') return false;
+            if (isManagementRole) return true;
+            return leaderDepartments.includes(a.setor);
+        });
+
+        if (scope.length === 0) return null;
+
+        return scope.reduce((best, audit) => {
+            const score = getAuditTotal(audit);
+            return score > getAuditTotal(best) ? audit : best;
+        });
+    }, [audits, isManagementRole, leaderDepartments]);
+
+    // Média histórica do setor selecionado (ignora filtro de mês)
+    const sectorHistoricalAverage = useMemo(() => {
+        if (!selectedDepartment) return null;
+
+        const sectorAudits = audits.filter(
+            (a) => a.setor === selectedDepartment && a.setor !== 'Teste',
+        );
+
+        if (sectorAudits.length === 0) return null;
+
+        const total = sectorAudits.reduce((sum, a) => sum + getAuditTotal(a), 0);
+        return Math.round((total / sectorAudits.length) * 10) / 10;
+    }, [audits, selectedDepartment]);
 
     const criticalCount = useMemo(
         () => visibleAudits.filter((audit) => getAuditTotal(audit) <= 50).length,
@@ -305,6 +381,16 @@ export default function Auditorias({ mode }) {
         });
     };
 
+    const fillSenseScores = (senseKey, score) => {
+        setFormData((prev) => ({
+            ...prev,
+            scores: {
+                ...prev.scores,
+                [senseKey]: Array(QUESTIONS_PER_SENSE).fill(Number(score)),
+            },
+        }));
+    };
+
     const handleCreate = async (event) => {
         event.preventDefault();
 
@@ -342,7 +428,7 @@ export default function Auditorias({ mode }) {
             setSavedSuccess(true);
             setTimeout(() => setSavedSuccess(false), 3000);
         } catch (error) {
-            addNotification(error?.message || 'Nao foi possível salvar a auditoria.', 'error');
+            addNotification(error?.message || 'Não foi possível salvar a auditoria.', 'error');
         }
     };
 
@@ -368,6 +454,16 @@ export default function Auditorias({ mode }) {
         });
     };
 
+    const fillEditSenseScores = (senseKey, score) => {
+        setEditFormData((prev) => ({
+            ...prev,
+            scores: {
+                ...prev.scores,
+                [senseKey]: Array(QUESTIONS_PER_SENSE).fill(Number(score)),
+            },
+        }));
+    };
+
     const handleEditSave = async (e) => {
         e.preventDefault();
         try {
@@ -386,7 +482,7 @@ export default function Auditorias({ mode }) {
             setEditingAudit(null);
             setEditFormData(null);
         } catch (error) {
-            addNotification(error?.message || 'Nao foi possível atualizar a auditoria.', 'error');
+            addNotification(error?.message || 'Não foi possível atualizar a auditoria.', 'error');
         }
     };
 
@@ -396,7 +492,7 @@ export default function Auditorias({ mode }) {
             setAudits((prev) => prev.filter((a) => a.id !== id));
             setConfirmDeleteId(null);
         } catch (error) {
-            addNotification(error?.message || 'Nao foi possível excluir a auditoria.', 'error');
+            addNotification(error?.message || 'Não foi possível excluir a auditoria.', 'error');
         }
     };
 
@@ -443,35 +539,57 @@ export default function Auditorias({ mode }) {
                                         <Radar size={14} className="text-hotel-gold" />
                                     </div>
                                     <p className="mt-1 text-2xl font-bold text-white">{coveragePercent}%</p>
-                                    <p className="mt-1 text-xs text-white/70">{sectorsAudited}/{allowedDepartments.length || 0} setores auditados no ciclo</p>
+                                    <p className="mt-1 text-xs text-white/70">{sectorsAuditedCount}/{departmentsForCoverage.length || 0} setores auditados no ciclo</p>
                                 </div>
                                 <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm transition-transform hover:-translate-y-0.5">
                                     <div className="flex items-center justify-between">
                                         <p className="text-[11px] uppercase tracking-[0.18em] text-white/65">Performance 5S</p>
                                         <Trophy size={14} className="text-hotel-gold" />
                                     </div>
-                                    <p className="mt-1 text-2xl font-bold text-white">{monthlyAverage}/100</p>
-                                    <p className="mt-1 text-xs text-white/70">Top setor: {topSector ? `${topSector.setor} (${topSector.media})` : 'Sem dados'}</p>
+                                    {isManagementRole ? (
+                                        <>
+                                            <p className="mt-1 text-2xl font-bold text-white">{monthlyAverage}/100</p>
+                                            <p className="mt-1 text-xs text-white/70">Top setor: {topSector ? `${topSector.setor} (${topSector.media})` : 'Sem dados'}</p>
+                                        </>
+                                    ) : bestAuditEver ? (
+                                        <>
+                                            <p className="mt-1 text-2xl font-bold text-white">{getAuditTotal(bestAuditEver)}/100</p>
+                                            <p className="mt-1 text-xs text-white/70">Melhor nota - {bestAuditEver.setor} - {bestAuditEver.mes}</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="mt-1 text-2xl font-bold text-white/40">-</p>
+                                            <p className="mt-1 text-xs text-white/50">Sem auditorias registradas</p>
+                                        </>
+                                    )}
                                 </div>
                                 <div className={`rounded-2xl border px-4 py-3 backdrop-blur-sm transition-transform hover:-translate-y-0.5 ${sectorStatus ? `${sectorStatus.cardBg} ${sectorStatus.cardBorder}` : 'border-white/15 bg-white/10'}`}>
                                     <div className="flex items-center justify-between">
                                         <p className="text-[11px] uppercase tracking-[0.18em] text-white/65">Status do ciclo</p>
                                         <CheckCircle2 size={14} className="text-hotel-gold" />
                                     </div>
-                                    {sectorStatus ? (
-                                        <>
-                                            <div className="mt-1 flex items-center gap-2">
-                                                <span className={`h-2.5 w-2.5 rounded-full ${sectorStatus.dot}`} />
-                                                <p className={`text-xl font-bold ${sectorStatus.statusColor}`}>{sectorStatus.text}</p>
-                                            </div>
-                                            <p className="mt-1 text-xs text-white/70">{selectedDepartment || 'Geral'} · média {monthlyAverage}/100</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <p className="mt-1 text-xl font-bold text-white/40">—</p>
-                                            <p className="mt-1 text-xs text-white/50">Sem auditorias no filtro</p>
-                                        </>
-                                    )}
+                                    {(() => {
+                                        const displayAvg = sectorHistoricalAverage !== null ? sectorHistoricalAverage : monthlyAverage;
+                                        const displayStatus = displayAvg > 0 ? scoreLabel(Math.round(displayAvg)) : null;
+                                        const label = selectedDepartment
+                                            ? `${selectedDepartment} - média histórica ${displayAvg}/100`
+                                            : `Geral - média ${monthlyAverage}/100`;
+
+                                        return displayStatus ? (
+                                            <>
+                                                <div className="mt-1 flex items-center gap-2">
+                                                    <span className={`h-2.5 w-2.5 rounded-full ${displayStatus.dot}`} />
+                                                    <p className={`text-xl font-bold ${displayStatus.statusColor}`}>{displayStatus.text}</p>
+                                                </div>
+                                                <p className="mt-1 text-xs text-white/70">{label}</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p className="mt-1 text-xl font-bold text-white/40">-</p>
+                                                <p className="mt-1 text-xs text-white/50">Sem auditorias no filtro</p>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         </div>
@@ -511,7 +629,9 @@ export default function Auditorias({ mode }) {
                                         type="month"
                                         value={formData.mes}
                                         onChange={(e) => setFormData((prev) => ({ ...prev, mes: e.target.value }))}
-                                        className="input"
+                                        onClick={openMonthPicker}
+                                        onFocus={openMonthPicker}
+                                        className="input h-11 cursor-pointer"
                                         required
                                     />
                                 </div>
@@ -526,19 +646,28 @@ export default function Auditorias({ mode }) {
                                                 {senseTotals[sense.key]}/{MAX_PER_SENSE}
                                             </span>
                                         </div>
-                                        <div className="grid grid-cols-5 gap-2">
+                                        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                                            <span className="text-[11px] font-semibold text-hotel-gray-md">Preencher todo senso:</span>
+                                            {[0, 1, 2, 3, 4].map((option) => (
+                                                <button
+                                                    key={option}
+                                                    type="button"
+                                                    onClick={() => fillSenseScores(sense.key, option)}
+                                                    className="rounded-full border border-hotel-blue/20 px-2 py-0.5 text-[11px] font-semibold text-hotel-blue transition-colors hover:bg-hotel-blue/10"
+                                                >
+                                                    Tudo {option}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="mb-1 text-[11px] font-medium text-hotel-gray-md">Clique na nota de cada pergunta:</div>
+                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-5 sm:gap-2.5">
                                             {Array.from({ length: QUESTIONS_PER_SENSE }).map((_, questionIndex) => (
-                                                <label key={questionIndex} className="flex flex-col gap-1 text-[11px] text-hotel-gray-md">
-                                                    Q{questionIndex + 1}
-                                                    <select
+                                                <label key={questionIndex} className="flex flex-col gap-1.5 rounded-lg border border-hotel-blue/10 bg-hotel-light/20 p-2 text-[11px] text-hotel-gray-md">
+                                                    <span className="font-semibold text-hotel-blue/80">Q{questionIndex + 1}</span>
+                                                    <ScoreSelector
                                                         value={formData.scores[sense.key][questionIndex]}
-                                                        onChange={(e) => handleQuestionScoreChange(sense.key, questionIndex, e.target.value)}
-                                                        className="input h-9 px-2 py-1 text-sm"
-                                                    >
-                                                        {[0, 1, 2, 3, 4].map((option) => (
-                                                            <option key={option} value={option}>{option}</option>
-                                                        ))}
-                                                    </select>
+                                                        onChange={(value) => handleQuestionScoreChange(sense.key, questionIndex, value)}
+                                                    />
                                                 </label>
                                             ))}
                                         </div>
@@ -614,123 +743,208 @@ export default function Auditorias({ mode }) {
 
                     {showVisualizationSection && (
                         <div className="space-y-4">
-                        <div className="overflow-hidden rounded-3xl border border-hotel-blue/15 bg-white shadow-[0_16px_40px_rgba(4,21,35,0.08)]">
-                            <div className="flex items-center gap-2 border-b border-hotel-blue/10 bg-[linear-gradient(180deg,#f8fbff_0%,#eef6ff_100%)] px-5 py-3">
-                                <Filter size={14} className="text-hotel-gray-md" />
-                                <h3 className="font-heading text-sm font-semibold text-hotel-blue">Filtros</h3>
-                            </div>
 
-                            <div className="grid gap-4 p-5 sm:grid-cols-2">
-                                <div>
-                                    <label className="label">Mês</label>
-                                    <input
-                                        type="month"
-                                        value={selectedMonth}
-                                        onChange={(e) => setSelectedMonth(e.target.value)}
-                                        className="input"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="label">Setor</label>
-                                    <select
-                                        value={selectedDepartment}
-                                        onChange={(e) => setSelectedDepartment(e.target.value)}
-                                        className="input"
-                                    >
-                                        <option value="">Selecione um setor…</option>
-                                        {allowedDepartments.map((dep) => (
-                                            <option key={dep} value={dep}>{dep}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
+                        {/* Filter bar */}
+                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-hotel-blue/10 bg-white px-4 py-3 shadow-sm">
+                            <Filter size={13} className="flex-shrink-0 text-hotel-gray-md" />
+                            <span className="hidden text-xs font-semibold text-hotel-gray-md sm:inline">Filtrar:</span>
+                            <input
+                                type="month"
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                                onClick={openMonthPicker}
+                                onFocus={openMonthPicker}
+                                className="h-9 cursor-pointer rounded-xl border border-hotel-blue/15 bg-hotel-light/60 px-3 text-sm font-medium text-hotel-blue focus:border-hotel-blue/40 focus:outline-none focus:ring-2 focus:ring-hotel-blue/10"
+                            />
+                            <select
+                                value={selectedDepartment}
+                                onChange={(e) => setSelectedDepartment(e.target.value)}
+                                className="h-9 min-w-[150px] cursor-pointer rounded-xl border border-hotel-blue/15 bg-hotel-light/60 px-3 text-sm font-medium text-hotel-blue focus:border-hotel-blue/40 focus:outline-none focus:ring-2 focus:ring-hotel-blue/10"
+                            >
+                                <option value="">Todos os setores</option>
+                                {allowedDepartments.map((dep) => (
+                                    <option key={dep} value={dep}>{dep}</option>
+                                ))}
+                            </select>
+                            {(selectedDepartment) && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedDepartment('')}
+                                    className="flex items-center gap-1 rounded-xl border border-hotel-gray/25 bg-white px-2.5 py-1.5 text-xs font-semibold text-hotel-gray-md transition-colors hover:border-red-200 hover:text-red-500"
+                                >
+                                    <X size={10} /> Limpar
+                                </button>
+                            )}
+                            <span className="ml-auto text-[11px] font-semibold text-hotel-gray-md">
+                                {visibleAudits.length} auditoria{visibleAudits.length !== 1 ? 's' : ''}
+                            </span>
                         </div>
 
-                        <div className="overflow-hidden rounded-3xl border border-hotel-blue/15 bg-white shadow-[0_16px_40px_rgba(4,21,35,0.08)]">
-                            <div className="border-b border-hotel-blue/10 bg-[linear-gradient(180deg,#f8fbff_0%,#eef6ff_100%)] px-5 py-4">
-                                <h3 className="inline-flex items-center gap-2 font-heading text-lg font-bold text-hotel-blue">
-                                    <BarChart3 size={18} /> Desempenho por Senso
-                                </h3>
-                                <p className="mt-0.5 text-xs text-hotel-gray-md">Média de cada senso · meta: 16 · máx: 20</p>
+                        {/* Audit cards */}
+                        {visibleAudits.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-hotel-blue/20 bg-white py-16 text-center">
+                                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-hotel-blue/5">
+                                    <ClipboardCheck size={28} className="text-hotel-blue/30" />
+                                </div>
+                                <p className="text-sm font-semibold text-hotel-gray-md">Nenhuma auditoria encontrada</p>
+                                <p className="text-xs text-hotel-gray-md/70">Ajuste os filtros ou registre a primeira auditoria do período.</p>
                             </div>
-                            {visibleAudits.length === 0 ? (
-                                <p className="px-5 py-8 text-center text-sm text-hotel-gray-md">Sem dados no filtro atual. Registre a primeira auditoria para gerar o gráfico.</p>
-                            ) : (() => {
-                                const CHART_H = 220;
-                                const BAR_PALETTES = [
-                                    { from: '#6366f1', to: '#4338ca', glow: 'rgba(99,102,241,0.30)' },
-                                    { from: '#0ea5e9', to: '#0369a1', glow: 'rgba(14,165,233,0.30)' },
-                                    { from: '#10b981', to: '#065f46', glow: 'rgba(16,185,129,0.30)' },
-                                    { from: '#a855f7', to: '#6d28d9', glow: 'rgba(139,92,246,0.30)' },
-                                    { from: '#C49A6C', to: '#92400e', glow: 'rgba(196,154,108,0.30)' },
-                                ];
-                                return (
+                        ) : (
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                {visibleAudits.map((audit) => {
+                                    const SENSE_COLORS = ['#6366f1', '#0ea5e9', '#10b981', '#a855f7', '#C49A6C'];
+                                    const totalScore = getAuditTotal(audit);
+                                    const label = scoreLabel(totalScore);
+                                    const percent = scorePercent(totalScore);
+                                    const auditLink = getAuditLinkByDepartment(auditLinksByDepartment, audit.setor);
+                                    const accent = totalScore >= 91 ? '#10b981' : totalScore >= 81 ? '#22c55e' : totalScore >= 71 ? '#f59e0b' : totalScore >= 51 ? '#f97316' : '#ef4444';
+                                    return (
+                                        <div key={audit.id} className="group relative overflow-hidden rounded-2xl border border-hotel-blue/10 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(4,21,35,0.12)]">
+                                            {/* score accent stripe */}
+                                            <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}88)` }} />
+
+                                            <div className="p-4">
+                                                {/* header */}
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0 flex-1">
+                                                        <h4 className="truncate font-heading text-base font-bold text-hotel-blue">{audit.setor}</h4>
+                                                        <p className="mt-0.5 text-[11px] text-hotel-gray-md">{audit.mes} - {audit.criadoPorNome}</p>
+                                                    </div>
+                                                    <div className="flex flex-shrink-0 flex-col items-end gap-0.5">
+                                                        <span className={`rounded-xl px-2.5 py-1 text-sm font-bold ${label.tone}`}>
+                                                            {totalScore}<span className="ml-0.5 text-[10px] font-normal opacity-60">/100</span>
+                                                        </span>
+                                                        <span className="text-[10px] font-bold" style={{ color: accent }}>{label.text}</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* main progress bar */}
+                                                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-hotel-light">
+                                                    <div
+                                                        className="h-full rounded-full transition-all duration-700"
+                                                        style={{ width: `${percent}%`, background: `linear-gradient(90deg, ${accent}, ${accent}cc)` }}
+                                                    />
+                                                </div>
+
+                                                {/* per-senso mini bars */}
+                                                <div className="mt-3 grid grid-cols-5 gap-1.5">
+                                                    {SENSOS.map((sense, si) => {
+                                                        const senseTotal = getSenseTotalFromAudit(audit, sense.key);
+                                                        const sPct = Math.round((senseTotal / MAX_PER_SENSE) * 100);
+                                                        const shortName = sense.label.split(':')[1]?.trim().slice(0, 8) || sense.key;
+                                                        const col = SENSE_COLORS[si % SENSE_COLORS.length];
+                                                        return (
+                                                            <div key={sense.key} className="flex flex-col items-center gap-1">
+                                                                <div className="relative h-10 w-full overflow-hidden rounded-lg bg-hotel-light/80">
+                                                                    <div className="absolute bottom-0 w-full rounded-lg transition-all duration-500" style={{ height: `${sPct}%`, backgroundColor: col }} />
+                                                                </div>
+                                                                <span className="w-full truncate text-center text-[9px] leading-tight text-hotel-gray-md">{shortName}</span>
+                                                                <span className="text-[9px] font-bold" style={{ color: col }}>{senseTotal}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* notes */}
+                                                {audit.observacoes && (
+                                                    <p className="mt-3 line-clamp-2 text-[11px] leading-relaxed text-hotel-gray-md">{audit.observacoes}</p>
+                                                )}
+
+                                                {/* footer actions */}
+                                                <div className="mt-3 flex items-center justify-between border-t border-hotel-blue/5 pt-3">
+                                                    <div>
+                                                        {auditLink && (
+                                                            <a
+                                                                href={auditLink}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center gap-1 rounded-lg bg-hotel-blue/5 px-2.5 py-1.5 text-[11px] font-semibold text-hotel-blue transition-colors hover:bg-hotel-blue/10"
+                                                            >
+                                                                Acessar Auditoria
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                    {canManageAuditorias && (
+                                                        <div className="flex items-center gap-1">
+                                                            <button
+                                                                onClick={() => handleEditStart(audit)}
+                                                                className="rounded-lg p-1.5 text-hotel-gray-md transition-colors hover:bg-hotel-blue/10 hover:text-hotel-blue"
+                                                                title="Editar"
+                                                            >
+                                                                <Pencil size={13} />
+                                                            </button>
+                                                            {confirmDeleteId === audit.id ? (
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="text-xs font-semibold text-red-500">Excluir?</span>
+                                                                    <button onClick={() => handleDelete(audit.id)} className="rounded px-2 py-0.5 text-xs font-bold text-red-600 hover:bg-red-50">Sim</button>
+                                                                    <button onClick={() => setConfirmDeleteId(null)} className="rounded px-2 py-0.5 text-xs text-hotel-gray-md hover:bg-hotel-light">Não</button>
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={() => setConfirmDeleteId(audit.id)}
+                                                                    className="rounded-lg p-1.5 text-hotel-gray-md transition-colors hover:bg-red-50 hover:text-red-500"
+                                                                    title="Excluir"
+                                                                >
+                                                                    <Trash2 size={13} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Desempenho por Senso */}
+                        {visibleAudits.length > 0 && (() => {
+                            const CHART_H = 200;
+                            const BAR_PALETTES = [
+                                { from: '#818cf8', to: '#3730a3', glow: 'rgba(129,140,248,0.45)' },
+                                { from: '#38bdf8', to: '#075985', glow: 'rgba(56,189,248,0.45)' },
+                                { from: '#34d399', to: '#065f46', glow: 'rgba(52,211,153,0.45)' },
+                                { from: '#c084fc', to: '#6b21a8', glow: 'rgba(192,132,252,0.45)' },
+                                { from: '#f59e0b', to: '#78350f', glow: 'rgba(245,158,11,0.45)' },
+                            ];
+
+                            return (
+                                <div className="overflow-hidden rounded-2xl border border-[#0f3758] bg-[linear-gradient(180deg,#0b2b45_0%,#0a2235_100%)] shadow-[0_10px_30px_rgba(2,12,24,0.35)]">
+                                    <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-5 py-3.5">
+                                        <div className="flex items-center gap-2">
+                                            <BarChart3 size={15} className="text-hotel-gold" />
+                                            <h3 className="font-heading text-sm font-bold text-white">Desempenho por Senso</h3>
+                                        </div>
+                                        <span className="text-[11px] font-semibold text-white/80">meta: 16 | max: 20</span>
+                                    </div>
                                     <div className="p-5">
-                                        {/* Chart panel */}
-                                        <div
-                                            className="relative overflow-hidden rounded-2xl border border-hotel-blue/10 px-4 pb-3 pt-4"
-                                            style={{ background: 'linear-gradient(180deg,#f0f6ff 0%,#e6f0fb 100%)' }}
-                                        >
-                                            {/* subtle grid */}
+                                        <div className="relative overflow-hidden rounded-2xl border border-white/15 px-4 pb-3 pt-4" style={{ background: 'linear-gradient(180deg,#103756 0%,#0d2d47 100%)' }}>
                                             {[5, 10, 15, 20].map((v) => (
-                                                <div
-                                                    key={v}
-                                                    className="pointer-events-none absolute left-4 right-4 flex items-center gap-2"
-                                                    style={{ bottom: (v / 20) * CHART_H + 12 }}
-                                                >
-                                                    <span className="w-4 flex-shrink-0 text-right text-[9px] text-hotel-gray-md">{v}</span>
-                                                    <div className="flex-1 border-t border-hotel-blue/10" />
+                                                <div key={v} className="pointer-events-none absolute left-4 right-4 flex items-center gap-2" style={{ bottom: (v / 20) * CHART_H + 12 }}>
+                                                    <span className="w-4 flex-shrink-0 text-right text-[9px] font-semibold text-white/80">{v}</span>
+                                                    <div className="flex-1 border-t border-white/20" />
                                                 </div>
                                             ))}
-
-                                            {/* meta line at 16 */}
-                                            <div
-                                                className="pointer-events-none absolute left-4 right-4 z-10"
-                                                style={{ bottom: (16 / 20) * CHART_H + 12 }}
-                                            >
-                                                <div className="ml-6 border-t-[1.5px] border-dashed border-hotel-gold" />
-                                                <span
-                                                    className="absolute -top-5 right-0 rounded px-1.5 py-0.5 text-[10px] font-bold text-hotel-gold"
-                                                    style={{ background: 'rgba(196,154,108,0.12)' }}
-                                                >
-                                                    meta 16
-                                                </span>
+                                            <div className="pointer-events-none absolute left-4 right-4 z-10" style={{ bottom: (16 / 20) * CHART_H + 12 }}>
+                                                <div className="ml-6 border-t-2 border-dashed border-hotel-gold/90" />
+                                                <span className="absolute -top-5 right-0 rounded bg-hotel-gold/20 px-1.5 py-0.5 text-[10px] font-bold text-hotel-gold">meta 16</span>
                                             </div>
-
-                                            {/* bars */}
-                                            <div
-                                                className="relative z-20 flex items-end gap-2 pl-6"
-                                                style={{ height: CHART_H }}
-                                            >
+                                            <div className="relative z-20 flex items-end gap-2 pl-6" style={{ height: CHART_H }}>
                                                 {senseAverages.map((sense, i) => {
-                                                    const barPx = Math.max((sense.avg / MAX_PER_SENSE) * CHART_H, 10);
+                                                    const barPx = Math.max((sense.avg / MAX_PER_SENSE) * CHART_H, 8);
                                                     const pal = BAR_PALETTES[i % BAR_PALETTES.length];
                                                     return (
                                                         <div key={sense.key} className="flex flex-1 flex-col items-center gap-1.5" style={{ alignSelf: 'flex-end' }}>
-                                                            <span className="text-[12px] font-extrabold leading-none text-hotel-blue">
-                                                                {sense.avg}
-                                                            </span>
-                                                            <div
-                                                                className="relative w-full overflow-hidden rounded-t-xl"
-                                                                style={{
-                                                                    height: barPx,
-                                                                    background: `linear-gradient(to top, ${pal.to}, ${pal.from})`,
-                                                                    boxShadow: `0 0 18px ${pal.glow}, inset 0 1px 0 rgba(255,255,255,0.25)`,
-                                                                }}
-                                                            >
-                                                                {/* shimmer sweep */}
-                                                                <div
-                                                                    className="absolute inset-0"
-                                                                    style={{ background: 'linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.12) 50%, transparent 70%)' }}
-                                                                />
+                                                            <span className="text-[12px] font-extrabold leading-none text-white">{sense.avg}</span>
+                                                            <div className="relative w-full overflow-hidden rounded-t-xl" style={{ height: barPx, background: `linear-gradient(to top, ${pal.to}, ${pal.from})`, boxShadow: `0 0 22px ${pal.glow}, inset 0 1px 0 rgba(255,255,255,0.28)` }}>
+                                                                <div className="absolute inset-0" style={{ background: 'linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.16) 50%, transparent 70%)' }} />
                                                             </div>
                                                         </div>
                                                     );
                                                 })}
                                             </div>
                                         </div>
-
-                                        {/* labels */}
                                         <div className="mt-3 flex gap-2 pl-10">
                                             {senseAverages.map((sense, i) => {
                                                 const pal = BAR_PALETTES[i % BAR_PALETTES.length];
@@ -738,106 +952,22 @@ export default function Auditorias({ mode }) {
                                                 return (
                                                     <div key={sense.key} className="flex flex-1 flex-col items-center gap-1">
                                                         <div className="h-1.5 w-6 rounded-full" style={{ background: pal.from }} />
-                                                        <span className="text-center text-[10px] leading-tight text-hotel-gray-md">{name}</span>
+                                                        <span className="text-center text-[10px] leading-tight text-white/80">{name}</span>
                                                     </div>
                                                 );
                                             })}
                                         </div>
-
                                         {weakestSense && (
-                                            <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
-                                                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-400 text-[10px] font-black text-white">!</span>
-                                                <p className="text-xs text-amber-800">
-                                                    Senso mais fraco: <strong className="font-semibold text-amber-900">{weakestSense.label}</strong> — priorize ações nele no próximo ciclo.
-                                                </p>
+                                            <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-300/60 bg-amber-100 px-3 py-2.5">
+                                                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black text-white">!</span>
+                                                <p className="text-xs text-amber-900">Senso mais fraco: <strong className="font-semibold text-amber-950">{weakestSense.label}</strong> - priorize ações nele no próximo ciclo.</p>
                                             </div>
                                         )}
                                     </div>
-                                );
-                            })()}
-                        </div>
-
-                        <div className="overflow-hidden rounded-3xl border border-hotel-blue/15 bg-white shadow-[0_16px_40px_rgba(4,21,35,0.08)]">
-                            <div className="border-b border-hotel-blue/10 bg-[linear-gradient(180deg,#f8fbff_0%,#eef6ff_100%)] px-5 py-4">
-                                <h3 className="font-heading text-lg font-bold text-hotel-blue">Auditorias registradas</h3>
-                            </div>
-
-                            {visibleAudits.length === 0 ? (
-                                <div className="px-4 py-8 text-center text-sm text-hotel-gray-md">
-                                    Nenhuma auditoria encontrada para este filtro.
                                 </div>
-                            ) : (
-                                <div className="divide-y divide-hotel-gray/10">
-                                    {visibleAudits.map((audit) => {
-                                        const totalScore = getAuditTotal(audit);
-                                        const label = scoreLabel(totalScore);
-                                        const percent = scorePercent(totalScore);
-                                        return (
-                                            <div key={audit.id} className="px-5 py-4">
-                                                {(() => {
-                                                    const auditLink = getAuditLinkByDepartment(auditLinksByDepartment, audit.setor);
-                                                    return (
-                                                <div className="flex flex-wrap items-start justify-between gap-2">
-                                                    <div>
-                                                        <p className="font-semibold text-hotel-blue">{audit.setor}</p>
-                                                        <p className="text-xs text-hotel-gray-md">{audit.mes} • por {audit.criadoPorNome}</p>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        {auditLink && (
-                                                            <a
-                                                                href={auditLink}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="inline-flex items-center rounded-lg border border-hotel-blue/15 bg-hotel-blue/5 px-3 py-1.5 text-xs font-semibold text-hotel-blue transition-colors hover:border-hotel-gold/40 hover:text-hotel-gold"
-                                                            >
-                                                                Acessar Auditoria
-                                                            </a>
-                                                        )}
-                                                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${label.tone}`}>
-                                                            {label.text} • {totalScore}/{MAX_TOTAL}
-                                                        </span>
-                                                        {canManageAuditorias && (
-                                                            <div className="flex items-center gap-1">
-                                                                <button
-                                                                    onClick={() => handleEditStart(audit)}
-                                                                    className="rounded-lg p-1.5 text-hotel-gray-md transition-colors hover:bg-hotel-blue/10 hover:text-hotel-blue"
-                                                                    title="Editar"
-                                                                >
-                                                                    <Pencil size={13} />
-                                                                </button>
-                                                                {confirmDeleteId === audit.id ? (
-                                                                    <div className="flex items-center gap-1">
-                                                                        <span className="text-xs font-semibold text-red-500">Excluir?</span>
-                                                                        <button onClick={() => handleDelete(audit.id)} className="rounded px-2 py-0.5 text-xs font-bold text-red-600 hover:bg-red-50">Sim</button>
-                                                                        <button onClick={() => setConfirmDeleteId(null)} className="rounded px-2 py-0.5 text-xs text-hotel-gray-md hover:bg-hotel-light">Não</button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <button
-                                                                        onClick={() => setConfirmDeleteId(audit.id)}
-                                                                        className="rounded-lg p-1.5 text-hotel-gray-md transition-colors hover:bg-red-50 hover:text-red-500"
-                                                                        title="Excluir"
-                                                                    >
-                                                                        <Trash2 size={13} />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                    );
-                                                })()}
-                                                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-hotel-light">
-                                                    <div className="h-full rounded-full bg-hotel-blue transition-all" style={{ width: `${percent}%` }} />
-                                                </div>
-                                                {audit.observacoes && (
-                                                    <p className="mt-2 text-sm text-hotel-gray-md whitespace-pre-wrap">{audit.observacoes}</p>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
+                            );
+                        })()}
+
                         </div>
                     )}
                 </section>
@@ -883,7 +1013,9 @@ export default function Auditorias({ mode }) {
                                         type="month"
                                         value={editFormData.mes}
                                         onChange={(e) => setEditFormData((prev) => ({ ...prev, mes: e.target.value }))}
-                                        className="input"
+                                        onClick={openMonthPicker}
+                                        onFocus={openMonthPicker}
+                                        className="input h-11 cursor-pointer"
                                         required
                                     />
                                 </div>
@@ -898,19 +1030,29 @@ export default function Auditorias({ mode }) {
                                                 {editSenseTotals[sense.key] ?? 0}/{MAX_PER_SENSE}
                                             </span>
                                         </div>
-                                        <div className="grid grid-cols-5 gap-2">
+                                        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                                            <span className="text-[11px] font-semibold text-hotel-gray-md">Preencher todo senso:</span>
+                                            {[0, 1, 2, 3, 4].map((option) => (
+                                                <button
+                                                    key={option}
+                                                    type="button"
+                                                    onClick={() => fillEditSenseScores(sense.key, option)}
+                                                    className="rounded-full border border-hotel-blue/20 px-2 py-0.5 text-[11px] font-semibold text-hotel-blue transition-colors hover:bg-hotel-blue/10"
+                                                >
+                                                    Tudo {option}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="mb-1 text-[11px] font-medium text-hotel-gray-md">Clique na nota de cada pergunta:</div>
+                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-5 sm:gap-2.5">
                                             {Array.from({ length: QUESTIONS_PER_SENSE }).map((_, qi) => (
-                                                <label key={qi} className="flex flex-col gap-1 text-[11px] text-hotel-gray-md">
-                                                    Q{qi + 1}
-                                                    <select
+                                                <label key={qi} className="flex flex-col gap-1.5 rounded-lg border border-hotel-blue/10 bg-hotel-light/20 p-2 text-[11px] text-hotel-gray-md">
+                                                    <span className="font-semibold text-hotel-blue/80">Q{qi + 1}</span>
+                                                    <ScoreSelector
                                                         value={editFormData.scores[sense.key][qi]}
-                                                        onChange={(e) => handleEditQuestionChange(sense.key, qi, e.target.value)}
-                                                        className="input h-9 px-2 py-1 text-sm"
-                                                    >
-                                                        {[0, 1, 2, 3, 4].map((o) => (
-                                                            <option key={o} value={o}>{o}</option>
-                                                        ))}
-                                                    </select>
+                                                        onChange={(value) => handleEditQuestionChange(sense.key, qi, value)}
+                                                        compact
+                                                    />
                                                 </label>
                                             ))}
                                         </div>

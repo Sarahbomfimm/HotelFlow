@@ -1,6 +1,8 @@
 import { UserRole } from '../models/User';
 
 export const PERMISSIONS = {
+    ADMIN_PANEL_ACCESS: 'admin_panel_access',
+    SI_CREATE_ACCESS: 'si_create_access',
     AUDITORIAS_ACCESS: 'auditorias_access',
     AUDITORIAS_CREATE: 'auditorias_create',
     AUDITORIAS_MANAGE: 'auditorias_manage',
@@ -12,6 +14,18 @@ export const PERMISSIONS = {
 };
 
 export const PERMISSION_DEFINITIONS = [
+    {
+        key: PERMISSIONS.ADMIN_PANEL_ACCESS,
+        label: 'Acessar Gerenciamento',
+        description: 'Permite abrir o painel de Gerenciamento (Admin Console).',
+        category: 'Admin',
+    },
+    {
+        key: PERMISSIONS.SI_CREATE_ACCESS,
+        label: 'Acessar Nova SI',
+        description: 'Permite abrir a tela de criação de SI.',
+        category: 'SI',
+    },
     {
         key: PERMISSIONS.AUDITORIAS_ACCESS,
         label: 'Acessar Auditorias',
@@ -65,6 +79,8 @@ export const PERMISSION_DEFINITIONS = [
 export function getDefaultPermissions(role) {
     if (role === UserRole.ADMIN) {
         return {
+            [PERMISSIONS.ADMIN_PANEL_ACCESS]: true,
+            [PERMISSIONS.SI_CREATE_ACCESS]: true,
             [PERMISSIONS.AUDITORIAS_ACCESS]: true,
             [PERMISSIONS.AUDITORIAS_CREATE]: true,
             [PERMISSIONS.AUDITORIAS_MANAGE]: true,
@@ -78,6 +94,8 @@ export function getDefaultPermissions(role) {
 
     if (role === UserRole.DIRETORA) {
         return {
+            [PERMISSIONS.ADMIN_PANEL_ACCESS]: false,
+            [PERMISSIONS.SI_CREATE_ACCESS]: true,
             [PERMISSIONS.AUDITORIAS_ACCESS]: true,
             [PERMISSIONS.AUDITORIAS_CREATE]: true,
             [PERMISSIONS.AUDITORIAS_MANAGE]: true,
@@ -90,6 +108,8 @@ export function getDefaultPermissions(role) {
     }
 
     return {
+        [PERMISSIONS.ADMIN_PANEL_ACCESS]: false,
+        [PERMISSIONS.SI_CREATE_ACCESS]: true,
         [PERMISSIONS.AUDITORIAS_ACCESS]: true,
         [PERMISSIONS.AUDITORIAS_CREATE]: true,
         [PERMISSIONS.AUDITORIAS_MANAGE]: false,
@@ -105,10 +125,22 @@ export function normalizePermissions(role, permissions) {
     const defaults = getDefaultPermissions(role);
     const source = permissions && typeof permissions === 'object' && !Array.isArray(permissions) ? permissions : {};
 
-    return Object.keys(defaults).reduce((acc, key) => {
+    const merged = Object.keys(defaults).reduce((acc, key) => {
         acc[key] = typeof source[key] === 'boolean' ? source[key] : defaults[key];
         return acc;
     }, {});
+
+    Object.keys(source).forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(merged, key)) {
+            return;
+        }
+
+        if (typeof source[key] === 'boolean') {
+            merged[key] = source[key];
+        }
+    });
+
+    return merged;
 }
 
 export function hasPermission(user, permissionKey) {
@@ -119,6 +151,16 @@ export function hasPermission(user, permissionKey) {
 
 export function getPermissionDeniedCopy(permissionKey) {
     switch (permissionKey) {
+        case PERMISSIONS.ADMIN_PANEL_ACCESS:
+            return {
+                title: 'Acesso negado ao Gerenciamento',
+                message: 'Seu usuário não está autorizado no Gerenciamento para acessar o painel administrativo.',
+            };
+        case PERMISSIONS.SI_CREATE_ACCESS:
+            return {
+                title: 'Sem permissão para criar SI',
+                message: 'Seu usuário não está autorizado no Gerenciamento para abrir a tela de Nova SI.',
+            };
         case PERMISSIONS.AUDITORIAS_ACCESS:
             return {
                 title: 'Acesso negado a Auditorias',

@@ -17,6 +17,7 @@ const liderLinks = [
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
+    { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
 const diretoraLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -26,6 +27,7 @@ const diretoraLinks = [
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/historico', label: 'Histórico', icon: History },
+    { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
 const adminLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -50,6 +52,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const canCreateAuditorias = hasPermission(displayUser, PERMISSIONS.AUDITORIAS_CREATE);
     const canAccessReunioes = hasPermission(displayUser, PERMISSIONS.REUNIOES_ACCESS);
     const canAccessHistorico = hasPermission(displayUser, PERMISSIONS.HISTORICO_ACCESS);
+    const canAccessAdminPanel = hasPermission(displayUser, PERMISSIONS.ADMIN_PANEL_ACCESS);
 
     const isManagementRole = displayUser?.role === UserRole.ADMIN || displayUser?.role === UserRole.DIRETORA;
     const links = displayUser?.role === UserRole.ADMIN
@@ -61,6 +64,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
         if (link.to === '/auditorias/visualizar') return canAccessAuditorias;
         if (link.to === '/reunioes') return canAccessReunioes;
         if (link.to === '/historico') return canAccessHistorico;
+        if (link.to === '/admin') return canAccessAdminPanel;
         return true;
     });
     const showLabels = !collapsed || mobileMenuOpen;
