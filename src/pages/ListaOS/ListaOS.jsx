@@ -19,7 +19,8 @@ import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
 import { hasPermission, PERMISSIONS } from '../../services/permissions';
 import { StatusOS, StatusLabel, PDCAStep, PDCALabel } from '../../models/OrdemDeServico';
-import { format, isPast, parseISO, isSameMonth } from 'date-fns';
+import { format, parseISO, isSameMonth } from 'date-fns';
+import { getLeaderEstimatedDeadlineValue, isSIOverdue } from '../../utils/osDeadlineRules';
 import { ptBR } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -301,7 +302,7 @@ export default function ListaOS() {
             })
             .filter((o) => {
                 if (!shouldShowOnlyOverdue) return true;
-                return o.status !== StatusOS.CONCLUIDO && isPast(parseISO(o.prazo));
+                return isSIOverdue(o);
             })
             .filter((o) => {
                 if (!prazoInicio) return true;
@@ -478,11 +479,9 @@ export default function ListaOS() {
         : (shouldShowOnlyCreatedByMe ? 'SIs Abertas por Mim' : 'Minhas Solicitações Internas');
 
     const renderOrderCard = (os) => {
-        const atrasada = os.status !== StatusOS.CONCLUIDO && isPast(parseISO(os.prazo));
+        const atrasada = isSIOverdue(os);
         const isExpanded = expanded === os.id;
-        const prazoEstimadoCard = os.prazo_estimado
-            || [...(os.historico || [])].reverse().find((entry) => entry?.prazo_estimado)?.prazo_estimado
-            || null;
+        const prazoEstimadoCard = getLeaderEstimatedDeadlineValue(os);
         const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
         const canManagementFinalize = canFinalizeSI && isDiretora && os.status !== StatusOS.CONCLUIDO && !isResponsavel;
         const hasDownloadables = Boolean(

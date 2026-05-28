@@ -31,8 +31,9 @@ import { useUsers } from '../../context/UsersContext';
 import { useNotification } from '../../context/NotificationContext';
 import { StatusOS, StatusLabel, PDCAStep } from '../../models/OrdemDeServico';
 import { hasPermission, PERMISSIONS } from '../../services/permissions';
-import { format, isPast, parseISO, differenceInDays, isSameMonth } from 'date-fns';
+import { format, parseISO, differenceInDays, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getApplicableDeadlineDate, getLeaderEstimatedDeadlineValue, isSIOverdue } from '../../utils/osDeadlineRules';
 
 const DEPARTAMENTO_TESTE = 'Teste';
 const TELEGRAM_PROMO_EVENT = 'hotelflow:open-telegram-banner';
@@ -471,7 +472,8 @@ export default function DashboardLider() {
                                         <p className="text-center text-hotel-gray-md text-sm py-10">{msgVazia}</p>
                                     ) : (
                                         lista.map((os) => {
-                                            const atrasada = os.status !== StatusOS.CONCLUIDO && isPast(parseISO(os.prazo));
+                                            const atrasada = isSIOverdue(os);
+                                            const prazoEstimadoCard = getLeaderEstimatedDeadlineValue(os);
                                             const isResponsavel = matchesAssignedLeader(os, actor);
                                             const podeAtualizar = os.status !== StatusOS.CONCLUIDO
                                                 && isResponsavel
@@ -506,10 +508,10 @@ export default function DashboardLider() {
                                                                         {format(parseISO(os.prazo), 'dd/MM/yyyy')}
                                                                     </strong>
                                                                 </span>
-                                                                {os.prazo_estimado && (
+                                                                {prazoEstimadoCard && (
                                                                     <span className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/60 bg-hotel-light px-2 py-0.5 text-hotel-gray-md">
                                                                         Prazo do líder:
-                                                                        <strong className="text-hotel-gold">{format(parseISO(os.prazo_estimado), 'dd/MM/yyyy')}</strong>
+                                                                        <strong className="text-hotel-gold">{format(parseISO(prazoEstimadoCard), 'dd/MM/yyyy')}</strong>
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -547,8 +549,9 @@ export default function DashboardLider() {
                         ) : (
                             <div className="space-y-3">
                                 {urgentes.map((os) => {
-                                    const dias = differenceInDays(parseISO(os.prazo), new Date());
-                                    const atrasada = isPast(parseISO(os.prazo));
+                                    const atrasoRef = getApplicableDeadlineDate(os);
+                                    const dias = atrasoRef ? differenceInDays(atrasoRef, new Date()) : null;
+                                    const atrasada = isSIOverdue(os);
                                     return (
                                         <button
                                             key={os.id}
@@ -559,8 +562,10 @@ export default function DashboardLider() {
                                             <p className="text-sm font-semibold font-body text-hotel-blue leading-snug">{os.titulo}</p>
                                             <p className="text-xs mt-1 font-body font-semibold">
                                                 {atrasada
-                                                    ? <span className="text-red-500">Atrasada {Math.abs(dias)}d — clique para ver</span>
-                                                    : <span className="text-amber-600">Vence em {dias === 0 ? 'hoje' : `${dias}d`} — clique para ver</span>
+                                                    ? <span className="text-red-500">Atrasada {Math.abs(dias || 0)}d — clique para ver</span>
+                                                    : atrasoRef
+                                                        ? <span className="text-amber-600">Vence em {dias === 0 ? 'hoje' : `${dias}d`} — clique para ver</span>
+                                                        : <span className="text-amber-600">Em andamento sem prazo do líder — clique para ver</span>
                                                 }
                                             </p>
                                         </button>

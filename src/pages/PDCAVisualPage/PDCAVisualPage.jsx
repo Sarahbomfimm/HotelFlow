@@ -5,7 +5,8 @@ import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { PDCALabel, PDCAStep, StatusLabel, StatusOS } from '../../models/OrdemDeServico';
 import { UserRole } from '../../models/User';
-import { format, isPast, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import { isSIOverdue } from '../../utils/osDeadlineRules';
 import { ptBR } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -99,7 +100,7 @@ export default function PDCAVisualPage() {
         const abertas = base.filter((os) => os.status === StatusOS.ABERTO).length;
         const emAndamento = base.filter((os) => os.status === StatusOS.EM_ANDAMENTO).length;
         const concluidas = base.filter((os) => os.status === StatusOS.CONCLUIDO).length;
-        const atrasadas = base.filter((os) => os.status !== StatusOS.CONCLUIDO && isPast(parseISO(os.prazo))).length;
+        const atrasadas = base.filter((os) => isSIOverdue(os)).length;
 
         return {
             total: base.length,
@@ -242,7 +243,7 @@ export default function PDCAVisualPage() {
                                     )}
 
                                     {stage.items.map((os) => {
-                                        const isLate = os.status !== StatusOS.CONCLUIDO && isPast(parseISO(os.prazo));
+                                        const isLate = isSIOverdue(os);
 
                                         return (
                                             <article key={os.id} className="rounded-xl border border-hotel-gray/50 bg-white p-3 transition-colors hover:bg-hotel-light/60">

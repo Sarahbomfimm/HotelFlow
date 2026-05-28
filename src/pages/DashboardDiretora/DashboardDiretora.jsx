@@ -31,8 +31,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useUsers } from '../../context/UsersContext';
 import { useNotification } from '../../context/NotificationContext';
 import { StatusOS, StatusLabel, PDCAStep } from '../../models/OrdemDeServico';
-import { format, isPast, parseISO, isSameMonth } from 'date-fns';
+import { format, parseISO, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getLeaderEstimatedDeadlineValue, isSIOverdue } from '../../utils/osDeadlineRules';
 
 const DEPARTAMENTO_TESTE = 'Teste';
 const TELEGRAM_PROMO_EVENT = 'hotelflow:open-telegram-banner';
@@ -134,9 +135,7 @@ export default function DashboardDiretora() {
         abertas: ordensMes.filter((o) => o.status === StatusOS.ABERTO).length,
         em_andamento: ordensMes.filter((o) => o.status === StatusOS.EM_ANDAMENTO).length,
         concluidas: ordensMes.filter((o) => o.status === StatusOS.CONCLUIDO).length,
-        atrasadas: ordensMes.filter(
-            (o) => o.status !== StatusOS.CONCLUIDO && isPast(parseISO(o.prazo)),
-        ).length,
+        atrasadas: ordensMes.filter((o) => isSIOverdue(o)).length,
     }), [ordensMes]);
 
     // SIs designadas para Sofia no mês atual
@@ -408,7 +407,8 @@ export default function DashboardDiretora() {
                             </p>
                         ) : (
                             ordensFiltradas.map((os) => {
-                                const atrasada = os.status !== StatusOS.CONCLUIDO && isPast(parseISO(os.prazo));
+                                const atrasada = isSIOverdue(os);
+                                const prazoEstimadoCard = getLeaderEstimatedDeadlineValue(os);
                                 return (
                                     <div
                                         key={os.id}
@@ -437,10 +437,10 @@ export default function DashboardDiretora() {
                                                             {format(parseISO(os.prazo), 'dd/MM/yyyy')}
                                                         </strong>
                                                     </span>
-                                                    {os.prazo_estimado && (
+                                                    {prazoEstimadoCard && (
                                                         <span className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/60 bg-hotel-light px-2 py-0.5 text-hotel-gray-md">
                                                             Prazo do líder:
-                                                            <strong className="text-hotel-gold">{format(parseISO(os.prazo_estimado), 'dd/MM/yyyy')}</strong>
+                                                            <strong className="text-hotel-gold">{format(parseISO(prazoEstimadoCard), 'dd/MM/yyyy')}</strong>
                                                         </span>
                                                     )}
                                                 </div>
