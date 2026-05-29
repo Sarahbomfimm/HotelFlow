@@ -170,15 +170,16 @@ export default function Auditorias({ mode }) {
     }, [profile?.role]);
 
     const isManagementRole = profile?.role === UserRole.ADMIN || profile?.role === UserRole.DIRETORA;
+    const canViewAllAudits = isManagementRole || canManageAuditorias;
     const leaderDepartments = useMemo(() => profile?.departamentos || [], [profile]);
 
     const allowedDepartments = useMemo(() => {
-        if (isManagementRole) {
+        if (canViewAllAudits) {
             return allDepartments;
         }
 
         return allDepartments.filter((dep) => leaderDepartments.includes(dep));
-    }, [allDepartments, isManagementRole, leaderDepartments]);
+    }, [allDepartments, canViewAllAudits, leaderDepartments]);
 
     const [audits, setAudits] = useState([]);
     const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
@@ -213,7 +214,7 @@ export default function Auditorias({ mode }) {
 
     const visibleAudits = useMemo(() => {
         const byRole = audits.filter((audit) => {
-            if (isManagementRole) {
+            if (canViewAllAudits) {
                 return true;
             }
 
@@ -224,7 +225,7 @@ export default function Auditorias({ mode }) {
             .filter((audit) => !selectedMonth || audit.mes === selectedMonth)
             .filter((audit) => !selectedDepartment || audit.setor === selectedDepartment)
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    }, [audits, isManagementRole, leaderDepartments, selectedMonth, selectedDepartment]);
+            }, [audits, canViewAllAudits, leaderDepartments, selectedMonth, selectedDepartment]);
 
     const monthlyAverage = useMemo(() => {
         if (visibleAudits.length === 0) {
@@ -268,7 +269,7 @@ export default function Auditorias({ mode }) {
     const bestAuditEver = useMemo(() => {
         const scope = audits.filter((a) => {
             if (a.setor === 'Teste') return false;
-            if (isManagementRole) return true;
+            if (canViewAllAudits) return true;
             return leaderDepartments.includes(a.setor);
         });
 
@@ -278,7 +279,7 @@ export default function Auditorias({ mode }) {
             const score = getAuditTotal(audit);
             return score > getAuditTotal(best) ? audit : best;
         });
-    }, [audits, isManagementRole, leaderDepartments]);
+    }, [audits, canViewAllAudits, leaderDepartments]);
 
     // Média histórica do setor selecionado (ignora filtro de mês)
     const sectorHistoricalAverage = useMemo(() => {
