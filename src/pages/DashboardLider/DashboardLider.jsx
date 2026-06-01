@@ -172,12 +172,13 @@ export default function DashboardLider() {
     const [telegramInput, setTelegramInput] = useState('');
     const [telegramSaving, setTelegramSaving] = useState(false);
     const [showTelegramForm, setShowTelegramForm] = useState(false);
+    const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
     const telegramBannerRef = useRef(null);
 
     const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'HotelFloww_Bot';
     const telegramBotLink = `https://t.me/${telegramBotUsername}`;
 
-    const hoje = new Date();
+    const selectedMonthDate = useMemo(() => parseISO(`${selectedMonth}-01`), [selectedMonth]);
     const actor = currentUserProfile || user;
     const canFinalizeSI = hasPermission(actor, PERMISSIONS.SI_FINALIZE);
     const actorDepartments = actor?.departamentos || [];
@@ -191,10 +192,10 @@ export default function DashboardLider() {
         [ordens],
     );
 
-    // Apenas SIs criadas no mês atual
+    // Apenas SIs criadas no mês selecionado
     const ordensMes = useMemo(
-        () => ordensSemTeste.filter((o) => o.criado_em && isSameMonth(parseISO(o.criado_em), hoje)),
-        [ordensSemTeste],
+        () => ordensSemTeste.filter((o) => o.criado_em && isSameMonth(parseISO(o.criado_em), selectedMonthDate)),
+        [ordensSemTeste, selectedMonthDate],
     );
 
     const minhasSIs = useMemo(
@@ -324,6 +325,21 @@ export default function DashboardLider() {
                     >
                         <PlusCircle size={16} /> Nova SI
                     </button>
+                </div>
+
+                <div className="mb-6 rounded-xl border border-hotel-gray/50 bg-white px-4 py-3 shadow-sm">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-hotel-gray-md">Resumo por mês</p>
+                        <div className="w-full cursor-pointer sm:w-auto">
+                            <input
+                                type="month"
+                                value={selectedMonth}
+                                onChange={(event) => setSelectedMonth(event.target.value)}
+                                onClick={(event) => event.currentTarget.showPicker?.()}
+                                className="input w-full cursor-pointer py-1.5 text-xs sm:w-[220px]"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Banner Conectar Telegram */}

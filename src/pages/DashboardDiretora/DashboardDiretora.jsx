@@ -95,6 +95,7 @@ export default function DashboardDiretora() {
     const [telegramInput, setTelegramInput] = useState('');
     const [telegramSaving, setTelegramSaving] = useState(false);
     const [showTelegramForm, setShowTelegramForm] = useState(false);
+    const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
     const telegramBannerRef = useRef(null);
 
     const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'HotelFloww_Bot';
@@ -118,16 +119,16 @@ export default function DashboardDiretora() {
         return () => window.removeEventListener(TELEGRAM_PROMO_EVENT, openTelegramBanner);
     }, [currentUserProfile?.telegram_chat_id]);
 
-    const hoje = new Date();
+    const selectedMonthDate = useMemo(() => parseISO(`${selectedMonth}-01`), [selectedMonth]);
     const ordensSemTeste = useMemo(
         () => ordens.filter((o) => o.departamento !== DEPARTAMENTO_TESTE),
         [ordens],
     );
 
-    // Apenas SIs criadas no mês atual
+    // Apenas SIs criadas no mês selecionado
     const ordensMes = useMemo(
-        () => ordensSemTeste.filter((o) => o.criado_em && isSameMonth(parseISO(o.criado_em), hoje)),
-        [ordensSemTeste],
+        () => ordensSemTeste.filter((o) => o.criado_em && isSameMonth(parseISO(o.criado_em), selectedMonthDate)),
+        [ordensSemTeste, selectedMonthDate],
     );
 
     const stats = useMemo(() => ({
@@ -188,6 +189,21 @@ export default function DashboardDiretora() {
                 >
                     <PlusCircle size={16} /> Nova SI
                 </button>
+            </div>
+
+            <div className="mb-6 rounded-xl border border-hotel-gray/50 bg-white px-4 py-3 shadow-sm">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-hotel-gray-md">Resumo por mês</p>
+                    <div className="w-full cursor-pointer sm:w-auto">
+                        <input
+                            type="month"
+                            value={selectedMonth}
+                            onChange={(event) => setSelectedMonth(event.target.value)}
+                            onClick={(event) => event.currentTarget.showPicker?.()}
+                            className="input w-full cursor-pointer py-1.5 text-xs sm:w-[220px]"
+                        />
+                    </div>
+                </div>
             </div>
 
             {/* Banner Conectar Telegram */}
@@ -274,14 +290,14 @@ export default function DashboardDiretora() {
             <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
                 <StatCard
                     icon={ClipboardList}
-                    label="Total este mês"
+                    label="Total de SIs"
                     value={stats.total}
                     colorClass="bg-hotel-blue"
                     onClick={() => navigate('/ordens', { state: { onlyCurrentMonth: true } })}
                 />
                 <StatCard
                     icon={AlertCircle}
-                    label="Abertas este mês"
+                    label="Abertas"
                     value={stats.abertas}
                     colorClass="bg-blue-500"
                     onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.ABERTO, onlyCurrentMonth: true } })}
@@ -295,14 +311,14 @@ export default function DashboardDiretora() {
                 />
                 <StatCard
                     icon={CheckCircle2}
-                    label="Concluídas este mês"
+                    label="Concluídas"
                     value={stats.concluidas}
                     colorClass="bg-emerald-500"
                     onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.CONCLUIDO, onlyCurrentMonth: true } })}
                 />
                 <StatCard
                     icon={TrendingUp}
-                    label="Atrasadas este mês"
+                    label="Atrasadas"
                     value={stats.atrasadas}
                     colorClass="bg-red-500"
                     onClick={() => navigate('/ordens', { state: { onlyOverdue: true, onlyCurrentMonth: true } })}
