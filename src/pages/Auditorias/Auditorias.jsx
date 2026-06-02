@@ -21,6 +21,7 @@ import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
 import { DEPARTAMENTOS } from '../../models/OrdemDeServico';
 import { hasPermission, PERMISSIONS } from '../../services/permissions';
+import { createUserNotification } from '../../services/notifications';
 import {
     deleteAudit,
     getAuditLinkByDepartment,
@@ -153,8 +154,8 @@ function ScoreSelector({ value, onChange, compact = false }) {
 export default function Auditorias({ mode }) {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { addNotification } = useNotification();
-    const { currentUserProfile } = useUsers();
+    const { addNotification, notifications, marcarLida } = useNotification();
+    const { users, currentUserProfile } = useUsers();
     const profile = currentUserProfile || user;
     const canCreateAuditorias = hasPermission(profile, PERMISSIONS.AUDITORIAS_CREATE);
     const canManageAuditorias = hasPermission(profile, PERMISSIONS.AUDITORIAS_MANAGE);
@@ -211,6 +212,14 @@ export default function Auditorias({ mode }) {
             unsubscribe?.();
         };
     }, [addNotification]);
+
+    useEffect(() => {
+        notifications
+            .filter((item) => !item.lida && item.type === 'auditoria')
+            .forEach((item) => {
+                void marcarLida(item.id);
+            });
+    }, [marcarLida, notifications]);
 
     const visibleAudits = useMemo(() => {
         const byRole = audits.filter((audit) => {
@@ -418,6 +427,27 @@ export default function Auditorias({ mode }) {
         try {
             const savedAudit = await saveAudit(newAudit);
             setAudits((prev) => [savedAudit, ...prev.filter((item) => item.id !== savedAudit.id)]);
+
+            const recipients = users.filter((item) => {
+                if (item.id === profile?.id) {
+                    return false;
+                }
+
+                return Array.isArray(item.departamentos) && item.departamentos.includes(formData.setor);
+            });
+
+            await Promise.allSettled(recipients.map((recipient) => createUserNotification(
+                {
+                    recipientUid: recipient.id,
+                    recipientEmail: recipient.email,
+                },
+                {
+                    message: `Nova auditoria lançada para o setor ${formData.setor} no mês ${formData.mes}.`,
+                    type: 'auditoria',
+                    relatedOrderId: savedAudit.id,
+                },
+            )));
+
             setLastCreatedDepartment(formData.setor);
             setFormData((prev) => ({
                 ...prev,

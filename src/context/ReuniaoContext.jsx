@@ -150,7 +150,8 @@ export function ReuniaoProvider({ children }) {
                     },
                     {
                         message: `Você foi adicionado(a) à reunião "${reuniaoData.titulo}" em ${new Date(reuniaoData.data_inicio).toLocaleDateString('pt-BR')}.`,
-                        type: 'info',
+                        type: 'reuniao',
+                        relatedOrderId: docRef.id,
                     },
                 );
 

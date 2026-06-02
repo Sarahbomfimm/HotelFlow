@@ -341,7 +341,7 @@ function HistoricoReuniaoModal({ isOpen, onClose, historico = [] }) {
 export default function Reunioes() {
     const { reunioes, criarReuniao, atualizarReuniao, deletarReuniao, reunioesPorMes } = useReuniao();
     const { user } = useAuth();
-    const { addNotification } = useNotification();
+    const { addNotification, notifications, marcarLida } = useNotification();
     const { users: todosUsers, currentUserProfile } = useUsers();
     const actor = currentUserProfile || user;
     const canManageReunioes = hasPermission(actor, PERMISSIONS.REUNIOES_MANAGE);
@@ -361,6 +361,14 @@ export default function Reunioes() {
     }, [mesAtual]);
 
     const reunioesDoMes = reunioesPorMes(mesAtual.getFullYear(), mesAtual.getMonth());
+
+    useEffect(() => {
+        notifications
+            .filter((item) => !item.lida && item.type === 'reuniao')
+            .forEach((item) => {
+                void marcarLida(item.id);
+            });
+    }, [marcarLida, notifications]);
 
     const handleSalvarReuniao = async (dados) => {
         try {

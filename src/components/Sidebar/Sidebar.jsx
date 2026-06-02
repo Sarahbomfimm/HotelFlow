@@ -3,9 +3,10 @@ import {
     LayoutDashboard, ClipboardList, History, ChartNoAxesCombined, CalendarDays,
     LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Logo from '../Logo/Logo';
 import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
 import { hasPermission, PERMISSIONS } from '../../services/permissions';
@@ -41,6 +42,7 @@ const adminLinks = [
 ];
 export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const { user, logout } = useAuth();
+    const { notifications } = useNotification();
     const { currentUserProfile } = useUsers();
     const navigate = useNavigate();
     const location = useLocation();
@@ -69,6 +71,8 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     });
     const showLabels = !collapsed || mobileMenuOpen;
     const showAuditoriasSubmenu = showLabels && auditoriasExpanded;
+    const reunioesUnreadCount = useMemo(() => notifications.filter((item) => !item.lida && item.type === 'reuniao').length, [notifications]);
+    const auditoriasUnreadCount = useMemo(() => notifications.filter((item) => !item.lida && item.type === 'auditoria').length, [notifications]);
     const profileSubtitle = displayUser?.role === UserRole.ADMIN
         ? 'Adm'
         : displayUser?.role === UserRole.DIRETORA
@@ -154,6 +158,8 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
             <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4">
                 {visibleLinks.map(({ to, label, icon: Icon }) => {
                     const isAuditoriasLink = to === '/auditorias/visualizar';
+                    const isReunioesLink = to === '/reunioes';
+                    const badgeCount = isReunioesLink ? reunioesUnreadCount : isAuditoriasLink ? auditoriasUnreadCount : 0;
 
                     if (!isAuditoriasLink) {
                         return (
@@ -167,8 +173,20 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
                                 }
                                 title={!showLabels ? label : undefined}
                             >
-                                <Icon size={19} className="flex-shrink-0" />
+                                <span className="relative inline-flex flex-shrink-0">
+                                    <Icon size={19} className="flex-shrink-0" />
+                                    {!showLabels && badgeCount > 0 && (
+                                        <span className="absolute -right-2 -top-2 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-hotel-gold px-1 text-[10px] font-bold leading-none text-white animate-pulse">
+                                            {badgeCount > 9 ? '9+' : badgeCount}
+                                        </span>
+                                    )}
+                                </span>
                                 {showLabels && <span className="truncate">{label}</span>}
+                                {showLabels && badgeCount > 0 && (
+                                    <span className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-hotel-gold px-1 text-[10px] font-bold leading-none text-white animate-pulse">
+                                        {badgeCount > 9 ? '9+' : badgeCount}
+                                    </span>
+                                )}
                             </NavLink>
                         );
                     }
@@ -183,8 +201,20 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
                                 }
                                 title={!showLabels ? label : undefined}
                             >
-                                <Icon size={19} className="flex-shrink-0" />
+                                <span className="relative inline-flex flex-shrink-0">
+                                    <Icon size={19} className="flex-shrink-0" />
+                                    {!showLabels && badgeCount > 0 && (
+                                        <span className="absolute -right-2 -top-2 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-hotel-gold px-1 text-[10px] font-bold leading-none text-white animate-pulse">
+                                            {badgeCount > 9 ? '9+' : badgeCount}
+                                        </span>
+                                    )}
+                                </span>
                                 {showLabels && <span className="truncate">{label}</span>}
+                                {showLabels && badgeCount > 0 && (
+                                    <span className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-hotel-gold px-1 text-[10px] font-bold leading-none text-white animate-pulse">
+                                        {badgeCount > 9 ? '9+' : badgeCount}
+                                    </span>
+                                )}
                                 {showLabels && (
                                     <button
                                         type="button"
