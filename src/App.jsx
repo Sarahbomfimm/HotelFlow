@@ -7,6 +7,7 @@ import { ReuniaoProvider } from './context/ReuniaoContext';
 import GeminiFloatingButton from './components/GeminiFloatingButton';
 import ToastNotifications from './components/ToastNotifications/ToastNotifications';
 import TelegramPromoModal from './components/TelegramPromoModal/TelegramPromoModal';
+import UpdatesPromoModal from './components/UpdatesPromoModal/UpdatesPromoModal';
 import AppRouter from './router';
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
                             <NotificationProvider>
                                 <AppRouter />
                                 <GeminiFloatingButton />
+                                <UpdatesPromoModal />
                                 <TelegramPromoModal />
                                 <ToastNotifications />
                             </NotificationProvider>

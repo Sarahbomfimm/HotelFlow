@@ -31,9 +31,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useUsers } from '../../context/UsersContext';
 import { useNotification } from '../../context/NotificationContext';
 import { StatusOS, StatusLabel, PDCAStep } from '../../models/OrdemDeServico';
-import { format, parseISO, isSameMonth } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getLeaderEstimatedDeadlineValue, isSIOverdue } from '../../utils/osDeadlineRules';
+import { isOrderInSelectedDashboardMonth } from '../../utils/osMonthRules';
 
 const DEPARTAMENTO_TESTE = 'Teste';
 const TELEGRAM_PROMO_EVENT = 'hotelflow:open-telegram-banner';
@@ -125,9 +126,9 @@ export default function DashboardDiretora() {
         [ordens],
     );
 
-    // Apenas SIs criadas no mês selecionado
+    // SIs do mês selecionado considerando criação, herança do mês anterior e mês real de conclusão
     const ordensMes = useMemo(
-        () => ordensSemTeste.filter((o) => o.criado_em && isSameMonth(parseISO(o.criado_em), selectedMonthDate)),
+        () => ordensSemTeste.filter((o) => isOrderInSelectedDashboardMonth(o, selectedMonthDate)),
         [ordensSemTeste, selectedMonthDate],
     );
 
@@ -165,6 +166,8 @@ export default function DashboardDiretora() {
             .filter((o) => !filterStatus || o.status === filterStatus)
             .slice(0, 8);
     }, [base, filterLider, filterStatus, lideres]);
+
+    const navigateToOrders = (state = {}) => navigate('/ordens', { state: { selectedMonth, ...state } });
 
     return (
         <AppLayout pageTitle={isAdmin ? 'Dashboard — Administradora' : 'Dashboard — Diretora'}>
@@ -293,35 +296,35 @@ export default function DashboardDiretora() {
                     label="Total de SIs"
                     value={stats.total}
                     colorClass="bg-hotel-blue"
-                    onClick={() => navigate('/ordens', { state: { onlyCurrentMonth: true } })}
+                    onClick={() => navigateToOrders()}
                 />
                 <StatCard
                     icon={AlertCircle}
                     label="Abertas"
                     value={stats.abertas}
                     colorClass="bg-blue-500"
-                    onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.ABERTO, onlyCurrentMonth: true } })}
+                    onClick={() => navigateToOrders({ filterStatus: StatusOS.ABERTO })}
                 />
                 <StatCard
                     icon={Clock}
                     label="Em Andamento"
                     value={stats.em_andamento}
                     colorClass="bg-amber-500"
-                    onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.EM_ANDAMENTO, onlyCurrentMonth: true } })}
+                    onClick={() => navigateToOrders({ filterStatus: StatusOS.EM_ANDAMENTO })}
                 />
                 <StatCard
                     icon={CheckCircle2}
                     label="Concluídas"
                     value={stats.concluidas}
                     colorClass="bg-emerald-500"
-                    onClick={() => navigate('/ordens', { state: { filterStatus: StatusOS.CONCLUIDO, onlyCurrentMonth: true } })}
+                    onClick={() => navigateToOrders({ filterStatus: StatusOS.CONCLUIDO })}
                 />
                 <StatCard
                     icon={TrendingUp}
                     label="Atrasadas"
                     value={stats.atrasadas}
                     colorClass="bg-red-500"
-                    onClick={() => navigate('/ordens', { state: { onlyOverdue: true, onlyCurrentMonth: true } })}
+                    onClick={() => navigateToOrders({ onlyOverdue: true })}
                 />
             </div>
 
@@ -329,22 +332,22 @@ export default function DashboardDiretora() {
                 <PDCAStatCard
                     etapa={PDCAStep.PLAN}
                     total={pdcaStats[PDCAStep.PLAN]}
-                    onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.PLAN, pdcaOnly: true, onlyCurrentMonth: true, onlyMine: tab === 'minhas' } })}
+                    onClick={() => navigateToOrders({ filterPdca: PDCAStep.PLAN, pdcaOnly: true, onlyMine: tab === 'minhas' })}
                 />
                 <PDCAStatCard
                     etapa={PDCAStep.DO}
                     total={pdcaStats[PDCAStep.DO]}
-                    onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.DO, pdcaOnly: true, onlyCurrentMonth: true, onlyMine: tab === 'minhas' } })}
+                    onClick={() => navigateToOrders({ filterPdca: PDCAStep.DO, pdcaOnly: true, onlyMine: tab === 'minhas' })}
                 />
                 <PDCAStatCard
                     etapa={PDCAStep.CHECK}
                     total={pdcaStats[PDCAStep.CHECK]}
-                    onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.CHECK, pdcaOnly: true, onlyCurrentMonth: true, onlyMine: tab === 'minhas' } })}
+                    onClick={() => navigateToOrders({ filterPdca: PDCAStep.CHECK, pdcaOnly: true, onlyMine: tab === 'minhas' })}
                 />
                 <PDCAStatCard
                     etapa={PDCAStep.ACT}
                     total={pdcaStats[PDCAStep.ACT]}
-                    onClick={() => navigate('/ordens', { state: { filterPdca: PDCAStep.ACT, pdcaOnly: true, onlyCurrentMonth: true, onlyMine: tab === 'minhas' } })}
+                    onClick={() => navigateToOrders({ filterPdca: PDCAStep.ACT, pdcaOnly: true, onlyMine: tab === 'minhas' })}
                 />
             </div>
 

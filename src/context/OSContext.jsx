@@ -59,6 +59,7 @@ function normalizeOrder(id, data) {
         historico: Array.isArray(data.historico)
             ? data.historico.map((entry) => ({ ...entry, data: toIsoDate(entry?.data) }))
             : [],
+        concluido_em: data.concluido_em ? toIsoDate(data.concluido_em) : null,
         criado_em: toIsoDate(data.criado_em),
         criado_por_id: data.criado_por_id || '',
         criado_por_uid: data.criado_por_uid || '',
@@ -366,8 +367,9 @@ export function OSProvider({ children }) {
 
         const base = `Status alterado de ${StatusLabel[os.status]} para ${StatusLabel[novoStatus]}.`;
         const etapaPdca = novoStatus === StatusOS.CONCLUIDO ? PDCAStep.ACT : os.etapa_pdca;
+        const concluidoEm = novoStatus === StatusOS.CONCLUIDO ? new Date().toISOString() : null;
         const entrada = {
-            data: new Date().toISOString(),
+            data: concluidoEm || new Date().toISOString(),
             usuario_nome: usuario.nome,
             descricao: observacao ? `${base} Observação: ${observacao}` : base,
         };
@@ -378,7 +380,7 @@ export function OSProvider({ children }) {
             setOrdens((prev) => prev.map((item) =>
                 item.id !== osId
                     ? item
-                    : { ...item, status: novoStatus, etapa_pdca: etapaPdca, historico },
+                    : { ...item, status: novoStatus, etapa_pdca: etapaPdca, historico, concluido_em: concluidoEm },
             ));
             setError('');
             return;
@@ -388,11 +390,12 @@ export function OSProvider({ children }) {
             status: novoStatus,
             etapa_pdca: etapaPdca,
             historico,
+            concluido_em: concluidoEm,
         });
         setOrdens((prev) => prev.map((item) =>
             item.id !== osId
                 ? item
-                : { ...item, status: novoStatus, etapa_pdca: etapaPdca, historico },
+                : { ...item, status: novoStatus, etapa_pdca: etapaPdca, historico, concluido_em: concluidoEm },
         ));
         setError('');
 
@@ -468,7 +471,7 @@ export function OSProvider({ children }) {
     }, [ordens]);
 
     /** Adiciona observação de progresso sem alterar status */
-    const adicionarObservacao = useCallback(async (osId, texto, usuario, etapaPdca, prazoEstimado, anexoPdfFile) => {
+    const adicionarObservacao = useCallback(async (osId, texto, usuario, etapaPdca, prazoEstimado, anexoPdfFile, coResponsaveis) => {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
@@ -485,10 +488,18 @@ export function OSProvider({ children }) {
             }
         }
 
+        const normalizedCurrentCoResponsaveis = Array.isArray(os.co_responsaveis) ? os.co_responsaveis : [];
+        const normalizedNextCoResponsaveis = Array.isArray(coResponsaveis) ? coResponsaveis : normalizedCurrentCoResponsaveis;
+        const currentNames = normalizedCurrentCoResponsaveis.map((item) => item.nome).filter(Boolean).join(', ');
+        const nextNames = normalizedNextCoResponsaveis.map((item) => item.nome).filter(Boolean).join(', ');
+        const coResponsaveisDescription = currentNames !== nextNames
+            ? ` Co-responsáveis atualizados: ${nextNames || 'nenhum'}.`
+            : '';
+
         const entrada = {
             data: new Date().toISOString(),
             usuario_nome: usuario.nome,
-            descricao: `Progresso${etapaPdca ? ` [${etapaPdca}]` : ''}: ${texto}`,
+            descricao: `Progresso${etapaPdca ? ` [${etapaPdca}]` : ''}: ${texto}${coResponsaveisDescription}`,
             prazo_estimado: prazoEstimado || null,
             anexo_pdf_url: anexoPdfUrl,
             anexo_pdf_nome: anexoPdfNome,
@@ -499,6 +510,7 @@ export function OSProvider({ children }) {
         const payload = {
             historico,
             etapa_pdca: etapaPdca || os.etapa_pdca,
+            co_responsaveis: normalizedNextCoResponsaveis,
         };
         // Atualiza o campo prazo_estimado na OS se informado
         if (prazoEstimado) {

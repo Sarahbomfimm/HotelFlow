@@ -60,6 +60,7 @@ export const DEPARTAMENTOS = [
  * @property {'aberto'|'em_andamento'|'concluido'} status
  * @property {'P'|'D'|'C'|'A'} etapa_pdca
  * @property {HistoricoItem[]} historico
+ * @property {string | null} [concluido_em] - ISO datetime string da conclusão
  * @property {string} criado_em          - ISO datetime string
  * @property {string} criado_por_id
  * @property {string} criado_por_nome

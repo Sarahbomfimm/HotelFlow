@@ -1,10 +1,14 @@
-import { isPast, isValid, parseISO } from 'date-fns';
+import { endOfDay, isPast, isValid, parseISO } from 'date-fns';
 import { StatusOS } from '../models/OrdemDeServico';
 
 function toValidDate(value) {
     if (!value) return null;
     const parsed = parseISO(String(value));
     return isValid(parsed) ? parsed : null;
+}
+
+function hasDeadlinePassed(value) {
+    return Boolean(value) && isPast(endOfDay(value));
 }
 
 export function getLeaderEstimatedDeadlineValue(order) {
@@ -26,13 +30,18 @@ export function getApplicableDeadlineDate(order) {
         return null;
     }
 
+    const officialDeadline = toValidDate(order.prazo);
     const leaderDeadline = toValidDate(getLeaderEstimatedDeadlineValue(order));
-    if (leaderDeadline) {
+    if (leaderDeadline && !hasDeadlinePassed(leaderDeadline)) {
         return leaderDeadline;
     }
 
-    if (order.status === StatusOS.ABERTO) {
-        return toValidDate(order.prazo);
+    if (officialDeadline) {
+        return officialDeadline;
+    }
+
+    if (leaderDeadline) {
+        return leaderDeadline;
     }
 
     return null;
@@ -44,5 +53,5 @@ export function isSIOverdue(order) {
         return false;
     }
 
-    return isPast(deadline);
+    return hasDeadlinePassed(deadline);
 }

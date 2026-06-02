@@ -21,6 +21,7 @@ import { hasPermission, PERMISSIONS } from '../../services/permissions';
 import { StatusOS, StatusLabel, PDCAStep, PDCALabel } from '../../models/OrdemDeServico';
 import { format, parseISO, isSameMonth } from 'date-fns';
 import { getLeaderEstimatedDeadlineValue, isSIOverdue } from '../../utils/osDeadlineRules';
+import { isOrderInSelectedDashboardMonth } from '../../utils/osMonthRules';
 import { ptBR } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -230,6 +231,19 @@ export default function ListaOS() {
     const shouldShowOnlyOverdue = Boolean(locState.onlyOverdue);
     const shouldShowOnlyCurrentMonth = Boolean(locState.onlyCurrentMonth);
     const shouldShowOnlyCreatedByMe = Boolean(locState.onlyCreatedByMe || isAbertasPorMimRoute);
+    const selectedMonthFromNavigation = typeof locState.selectedMonth === 'string' ? locState.selectedMonth : null;
+    const navigationMonthDate = useMemo(() => {
+        if (selectedMonthFromNavigation) {
+            return parseISO(`${selectedMonthFromNavigation}-01`);
+        }
+
+        if (shouldShowOnlyCurrentMonth) {
+            return new Date();
+        }
+
+        return null;
+    }, [selectedMonthFromNavigation, shouldShowOnlyCurrentMonth]);
+    const shouldFilterByNavigationMonth = Boolean(navigationMonthDate);
 
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState(isPdcaOnlyNavigation ? [] : (locState.filterStatus ? [locState.filterStatus] : []));
@@ -297,8 +311,8 @@ export default function ListaOS() {
                 return matchesOrderActor(o, actor, 'criado_por');
             })
             .filter((o) => {
-                if (!shouldShowOnlyCurrentMonth) return true;
-                return o.criado_em && isSameMonth(parseISO(o.criado_em), new Date());
+                if (!shouldFilterByNavigationMonth) return true;
+                return isOrderInSelectedDashboardMonth(o, navigationMonthDate);
             })
             .filter((o) => {
                 if (!shouldShowOnlyOverdue) return true;
@@ -337,7 +351,8 @@ export default function ListaOS() {
         search,
         locState.onlyMine,
         isPdcaOnlyNavigation,
-        shouldShowOnlyCurrentMonth,
+        shouldFilterByNavigationMonth,
+        navigationMonthDate,
         shouldShowOnlyCreatedByMe,
         shouldShowOnlyOverdue,
         lideres,
@@ -443,10 +458,10 @@ export default function ListaOS() {
         );
     };
 
-    const handleAdicionarObs = async (texto, etapaPdca, prazoEstimado, anexoPdfFile) => {
+    const handleAdicionarObs = async (texto, etapaPdca, prazoEstimado, anexoPdfFile, coResponsaveis) => {
         const { os } = adicionarObsModal;
         try {
-            const result = await adicionarObservacao(os.id, texto, actor, etapaPdca, prazoEstimado, anexoPdfFile);
+            const result = await adicionarObservacao(os.id, texto, actor, etapaPdca, prazoEstimado, anexoPdfFile, coResponsaveis);
             addNotification(`Progresso registrado na SI “${os.titulo}”.`, 'info');
             if (result?.anexoErro) {
                 addNotification(result.anexoErro, 'warning');

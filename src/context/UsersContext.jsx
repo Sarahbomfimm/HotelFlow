@@ -77,6 +77,25 @@ function isDepartmentResponsible(user) {
     return [UserRole.LIDER, UserRole.ADMIN, UserRole.DIRETORA].includes(user?.role);
 }
 
+function getUserDedupKey(user) {
+    const email = String(user?.email || '').trim().toLowerCase();
+    if (email) {
+        return `email:${email}`;
+    }
+
+    const firebaseUid = String(user?.firebaseUid || '').trim().toLowerCase();
+    if (firebaseUid) {
+        return `uid:${firebaseUid}`;
+    }
+
+    const id = String(user?.id || '').trim().toLowerCase();
+    if (id) {
+        return `id:${id}`;
+    }
+
+    return `name:${String(user?.nome || '').trim().toLowerCase()}`;
+}
+
 export function UsersProvider({ children }) {
     const { user, authReady } = useAuth();
     const [users, setUsers] = useState(sanitizeMockUsers);
@@ -136,7 +155,7 @@ export function UsersProvider({ children }) {
     const normalizedUsers = useMemo(() => {
         const diretora = users.find((item) => item.role === UserRole.DIRETORA);
 
-        return users
+        const normalized = users
             .map((item) => {
                 if (item.role === UserRole.DIRETORA) {
                     const departamentos = Array.isArray(item.departamentos) ? item.departamentos : [];
@@ -161,6 +180,16 @@ export function UsersProvider({ children }) {
 
                 return (item.departamentos || []).length > 0 || item.id !== diretora?.id;
             });
+
+        const uniqueUsers = new Map();
+        normalized.forEach((item) => {
+            const key = getUserDedupKey(item);
+            if (!uniqueUsers.has(key)) {
+                uniqueUsers.set(key, item);
+            }
+        });
+
+        return Array.from(uniqueUsers.values());
     }, [users]);
 
     const lideres = useMemo(
