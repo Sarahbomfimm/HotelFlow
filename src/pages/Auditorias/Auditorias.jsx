@@ -2,7 +2,6 @@
 import {
     ClipboardCheck,
     Filter,
-    BarChart3,
     ShieldCheck,
     Radar,
     CheckCircle2,
@@ -33,7 +32,7 @@ import {
 const SENSOS = [
     { key: 'triagem', label: 'Senso 1: Triagem' },
     { key: 'arrumacao', label: 'Senso 2: Arrumação' },
-    { key: 'higiene_conforto', label: 'Senso 3: Higiene e Conforto' },
+    { key: 'higiene_conforto', label: 'Senso 3: Higiene' },
     { key: 'normalizacao', label: 'Senso 4: Normalização' },
     { key: 'disciplina', label: 'Senso 5: Disciplina' },
 ];
@@ -236,6 +235,18 @@ export default function Auditorias({ mode }) {
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             }, [audits, canViewAllAudits, leaderDepartments, selectedMonth, selectedDepartment]);
 
+    const monthScopedAudits = useMemo(() => {
+        const byRole = audits.filter((audit) => {
+            if (canViewAllAudits) {
+                return true;
+            }
+
+            return leaderDepartments.includes(audit.setor);
+        });
+
+        return byRole.filter((audit) => !selectedMonth || audit.mes === selectedMonth);
+    }, [audits, canViewAllAudits, leaderDepartments, selectedMonth]);
+
     const monthlyAverage = useMemo(() => {
         if (visibleAudits.length === 0) {
             return 0;
@@ -243,19 +254,6 @@ export default function Auditorias({ mode }) {
 
         const total = visibleAudits.reduce((sum, audit) => sum + getAuditTotal(audit), 0);
         return Math.round((total / visibleAudits.length) * 10) / 10;
-    }, [visibleAudits]);
-
-    const weakestSense = useMemo(() => {
-        if (visibleAudits.length === 0) return null;
-
-        const sums = SENSOS.map((sense) => ({
-            key: sense.key,
-            label: sense.label,
-            value: visibleAudits.reduce((sum, audit) => sum + getSenseTotalFromAudit(audit, sense.key), 0),
-        }));
-
-        sums.sort((a, b) => a.value - b.value);
-        return sums[0];
     }, [visibleAudits]);
 
     // Exclui 'Teste' da contagem de cobertura independente do perfil
@@ -274,21 +272,37 @@ export default function Auditorias({ mode }) {
         return Math.round((sectorsAuditedCount / departmentsForCoverage.length) * 100);
     }, [departmentsForCoverage.length, sectorsAuditedCount]);
 
-    // Melhor auditoria já registrada para setores deste usuário (para a visão de quem só visualiza)
-    const bestAuditEver = useMemo(() => {
-        const scope = audits.filter((a) => {
-            if (a.setor === 'Teste') return false;
-            if (canViewAllAudits) return true;
-            return leaderDepartments.includes(a.setor);
-        });
+    const monthlyConformity = useMemo(() => {
+        const totalQuestions = monthScopedAudits.length * QUESTIONS_PER_SENSE * SENSOS.length;
 
-        if (scope.length === 0) return null;
+        if (totalQuestions === 0) {
+            return {
+                totalQuestions: 0,
+                nonConformingCount: 0,
+                conformityPercent: 0,
+                nonConformingPercent: 0,
+            };
+        }
 
-        return scope.reduce((best, audit) => {
-            const score = getAuditTotal(audit);
-            return score > getAuditTotal(best) ? audit : best;
-        });
-    }, [audits, canViewAllAudits, leaderDepartments]);
+        const nonConformingCount = monthScopedAudits.reduce((total, audit) => {
+            const auditNonConforming = SENSOS.reduce((senseTotal, sense) => {
+                const answers = Array.isArray(audit?.scores?.[sense.key]) ? audit.scores[sense.key] : [];
+                return senseTotal + answers.filter((value) => Number(value) <= 2).length;
+            }, 0);
+
+            return total + auditNonConforming;
+        }, 0);
+
+        const conformityPercent = Math.round((((totalQuestions - nonConformingCount) / totalQuestions) * 100) * 10) / 10;
+        const nonConformingPercent = Math.round(((nonConformingCount / totalQuestions) * 100) * 10) / 10;
+
+        return {
+            totalQuestions,
+            nonConformingCount,
+            conformityPercent,
+            nonConformingPercent,
+        };
+    }, [monthScopedAudits]);
 
     // Média histórica do setor selecionado (ignora filtro de mês)
     const sectorHistoricalAverage = useMemo(() => {
@@ -308,17 +322,6 @@ export default function Auditorias({ mode }) {
         () => visibleAudits.filter((audit) => getAuditTotal(audit) <= 50).length,
         [visibleAudits],
     );
-
-    const senseAverages = useMemo(() => {
-        if (visibleAudits.length === 0) {
-            return SENSOS.map((sense) => ({ ...sense, avg: 0 }));
-        }
-
-        return SENSOS.map((sense) => {
-            const total = visibleAudits.reduce((sum, audit) => sum + getSenseTotalFromAudit(audit, sense.key), 0);
-            return { ...sense, avg: Math.round((total / visibleAudits.length) * 10) / 10 };
-        });
-    }, [visibleAudits]);
 
     const sectorStatus = useMemo(() => {
         if (visibleAudits.length === 0) return null;
@@ -577,20 +580,16 @@ export default function Auditorias({ mode }) {
                                         <p className="text-[11px] uppercase tracking-[0.18em] text-white/65">Performance 5S</p>
                                         <Trophy size={14} className="text-hotel-gold" />
                                     </div>
-                                    {isManagementRole ? (
+                                    {monthlyConformity.totalQuestions > 0 ? (
                                         <>
-                                            <p className="mt-1 text-2xl font-bold text-white">{monthlyAverage}/100</p>
-                                            <p className="mt-1 text-xs text-white/70">Top setor: {topSector ? `${topSector.setor} (${topSector.media})` : 'Sem dados'}</p>
-                                        </>
-                                    ) : bestAuditEver ? (
-                                        <>
-                                            <p className="mt-1 text-2xl font-bold text-white">{getAuditTotal(bestAuditEver)}/100</p>
-                                            <p className="mt-1 text-xs text-white/70">Melhor nota - {bestAuditEver.setor} - {bestAuditEver.mes}</p>
+                                            <p className="mt-1 text-2xl font-bold text-white">{monthlyConformity.conformityPercent}%</p>
+                                            <p className="mt-1 text-xs text-white/70">Não conformidade: {monthlyConformity.nonConformingPercent}%</p>
+                                            <p className="mt-1 text-[11px] text-white/70">{monthlyConformity.nonConformingCount} perguntas não conformes (0 a 2) de {monthlyConformity.totalQuestions}</p>
                                         </>
                                     ) : (
                                         <>
                                             <p className="mt-1 text-2xl font-bold text-white/40">-</p>
-                                            <p className="mt-1 text-xs text-white/50">Sem auditorias registradas</p>
+                                            <p className="mt-1 text-xs text-white/50">Sem auditorias no mês filtrado</p>
                                         </>
                                     )}
                                 </div>
@@ -862,14 +861,14 @@ export default function Auditorias({ mode }) {
                                                     {SENSOS.map((sense, si) => {
                                                         const senseTotal = getSenseTotalFromAudit(audit, sense.key);
                                                         const sPct = Math.round((senseTotal / MAX_PER_SENSE) * 100);
-                                                        const shortName = sense.label.split(':')[1]?.trim().slice(0, 8) || sense.key;
+                                                        const shortName = sense.label.split(':')[1]?.trim() || sense.label;
                                                         const col = SENSE_COLORS[si % SENSE_COLORS.length];
                                                         return (
                                                             <div key={sense.key} className="flex flex-col items-center gap-1">
-                                                                <div className="relative h-10 w-full overflow-hidden rounded-lg bg-hotel-light/80">
+                                                                <div className="relative h-10 w-full overflow-hidden rounded-lg bg-gray-300/50">
                                                                     <div className="absolute bottom-0 w-full rounded-lg transition-all duration-500" style={{ height: `${sPct}%`, backgroundColor: col }} />
                                                                 </div>
-                                                                <span className="w-full truncate text-center text-[9px] leading-tight text-hotel-gray-md">{shortName}</span>
+                                                                <span className="w-full text-center text-[9px] leading-tight text-hotel-gray-md whitespace-normal break-words">{shortName}</span>
                                                                 <span className="text-[9px] font-bold" style={{ color: col }}>{senseTotal}</span>
                                                             </div>
                                                         );
@@ -928,76 +927,6 @@ export default function Auditorias({ mode }) {
                                 })}
                             </div>
                         )}
-
-                        {/* Desempenho por Senso */}
-                        {visibleAudits.length > 0 && (() => {
-                            const CHART_H = 200;
-                            const BAR_PALETTES = [
-                                { from: '#818cf8', to: '#3730a3', glow: 'rgba(129,140,248,0.45)' },
-                                { from: '#38bdf8', to: '#075985', glow: 'rgba(56,189,248,0.45)' },
-                                { from: '#34d399', to: '#065f46', glow: 'rgba(52,211,153,0.45)' },
-                                { from: '#c084fc', to: '#6b21a8', glow: 'rgba(192,132,252,0.45)' },
-                                { from: '#f59e0b', to: '#78350f', glow: 'rgba(245,158,11,0.45)' },
-                            ];
-
-                            return (
-                                <div className="overflow-hidden rounded-2xl border border-[#0f3758] bg-[linear-gradient(180deg,#0b2b45_0%,#0a2235_100%)] shadow-[0_10px_30px_rgba(2,12,24,0.35)]">
-                                    <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-5 py-3.5">
-                                        <div className="flex items-center gap-2">
-                                            <BarChart3 size={15} className="text-hotel-gold" />
-                                            <h3 className="font-heading text-sm font-bold text-white">Desempenho por Senso</h3>
-                                        </div>
-                                        <span className="text-[11px] font-semibold text-white/80">meta: 16 | max: 20</span>
-                                    </div>
-                                    <div className="p-5">
-                                        <div className="relative overflow-hidden rounded-2xl border border-white/15 px-4 pb-3 pt-4" style={{ background: 'linear-gradient(180deg,#103756 0%,#0d2d47 100%)' }}>
-                                            {[5, 10, 15, 20].map((v) => (
-                                                <div key={v} className="pointer-events-none absolute left-4 right-4 flex items-center gap-2" style={{ bottom: (v / 20) * CHART_H + 12 }}>
-                                                    <span className="w-4 flex-shrink-0 text-right text-[9px] font-semibold text-white/80">{v}</span>
-                                                    <div className="flex-1 border-t border-white/20" />
-                                                </div>
-                                            ))}
-                                            <div className="pointer-events-none absolute left-4 right-4 z-10" style={{ bottom: (16 / 20) * CHART_H + 12 }}>
-                                                <div className="ml-6 border-t-2 border-dashed border-hotel-gold/90" />
-                                                <span className="absolute -top-5 right-0 rounded bg-hotel-gold/20 px-1.5 py-0.5 text-[10px] font-bold text-hotel-gold">meta 16</span>
-                                            </div>
-                                            <div className="relative z-20 flex items-end gap-2 pl-6" style={{ height: CHART_H }}>
-                                                {senseAverages.map((sense, i) => {
-                                                    const barPx = Math.max((sense.avg / MAX_PER_SENSE) * CHART_H, 8);
-                                                    const pal = BAR_PALETTES[i % BAR_PALETTES.length];
-                                                    return (
-                                                        <div key={sense.key} className="flex flex-1 flex-col items-center gap-1.5" style={{ alignSelf: 'flex-end' }}>
-                                                            <span className="text-[12px] font-extrabold leading-none text-white">{sense.avg}</span>
-                                                            <div className="relative w-full overflow-hidden rounded-t-xl" style={{ height: barPx, background: `linear-gradient(to top, ${pal.to}, ${pal.from})`, boxShadow: `0 0 22px ${pal.glow}, inset 0 1px 0 rgba(255,255,255,0.28)` }}>
-                                                                <div className="absolute inset-0" style={{ background: 'linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.16) 50%, transparent 70%)' }} />
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                        <div className="mt-3 flex gap-2 pl-10">
-                                            {senseAverages.map((sense, i) => {
-                                                const pal = BAR_PALETTES[i % BAR_PALETTES.length];
-                                                const name = sense.label.split(':')[1]?.trim() || sense.label;
-                                                return (
-                                                    <div key={sense.key} className="flex flex-1 flex-col items-center gap-1">
-                                                        <div className="h-1.5 w-6 rounded-full" style={{ background: pal.from }} />
-                                                        <span className="text-center text-[10px] leading-tight text-white/80">{name}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        {weakestSense && (
-                                            <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-300/60 bg-amber-100 px-3 py-2.5">
-                                                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black text-white">!</span>
-                                                <p className="text-xs text-amber-900">Senso mais fraco: <strong className="font-semibold text-amber-950">{weakestSense.label}</strong> - priorize ações nele no próximo ciclo.</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })()}
 
                         </div>
                     )}
