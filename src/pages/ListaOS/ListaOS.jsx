@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, ChevronDown, ChevronUp, Trash2, X,
     Edit3, Clock3, ArrowLeft, CalendarRange, Image as ImageIcon,
-    Download, Paperclip,
+    Download, Paperclip, Play, Check, FileCheck, Eye,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
@@ -568,9 +568,10 @@ export default function ListaOS() {
                         {podeAtualizar && (
                             <button
                                 onClick={() => solicitarStatusChange(os, nextStatus[os.status])}
-                                className="btn-gold flex-1 px-3 py-1.5 text-xs sm:flex-none"
+                                className="btn-gold flex-1 px-3 py-1.5 text-xs sm:flex-none flex items-center justify-center"
+                                title={nextLabel[os.status]}
                             >
-                                {nextLabel[os.status]}
+                                {os.status === StatusOS.ABERTO ? <Play size={16} /> : <Check size={16} />}
                             </button>
                         )}
                         {canRequestFinalization && (
@@ -583,15 +584,11 @@ export default function ListaOS() {
                                         addNotification(error?.message || 'Nao foi possivel solicitar finalizacao.', 'error');
                                     }
                                 }}
-                                className="flex-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-600 sm:flex-none"
+                                className="flex-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-600 sm:flex-none flex items-center justify-center"
+                                title="Solicitar finalização"
                             >
-                                Solicitar finalização
+                                <FileCheck size={16} />
                             </button>
-                        )}
-                        {hasPendingApproval && (
-                            <span className="inline-flex flex-1 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 sm:flex-none">
-                                Finalização em aprovação
-                            </span>
                         )}
 
                         {podeEditar && (
@@ -624,8 +621,7 @@ export default function ListaOS() {
                             aria-label={isExpanded ? 'Recolher detalhes da SI' : 'Expandir detalhes da SI para visualizar e baixar anexos'}
                             title={isExpanded ? 'Recolher detalhes' : (hasDownloadables ? 'Clique para ver e baixar anexos' : 'Clique para ver detalhes')}
                         >
-                            {!isExpanded && hasDownloadables && <Download size={13} className="transition-transform duration-200 group-hover:scale-110" />}
-                            <span className="hidden sm:inline">{isExpanded ? 'Recolher' : (hasDownloadables ? 'Ver anexos' : 'Detalhes')}</span>
+                            {!isExpanded && (hasDownloadables ? <Download size={15} className="transition-transform duration-200 group-hover:scale-110" /> : <Eye size={15} />)}
                             {isExpanded ? <ChevronUp size={17} className="transition-transform duration-200 group-hover:-translate-y-0.5" /> : <ChevronDown size={17} className={`transition-transform duration-200 group-hover:translate-y-0.5 ${!isExpanded && hasDownloadables ? 'animate-bounce' : ''}`} />}
                         </button>
                     </div>

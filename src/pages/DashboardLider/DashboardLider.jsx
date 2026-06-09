@@ -19,7 +19,7 @@ function matchesAssignedLeader(os, leader) {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    ClipboardList, CheckCircle2, Clock, AlertCircle, Send, PlusCircle,
+    ClipboardList, CheckCircle2, Clock, AlertCircle, Send, PlusCircle, Play, Check,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
@@ -538,9 +538,10 @@ export default function DashboardLider() {
                                                         {podeAtualizar && (
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); solicitarStatus(os, nextStatus[os.status]); }}
-                                                                className="btn-gold w-full flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-center text-xs sm:w-24"
+                                                                className="btn-gold w-full flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-center text-xs sm:w-24 flex items-center justify-center"
+                                                                title={nextStatusLabel[os.status]}
                                                             >
-                                                                {nextStatusLabel[os.status]}
+                                                                {os.status === StatusOS.ABERTO ? <Play size={16} /> : <Check size={16} />}
                                                             </button>
                                                         )}
                                                     </div>
