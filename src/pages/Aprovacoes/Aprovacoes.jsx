@@ -238,7 +238,8 @@ export default function Aprovacoes() {
                                                     event.dataTransfer.setData('text/plain', order.id);
                                                 }}
                                                 onDragEnd={() => setDraggingId(null)}
-                                                className={`rounded-xl border border-hotel-gray/60 bg-white p-3 shadow-sm transition-colors ${canMove ? 'cursor-grab active:cursor-grabbing hover:bg-hotel-light/40' : ''}`}
+                                                onClick={() => navigate('/ordens', { state: { expandOsId: order.id } })}
+                                                className={`rounded-xl border border-hotel-gray/60 bg-white p-3 shadow-sm transition-all hover:border-hotel-blue/50 hover:shadow-md cursor-pointer ${canMove ? 'cursor-grab active:cursor-grabbing hover:bg-hotel-light/40' : ''}`}
                                             >
                                                 <div className="mb-2 flex items-center justify-between gap-2">
                                                     <StatusBadge status={order.status} />
@@ -268,7 +269,10 @@ export default function Aprovacoes() {
                                                             <button
                                                                 key={stage}
                                                                 type="button"
-                                                                onClick={() => moveWithButton(order, stage)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    moveWithButton(order, stage);
+                                                                }}
                                                                 className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/70 bg-hotel-light px-2.5 py-1 text-[11px] font-semibold text-hotel-blue transition-colors hover:border-hotel-blue/40 hover:bg-white"
                                                             >
                                                                 <MoveRight size={11} /> {ApprovalStageLabel[stage]}
