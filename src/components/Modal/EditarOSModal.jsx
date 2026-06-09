@@ -26,12 +26,22 @@ export default function EditarOSModal({ os, onClose }) {
     const [loading, setLoading] = useState(false);
     const [responsaveisSelecionados, setResponsaveisSelecionados] = useState(new Set());
 
-    const assignableUsers = useMemo(
-        () => users
+    const assignableUsers = useMemo(() => {
+        const uniqueByName = new Map();
+
+        users
             .filter((u) => [UserRole.LIDER, UserRole.ADMIN, UserRole.DIRETORA].includes(u.role))
-            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
-        [users],
-    );
+            .forEach((u) => {
+                const normalizedName = String(u.nome || '').trim().toLowerCase();
+                const key = normalizedName || `id:${u.id}`;
+
+                if (!uniqueByName.has(key)) {
+                    uniqueByName.set(key, u);
+                }
+            });
+
+        return Array.from(uniqueByName.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    }, [users]);
 
     useEffect(() => {
         if (os) {
