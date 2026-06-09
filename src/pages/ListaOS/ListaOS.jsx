@@ -763,9 +763,8 @@ export default function ListaOS() {
                         />
                     </div>
 
-                    {/* Filtros — somente diretora vê filtro por líder */}
                     <MultiSelectFilter
-                        title="Todos os status"
+                        title="Status"
                         selectedValues={filterStatus}
                         options={Object.entries(StatusLabel).map(([k, v]) => ({ value: k, label: v }))}
                         onToggle={(value) => toggleInFilter(setFilterStatus, filterStatus, value)}
@@ -773,25 +772,23 @@ export default function ListaOS() {
                     />
 
                     <MultiSelectFilter
-                        title="Todas as etapas PDCA"
+                        title="Etapa PDCA"
                         selectedValues={filterPdca}
                         options={Object.entries(PDCALabel).map(([k, v]) => ({ value: k, label: `${k} - ${v}` }))}
                         onToggle={(value) => toggleInFilter(setFilterPdca, filterPdca, value)}
                         onClear={() => setFilterPdca([])}
                     />
 
-                    {isDiretora && (
-                        <MultiSelectFilter
-                            title="Todos os líderes"
-                            selectedValues={filterLider}
-                            options={lideres.map((lider) => ({ value: lider.id, label: lider.nome }))}
-                            onToggle={(value) => toggleInFilter(setFilterLider, filterLider, value)}
-                            onClear={() => setFilterLider([])}
-                        />
-                    )}
+                    <MultiSelectFilter
+                        title="Líder"
+                        selectedValues={filterLider}
+                        options={lideres.map((lider) => ({ value: lider.id, label: lider.nome }))}
+                        onToggle={(value) => toggleInFilter(setFilterLider, filterLider, value)}
+                        onClear={() => setFilterLider([])}
+                    />
 
                     <MultiSelectFilter
-                        title="Todos os depto."
+                        title="Departamento"
                         selectedValues={filterDept}
                         options={availableDepartments.map((departamento) => ({ value: departamento, label: departamento }))}
                         onToggle={(value) => toggleInFilter(setFilterDept, filterDept, value)}
