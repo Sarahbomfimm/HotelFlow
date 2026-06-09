@@ -206,7 +206,7 @@ export default function Aprovacoes() {
                                     }
                                 }}
                                 onDrop={(event) => handleDrop(event, column)}
-                                className={`flex min-h-[26rem] flex-col rounded-2xl border bg-white p-3 ${style.border}`}
+                                className={`flex h-[34rem] flex-col rounded-2xl border bg-white p-3 ${style.border}`}
                             >
                                 <header className={`mb-3 flex items-center justify-between rounded-xl px-3 py-2 ${style.header}`}>
                                     <div className="flex items-center gap-2">
