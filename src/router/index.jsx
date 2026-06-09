@@ -13,6 +13,7 @@ import FormOS from '../pages/FormOS/FormOS';
 import ListaOS from '../pages/ListaOS/ListaOS';
 import HistoricoOS from '../pages/HistoricoOS/HistoricoOS';
 import PDCAVisualPage from '../pages/PDCAVisualPage/PDCAVisualPage';
+import Aprovacoes from '../pages/Aprovacoes/Aprovacoes';
 import Reunioes from '../pages/Reunioes/Reunioes';
 import Auditorias from '../pages/Auditorias/Auditorias';
 
@@ -60,6 +61,14 @@ export default function AppRouter() {
                 element={
                     <ProtectedRoute>
                         <PDCAVisualPage />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/aprovacoes"
+                element={
+                    <ProtectedRoute requiredPermission={PERMISSIONS.SI_APPROVALS_ACCESS}>
+                        <Aprovacoes />
                     </ProtectedRoute>
                 }
             />

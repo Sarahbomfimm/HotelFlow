@@ -3,6 +3,9 @@ import { UserRole } from '../models/User';
 export const PERMISSIONS = {
     ADMIN_PANEL_ACCESS: 'admin_panel_access',
     SI_CREATE_ACCESS: 'si_create_access',
+    SI_APPROVALS_ACCESS: 'si_approvals_access',
+    SI_APPROVALS_MOVE: 'si_approvals_move',
+    SI_APPROVALS_VIEW_ALL: 'si_approvals_view_all',
     AUDITORIAS_ACCESS: 'auditorias_access',
     AUDITORIAS_CREATE: 'auditorias_create',
     AUDITORIAS_MANAGE: 'auditorias_manage',
@@ -24,6 +27,24 @@ export const PERMISSION_DEFINITIONS = [
         key: PERMISSIONS.SI_CREATE_ACCESS,
         label: 'Acessar Nova SI',
         description: 'Permite abrir a tela de criação de SI.',
+        category: 'SI',
+    },
+    {
+        key: PERMISSIONS.SI_APPROVALS_ACCESS,
+        label: 'Acessar Aprovações',
+        description: 'Permite abrir o módulo de Aprovações de SI.',
+        category: 'SI',
+    },
+    {
+        key: PERMISSIONS.SI_APPROVALS_MOVE,
+        label: 'Mover no Kanban de Aprovações',
+        description: 'Permite mover SI entre Solicitadas, Em análise e Finalizadas.',
+        category: 'SI',
+    },
+    {
+        key: PERMISSIONS.SI_APPROVALS_VIEW_ALL,
+        label: 'Ver todas as SIs em Aprovações',
+        description: 'Permite visualizar todas as SI no módulo de Aprovações.',
         category: 'SI',
     },
     {
@@ -81,6 +102,9 @@ export function getDefaultPermissions(role) {
         return {
             [PERMISSIONS.ADMIN_PANEL_ACCESS]: true,
             [PERMISSIONS.SI_CREATE_ACCESS]: true,
+            [PERMISSIONS.SI_APPROVALS_ACCESS]: true,
+            [PERMISSIONS.SI_APPROVALS_MOVE]: true,
+            [PERMISSIONS.SI_APPROVALS_VIEW_ALL]: true,
             [PERMISSIONS.AUDITORIAS_ACCESS]: true,
             [PERMISSIONS.AUDITORIAS_CREATE]: true,
             [PERMISSIONS.AUDITORIAS_MANAGE]: true,
@@ -96,6 +120,9 @@ export function getDefaultPermissions(role) {
         return {
             [PERMISSIONS.ADMIN_PANEL_ACCESS]: false,
             [PERMISSIONS.SI_CREATE_ACCESS]: true,
+            [PERMISSIONS.SI_APPROVALS_ACCESS]: true,
+            [PERMISSIONS.SI_APPROVALS_MOVE]: true,
+            [PERMISSIONS.SI_APPROVALS_VIEW_ALL]: true,
             [PERMISSIONS.AUDITORIAS_ACCESS]: true,
             [PERMISSIONS.AUDITORIAS_CREATE]: true,
             [PERMISSIONS.AUDITORIAS_MANAGE]: true,
@@ -110,6 +137,9 @@ export function getDefaultPermissions(role) {
     return {
         [PERMISSIONS.ADMIN_PANEL_ACCESS]: false,
         [PERMISSIONS.SI_CREATE_ACCESS]: true,
+            [PERMISSIONS.SI_APPROVALS_ACCESS]: true,
+            [PERMISSIONS.SI_APPROVALS_MOVE]: false,
+            [PERMISSIONS.SI_APPROVALS_VIEW_ALL]: false,
         [PERMISSIONS.AUDITORIAS_ACCESS]: true,
         [PERMISSIONS.AUDITORIAS_CREATE]: true,
         [PERMISSIONS.AUDITORIAS_MANAGE]: false,
@@ -160,6 +190,11 @@ export function getPermissionDeniedCopy(permissionKey) {
             return {
                 title: 'Sem permissão para criar SI',
                 message: 'Seu usuário não está autorizado no Gerenciamento para abrir a tela de Nova SI.',
+            };
+        case PERMISSIONS.SI_APPROVALS_ACCESS:
+            return {
+                title: 'Acesso negado a Aprovações',
+                message: 'Seu usuário não está autorizado no Gerenciamento para acessar o módulo de Aprovações.',
             };
         case PERMISSIONS.AUDITORIAS_ACCESS:
             return {

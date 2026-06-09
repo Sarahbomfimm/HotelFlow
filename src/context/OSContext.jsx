@@ -10,7 +10,7 @@ import {
     updateDoc,
 } from 'firebase/firestore';
 import { INITIAL_OS } from '../data/mockData';
-import { StatusOS, StatusLabel, PDCAStep } from '../models/OrdemDeServico';
+import { StatusOS, StatusLabel, PDCAStep, ApprovalStage } from '../models/OrdemDeServico';
 import { UserRole } from '../models/User';
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { hasPermission, PERMISSIONS } from '../services/permissions';
@@ -60,6 +60,21 @@ function normalizeOrder(id, data) {
             ? data.historico.map((entry) => ({ ...entry, data: toIsoDate(entry?.data) }))
             : [],
         concluido_em: data.concluido_em ? toIsoDate(data.concluido_em) : null,
+        aprovacao_finalizacao_status: data.aprovacao_finalizacao_status || null,
+        aprovacao_finalizacao_solicitada_em: data.aprovacao_finalizacao_solicitada_em
+            ? toIsoDate(data.aprovacao_finalizacao_solicitada_em)
+            : null,
+        aprovacao_finalizacao_solicitada_por_id: data.aprovacao_finalizacao_solicitada_por_id || '',
+        aprovacao_finalizacao_solicitada_por_uid: data.aprovacao_finalizacao_solicitada_por_uid || '',
+        aprovacao_finalizacao_solicitada_por_email: data.aprovacao_finalizacao_solicitada_por_email || '',
+        aprovacao_finalizacao_solicitada_por_nome: data.aprovacao_finalizacao_solicitada_por_nome || '',
+        aprovacao_finalizacao_analisada_em: data.aprovacao_finalizacao_analisada_em
+            ? toIsoDate(data.aprovacao_finalizacao_analisada_em)
+            : null,
+        aprovacao_finalizacao_analisada_por_id: data.aprovacao_finalizacao_analisada_por_id || '',
+        aprovacao_finalizacao_analisada_por_uid: data.aprovacao_finalizacao_analisada_por_uid || '',
+        aprovacao_finalizacao_analisada_por_email: data.aprovacao_finalizacao_analisada_por_email || '',
+        aprovacao_finalizacao_analisada_por_nome: data.aprovacao_finalizacao_analisada_por_nome || '',
         criado_em: toIsoDate(data.criado_em),
         criado_por_id: data.criado_por_id || '',
         criado_por_uid: data.criado_por_uid || '',
@@ -368,6 +383,16 @@ export function OSProvider({ children }) {
         const base = `Status alterado de ${StatusLabel[os.status]} para ${StatusLabel[novoStatus]}.`;
         const etapaPdca = novoStatus === StatusOS.CONCLUIDO ? PDCAStep.ACT : os.etapa_pdca;
         const concluidoEm = novoStatus === StatusOS.CONCLUIDO ? new Date().toISOString() : null;
+        const approvalPatch = novoStatus === StatusOS.CONCLUIDO
+            ? {
+                aprovacao_finalizacao_status: ApprovalStage.FINALIZADA,
+                aprovacao_finalizacao_analisada_em: concluidoEm,
+                aprovacao_finalizacao_analisada_por_id: usuario.id || '',
+                aprovacao_finalizacao_analisada_por_uid: usuario.firebaseUid || usuario.id || '',
+                aprovacao_finalizacao_analisada_por_email: usuario.email?.toLowerCase() || '',
+                aprovacao_finalizacao_analisada_por_nome: usuario.nome || '',
+            }
+            : {};
         const entrada = {
             data: concluidoEm || new Date().toISOString(),
             usuario_nome: usuario.nome,
@@ -380,7 +405,14 @@ export function OSProvider({ children }) {
             setOrdens((prev) => prev.map((item) =>
                 item.id !== osId
                     ? item
-                    : { ...item, status: novoStatus, etapa_pdca: etapaPdca, historico, concluido_em: concluidoEm },
+                    : {
+                        ...item,
+                        status: novoStatus,
+                        etapa_pdca: etapaPdca,
+                        historico,
+                        concluido_em: concluidoEm,
+                        ...approvalPatch,
+                    },
             ));
             setError('');
             return;
@@ -391,11 +423,19 @@ export function OSProvider({ children }) {
             etapa_pdca: etapaPdca,
             historico,
             concluido_em: concluidoEm,
+            ...approvalPatch,
         });
         setOrdens((prev) => prev.map((item) =>
             item.id !== osId
                 ? item
-                : { ...item, status: novoStatus, etapa_pdca: etapaPdca, historico, concluido_em: concluidoEm },
+                : {
+                    ...item,
+                    status: novoStatus,
+                    etapa_pdca: etapaPdca,
+                    historico,
+                    concluido_em: concluidoEm,
+                    ...approvalPatch,
+                },
         ));
         setError('');
 
@@ -413,6 +453,131 @@ export function OSProvider({ children }) {
                 recipientEmail: os.criado_por_email,
             }, {
                 message,
+                type: 'new_os',
+                relatedOrderId: os.id,
+            });
+        }
+    }, [ordens]);
+
+    const solicitarFinalizacao = useCallback(async (osId, usuario) => {
+        const os = ordens.find((item) => item.id === osId);
+        if (!os) return;
+
+        if (os.status === StatusOS.CONCLUIDO) {
+            throw new Error('Esta SI já está concluída.');
+        }
+
+        if (os.status !== StatusOS.EM_ANDAMENTO) {
+            throw new Error('A solicitação de finalização só pode ser feita para SI em andamento.');
+        }
+
+        const isResponsavel = matchesOrderActor(os, usuario, 'responsavel');
+        if (!isResponsavel) {
+            throw new Error('Somente responsável ou co-responsável pode solicitar finalização.');
+        }
+
+        if ([ApprovalStage.SOLICITADA, ApprovalStage.EM_ANALISE].includes(os.aprovacao_finalizacao_status)) {
+            throw new Error('Esta SI já possui uma solicitação de finalização em aberto.');
+        }
+
+        const nowIso = new Date().toISOString();
+        const payload = {
+            aprovacao_finalizacao_status: ApprovalStage.SOLICITADA,
+            aprovacao_finalizacao_solicitada_em: nowIso,
+            aprovacao_finalizacao_solicitada_por_id: usuario.id || '',
+            aprovacao_finalizacao_solicitada_por_uid: usuario.firebaseUid || usuario.id || '',
+            aprovacao_finalizacao_solicitada_por_email: usuario.email?.toLowerCase() || '',
+            aprovacao_finalizacao_solicitada_por_nome: usuario.nome || '',
+            historico: [
+                ...os.historico,
+                {
+                    data: nowIso,
+                    usuario_nome: usuario.nome,
+                    descricao: 'Solicitação de finalização enviada para aprovação.',
+                },
+            ],
+        };
+
+        if (!isFirebaseConfigured || !db) {
+            setOrdens((prev) => prev.map((item) => (item.id === osId ? { ...item, ...payload } : item)));
+            setError('');
+            return;
+        }
+
+        await updateDoc(doc(db, 'serviceOrders', osId), payload);
+        setOrdens((prev) => prev.map((item) => (item.id === osId ? { ...item, ...payload } : item)));
+        setError('');
+    }, [ordens]);
+
+    const moverAprovacaoFinalizacao = useCallback(async (osId, destino, usuario) => {
+        const os = ordens.find((item) => item.id === osId);
+        if (!os) return;
+
+        if (!hasPermission(usuario, PERMISSIONS.SI_APPROVALS_MOVE)) {
+            throw new Error('Você não tem permissão para mover cards no kanban de aprovações.');
+        }
+
+        if (![ApprovalStage.SOLICITADA, ApprovalStage.EM_ANALISE, ApprovalStage.FINALIZADA].includes(destino)) {
+            throw new Error('Coluna de destino inválida.');
+        }
+
+        if (os.aprovacao_finalizacao_status === destino) {
+            return;
+        }
+
+        const nowIso = new Date().toISOString();
+        const basePayload = {
+            aprovacao_finalizacao_status: destino,
+            aprovacao_finalizacao_analisada_em: nowIso,
+            aprovacao_finalizacao_analisada_por_id: usuario.id || '',
+            aprovacao_finalizacao_analisada_por_uid: usuario.firebaseUid || usuario.id || '',
+            aprovacao_finalizacao_analisada_por_email: usuario.email?.toLowerCase() || '',
+            aprovacao_finalizacao_analisada_por_nome: usuario.nome || '',
+        };
+
+        const stageLabel = {
+            [ApprovalStage.SOLICITADA]: 'Solicitadas',
+            [ApprovalStage.EM_ANALISE]: 'Em análise',
+            [ApprovalStage.FINALIZADA]: 'Finalizadas',
+        };
+
+        const historyEntry = {
+            data: nowIso,
+            usuario_nome: usuario.nome,
+            descricao: `Fluxo de aprovação movido para "${stageLabel[destino]}".`,
+        };
+
+        const payload = {
+            ...basePayload,
+            historico: [...os.historico, historyEntry],
+        };
+
+        if (destino === ApprovalStage.FINALIZADA) {
+            payload.status = StatusOS.CONCLUIDO;
+            payload.etapa_pdca = PDCAStep.ACT;
+            payload.concluido_em = nowIso;
+        }
+
+        if (!isFirebaseConfigured || !db) {
+            setOrdens((prev) => prev.map((item) => (item.id === osId ? { ...item, ...payload } : item)));
+            setError('');
+        } else {
+            await updateDoc(doc(db, 'serviceOrders', osId), payload);
+            setOrdens((prev) => prev.map((item) => (item.id === osId ? { ...item, ...payload } : item)));
+            setError('');
+        }
+
+        const shouldNotifyCreator =
+            destino === ApprovalStage.FINALIZADA
+            && (os.criado_por_uid || os.criado_por_id || os.criado_por_email)
+            && !matchesOrderActor(os, usuario, 'criado_por');
+
+        if (shouldNotifyCreator) {
+            await createUserNotification({
+                recipientUid: os.criado_por_uid || os.criado_por_id,
+                recipientEmail: os.criado_por_email,
+            }, {
+                message: `SI "${os.titulo}" concluída por ${usuario.nome} (${os.departamento}).`,
                 type: 'new_os',
                 relatedOrderId: os.id,
             });
@@ -582,7 +747,19 @@ export function OSProvider({ children }) {
 
     return (
         <OSContext.Provider
-            value={{ ordens, criarOS, atualizarStatus, adicionarObservacao, editarOS, excluirOS, getOSPorLider, loading, error }}
+            value={{
+                ordens,
+                criarOS,
+                atualizarStatus,
+                solicitarFinalizacao,
+                moverAprovacaoFinalizacao,
+                adicionarObservacao,
+                editarOS,
+                excluirOS,
+                getOSPorLider,
+                loading,
+                error,
+            }}
         >
             {children}
         </OSContext.Provider>

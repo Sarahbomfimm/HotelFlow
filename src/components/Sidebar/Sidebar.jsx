@@ -16,6 +16,7 @@ const liderLinks = [
     { to: '/ordens', label: 'Minhas SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
+    { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
@@ -25,6 +26,7 @@ const diretoraLinks = [
     { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
+    { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/historico', label: 'Histórico', icon: History },
@@ -35,6 +37,7 @@ const adminLinks = [
     { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
+    { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/historico', label: 'Histórico', icon: History },
@@ -53,6 +56,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const canAccessAuditorias = hasPermission(displayUser, PERMISSIONS.AUDITORIAS_ACCESS);
     const canCreateAuditorias = hasPermission(displayUser, PERMISSIONS.AUDITORIAS_CREATE);
     const canAccessReunioes = hasPermission(displayUser, PERMISSIONS.REUNIOES_ACCESS);
+    const canAccessAprovacoes = hasPermission(displayUser, PERMISSIONS.SI_APPROVALS_ACCESS);
     const canAccessHistorico = hasPermission(displayUser, PERMISSIONS.HISTORICO_ACCESS);
     const canAccessAdminPanel = hasPermission(displayUser, PERMISSIONS.ADMIN_PANEL_ACCESS);
 
@@ -65,6 +69,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const visibleLinks = links.filter((link) => {
         if (link.to === '/auditorias/visualizar') return canAccessAuditorias;
         if (link.to === '/reunioes') return canAccessReunioes;
+        if (link.to === '/aprovacoes') return canAccessAprovacoes;
         if (link.to === '/historico') return canAccessHistorico;
         if (link.to === '/admin') return canAccessAdminPanel;
         return true;

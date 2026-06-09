@@ -18,7 +18,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
 import { hasPermission, PERMISSIONS } from '../../services/permissions';
-import { StatusOS, StatusLabel, PDCAStep, PDCALabel } from '../../models/OrdemDeServico';
+import { StatusOS, StatusLabel, PDCAStep, PDCALabel, ApprovalStage } from '../../models/OrdemDeServico';
 import { format, parseISO, isSameMonth } from 'date-fns';
 import { getLeaderEstimatedDeadlineValue, isSIOverdue } from '../../utils/osDeadlineRules';
 import { isOrderInSelectedDashboardMonth } from '../../utils/osMonthRules';
@@ -212,7 +212,15 @@ function escapeCsvValue(value) {
 }
 
 export default function ListaOS() {
-    const { ordens, getOSPorLider, atualizarStatus, excluirOS, adicionarObservacao, error: ordensError } = useOS();
+    const {
+        ordens,
+        getOSPorLider,
+        atualizarStatus,
+        solicitarFinalizacao,
+        excluirOS,
+        adicionarObservacao,
+        error: ordensError,
+    } = useOS();
     const { user } = useAuth();
     const { addNotification } = useNotification();
     const { lideres, availableDepartments, currentUserProfile } = useUsers();
@@ -223,6 +231,7 @@ export default function ListaOS() {
     const isDiretora = actor?.role === UserRole.DIRETORA || actor?.role === UserRole.ADMIN;
     const canFinalizeSI = hasPermission(actor, PERMISSIONS.SI_FINALIZE);
     const canEditSI = hasPermission(actor, PERMISSIONS.SI_EDIT);
+    const canMoveApprovals = hasPermission(actor, PERMISSIONS.SI_APPROVALS_MOVE);
     const isAbertasPorMimRoute = location.pathname === '/ordens/abertas-por-mim';
 
     // Inicializa filtros a partir de state passado pelo dashboard
@@ -498,16 +507,17 @@ export default function ListaOS() {
         const isExpanded = expanded === os.id;
         const prazoEstimadoCard = getLeaderEstimatedDeadlineValue(os);
         const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
-        const canManagementFinalize = canFinalizeSI && isDiretora && os.status !== StatusOS.CONCLUIDO && !isResponsavel;
+        const canStart = os.status === StatusOS.ABERTO && isResponsavel;
+        const canConcludeDirectly = os.status === StatusOS.EM_ANDAMENTO && isResponsavel && canFinalizeSI && canMoveApprovals;
+        const hasPendingApproval = [ApprovalStage.SOLICITADA, ApprovalStage.EM_ANALISE].includes(os.aprovacao_finalizacao_status);
+        const canRequestFinalization = os.status === StatusOS.EM_ANDAMENTO && isResponsavel && !canConcludeDirectly && !hasPendingApproval;
         const hasDownloadables = Boolean(
             os.imagem || (Array.isArray(os.historico) && os.historico.some((h) => h.anexo_pdf_url)),
         );
-        const podeAtualizar = os.status !== StatusOS.CONCLUIDO
-            && isResponsavel
-            && (os.status !== StatusOS.EM_ANDAMENTO || canFinalizeSI);
+        const podeAtualizar = canStart || canConcludeDirectly;
         const podeRegistrarProgressoSemFinalizar = os.status === StatusOS.EM_ANDAMENTO
             && isResponsavel
-            && !canFinalizeSI;
+            && !canConcludeDirectly;
         const isCriador = matchesOrderActor(os, actor, 'criado_por');
         const podeEditar = canEditSI && (isDiretora || isCriador);
         const podeExcluir = isCriador;
@@ -563,23 +573,27 @@ export default function ListaOS() {
                                 {nextLabel[os.status]}
                             </button>
                         )}
-                        {canManagementFinalize && (
+                        {canRequestFinalization && (
                             <button
-                                onClick={() => solicitarStatusChange(os, StatusOS.CONCLUIDO)}
-                                className="flex-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 sm:flex-none"
+                                onClick={async () => {
+                                    try {
+                                        await solicitarFinalizacao(os.id, actor);
+                                        addNotification(`Solicitação de finalização enviada para a SI "${os.titulo}".`, 'info');
+                                    } catch (error) {
+                                        addNotification(error?.message || 'Nao foi possivel solicitar finalizacao.', 'error');
+                                    }
+                                }}
+                                className="flex-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-600 sm:flex-none"
                             >
-                                Finalizar
+                                Solicitar finalização
                             </button>
                         )}
-                        {!podeAtualizar && !canManagementFinalize && podeRegistrarProgressoSemFinalizar && (
-                            <button
-                                onClick={() => setAdicionarObsModal({ open: true, os })}
-                                className="group relative flex-1 overflow-hidden rounded-lg border border-sky-300/70 bg-gradient-to-r from-sky-50 via-white to-cyan-50 px-3 py-1.5 text-xs font-semibold text-sky-800 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-400 hover:shadow-md hover:shadow-sky-200/50 focus:outline-none focus:ring-2 focus:ring-sky-300/60 sm:flex-none"
-                            >
-                                <span className="pointer-events-none absolute inset-0 -z-0 bg-gradient-to-r from-sky-500/0 via-sky-500/10 to-cyan-500/0 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-                                Registrar progresso
-                            </button>
+                        {hasPendingApproval && (
+                            <span className="inline-flex flex-1 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 sm:flex-none">
+                                Finalização em aprovação
+                            </span>
                         )}
+
                         {podeEditar && (
                             <button
                                 onClick={() => setToEdit(os)}
@@ -600,10 +614,12 @@ export default function ListaOS() {
                         )}
                         <button
                             onClick={() => setExpanded(isExpanded ? null : os.id)}
-                            className={`group inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-hotel-gold/40 ${
-                                hasDownloadables
-                                    ? 'border-hotel-gold/70 bg-gradient-to-r from-amber-50 to-yellow-50 text-hotel-blue hover:border-hotel-gold hover:from-amber-100 hover:to-yellow-100'
-                                    : 'border-hotel-gray/70 bg-gradient-to-r from-white to-slate-50 text-hotel-gray-md hover:border-hotel-blue/40 hover:text-hotel-blue'
+                            className={`group inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-hotel-blue/40 ${
+                                isExpanded
+                                    ? 'border-hotel-blue bg-hotel-blue text-white'
+                                    : hasDownloadables
+                                        ? 'border-hotel-gold/70 bg-gradient-to-r from-amber-50 to-yellow-50 text-hotel-blue hover:border-hotel-gold hover:from-amber-100 hover:to-yellow-100'
+                                        : 'border-hotel-blue/60 bg-hotel-blue/10 text-hotel-blue hover:bg-hotel-blue hover:text-white'
                             }`}
                             aria-label={isExpanded ? 'Recolher detalhes da SI' : 'Expandir detalhes da SI para visualizar e baixar anexos'}
                             title={isExpanded ? 'Recolher detalhes' : (hasDownloadables ? 'Clique para ver e baixar anexos' : 'Clique para ver detalhes')}

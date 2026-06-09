@@ -11,6 +11,18 @@ export const StatusLabel = {
     concluido: 'Concluído',
 };
 
+export const ApprovalStage = {
+    SOLICITADA: 'solicitada',
+    EM_ANALISE: 'em_analise',
+    FINALIZADA: 'finalizada',
+};
+
+export const ApprovalStageLabel = {
+    [ApprovalStage.SOLICITADA]: 'Solicitadas',
+    [ApprovalStage.EM_ANALISE]: 'Em análise',
+    [ApprovalStage.FINALIZADA]: 'Finalizadas',
+};
+
 export const PDCAStep = {
     PLAN: 'P',
     DO: 'D',
