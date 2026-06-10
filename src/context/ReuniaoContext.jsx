@@ -54,6 +54,34 @@ function describeMeetingChanges(anterior, proxima) {
     if (normalizeText(anterior.ata) !== normalizeText(proxima.ata)) changes.push('Ata');
     if (!sameParticipants(anterior.participantes, proxima.participantes)) changes.push('Participantes');
 
+    // Comparação de Checklist
+    const oldCL = Array.isArray(anterior.checklist) ? anterior.checklist : [];
+    const newCL = Array.isArray(proxima.checklist) ? proxima.checklist : [];
+
+    if (oldCL.length !== newCL.length) {
+        changes.push('Estrutura do Checklist alterada');
+    } else {
+        const marked = [];
+        const unmarked = [];
+        const renamed = [];
+
+        newCL.forEach((item, idx) => {
+            const oldItem = oldCL[idx];
+            if (!oldItem) return;
+
+            if (item.concluido !== oldItem.concluido) {
+                if (item.concluido) marked.push(`"${item.texto}"`);
+                else unmarked.push(`"${item.texto}"`);
+            } else if (item.texto !== oldItem.texto) {
+                renamed.push(`"${oldItem.texto}" para "${item.texto}"`);
+            }
+        });
+
+        if (marked.length > 0) changes.push(`Marcou como feito: ${marked.join(', ')}`);
+        if (unmarked.length > 0) changes.push(`Desmarcou: ${unmarked.join(', ')}`);
+        if (renamed.length > 0) changes.push(`Renomeou itens: ${renamed.join(', ')}`);
+    }
+
     return changes;
 }
 

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import AppLayout from '../../components/Layout/AppLayout';
 import ConfirmModal from '../../components/Modal/ConfirmModal';
 import {
-    CalendarDays, Clock3, MapPin, X, Users,
-    BellRing, Plus, CalendarRange, ChevronLeft, ChevronRight, Edit2, Trash2, AlertCircle, Save, Eye,
+    CalendarDays, Clock3, MapPin, X, Users, ListTodo, CheckSquare, Square,
+    BellRing, Plus, CalendarRange, ChevronLeft, ChevronRight, Edit2, Trash2, AlertCircle, Save, Eye, Trash,
 } from 'lucide-react';
 import { useReuniao } from '../../context/ReuniaoContext';
 import { useAuth } from '../../context/AuthContext';
@@ -127,9 +127,11 @@ function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUser
         recorrencia: RecorrenciaReuniao.NENHUMA,
         ata: '',
         descricao: '',
+        checklist: [],
     };
 
     const [formData, setFormData] = useState(initialFormData);
+    const [novoItemChecklist, setNovoItemChecklist] = useState('');
 
     useEffect(() => {
         if (!isOpen) return;
@@ -142,6 +144,7 @@ function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUser
                 hora_inicio: format(dataInicio, 'HH:mm'),
                 hora_fim: reuniaoEditando.hora_fim || format(new Date(reuniaoEditando.data_fim || reuniaoEditando.data_inicio), 'HH:mm'),
                 participantes: reuniaoEditando.participantes || [],
+                checklist: Array.isArray(reuniaoEditando.checklist) ? reuniaoEditando.checklist : [],
             });
             return;
         }
@@ -162,6 +165,24 @@ function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUser
         });
         setFormData(initialFormData);
         onClose();
+    };
+
+    const adicionarItemChecklist = () => {
+        if (!novoItemChecklist.trim()) return;
+        const novo = {
+            id: `item-${Date.now()}`,
+            texto: novoItemChecklist.trim(),
+            concluido: false
+        };
+        setFormData({ ...formData, checklist: [...formData.checklist, novo] });
+        setNovoItemChecklist('');
+    };
+
+    const removerItemChecklist = (id) => {
+        setFormData({
+            ...formData,
+            checklist: formData.checklist.filter(item => item.id !== id)
+        });
     };
 
     return (
@@ -250,6 +271,46 @@ function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUser
                         todosUsers={todosUsers}
                         currentUserId={currentUserId}
                     />
+
+                    <div className="rounded-2xl border border-hotel-gray/30 bg-hotel-light/20 p-4">
+                        <label className="label flex items-center gap-2">
+                            <ListTodo size={16} className="text-hotel-blue" /> Checklist de Tarefas (Opcional)
+                        </label>
+                        <div className="mt-2 space-y-2">
+                            {formData.checklist.map((item) => (
+                                <div key={item.id} className="flex items-center justify-between gap-2 rounded-xl bg-white p-2 shadow-sm border border-hotel-gray/20">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-2 w-2 rounded-full bg-hotel-gold" />
+                                        <span className="text-sm font-body text-hotel-blue">{item.texto}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => removerItemChecklist(item.id)}
+                                        className="text-hotel-gray-md hover:text-red-500 transition-colors p-1"
+                                    >
+                                        <Trash size={14} />
+                                    </button>
+                                </div>
+                            ))}
+                            <div className="flex items-center gap-2 mt-3">
+                                <input
+                                    type="text"
+                                    value={novoItemChecklist}
+                                    onChange={(e) => setNovoItemChecklist(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), adicionarItemChecklist())}
+                                    placeholder="Adicionar nova tarefa..."
+                                    className="input py-1.5 text-sm"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={adicionarItemChecklist}
+                                    className="rounded-lg bg-hotel-blue p-2 text-white hover:bg-hotel-blue/90 transition-colors"
+                                >
+                                    <Plus size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
                     <div>
                         <label className="label">Descrição / Pauta</label>
@@ -413,6 +474,25 @@ export default function Reunioes() {
             addNotification(err.message, 'error');
         } finally {
             setConfirmDelete(null);
+        }
+    };
+
+    const handleToggleChecklist = async (itemId) => {
+        if (!reuniaoSelecionada) return;
+        
+        const novoChecklist = reuniaoSelecionada.checklist.map(item => {
+            if (item.id === itemId) {
+                return { ...item, concluido: !item.concluido };
+            }
+            return item;
+        });
+
+        try {
+            const payload = { ...reuniaoSelecionada, checklist: novoChecklist };
+            const atualizada = await atualizarReuniao(reuniaoSelecionada.id, payload);
+            setReuniaoSelecionada(atualizada);
+        } catch (err) {
+            addNotification("Não foi possível atualizar o item do checklist.", "error");
         }
     };
 
@@ -821,6 +901,26 @@ export default function Reunioes() {
                                             >
                                                 <Users size={11} /> {p.nome}
                                             </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {reuniaoSelecionada.checklist?.length > 0 && (
+                                <div className="rounded-2xl border border-hotel-gray/50 bg-white px-4 py-4 shadow-[0_1px_0_rgba(4,21,35,0.02)]">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hotel-gray-md mb-3 flex items-center gap-2">
+                                        <ListTodo size={14} /> Checklist da Reunião
+                                    </p>
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                        {reuniaoSelecionada.checklist.map((item) => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => handleToggleChecklist(item.id)}
+                                                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${item.concluido ? 'border-emerald-100 bg-emerald-50/50 text-emerald-700' : 'border-hotel-gray/40 bg-white text-hotel-blue hover:border-hotel-blue/30'}`}
+                                            >
+                                                {item.concluido ? <CheckSquare size={18} className="shrink-0" /> : <Square size={18} className="shrink-0 text-hotel-gray-md" />}
+                                                <span className={`text-sm font-medium ${item.concluido ? 'line-through opacity-70' : ''}`}>{item.texto}</span>
+                                            </button>
                                         ))}
                                     </div>
                                 </div>
