@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
     collection,
     deleteDoc,
@@ -584,6 +584,73 @@ export function OSProvider({ children }) {
         }
     }, [ordens]);
 
+    const recusarFinalizacao = useCallback(async (osId, usuario) => {
+        const os = ordens.find((item) => item.id === osId);
+        if (!os) return;
+
+        if (!hasPermission(usuario, PERMISSIONS.SI_APPROVALS_MOVE)) {
+            throw new Error('Você não tem permissão para recusar solicitações de finalização.');
+        }
+
+        if (![ApprovalStage.SOLICITADA, ApprovalStage.EM_ANALISE].includes(os.aprovacao_finalizacao_status)) {
+            throw new Error('Esta SI não possui uma solicitação de finalização em aberto para ser recusada.');
+        }
+
+        const nowIso = new Date().toISOString();
+        const payload = {
+            // Limpa todos os campos relacionados à aprovação de finalização
+            aprovacao_finalizacao_status: null,
+            aprovacao_finalizacao_solicitada_em: null,
+            aprovacao_finalizacao_solicitada_por_id: '',
+            aprovacao_finalizacao_solicitada_por_uid: '',
+            aprovacao_finalizacao_solicitada_por_email: '',
+            aprovacao_finalizacao_solicitada_por_nome: '',
+            aprovacao_finalizacao_analisada_em: null,
+            aprovacao_finalizacao_analisada_por_id: '',
+            aprovacao_finalizacao_analisada_por_uid: '',
+            aprovacao_finalizacao_analisada_por_email: '',
+            aprovacao_finalizacao_analisada_por_nome: '',
+            // Garante que o status volte para EM_ANDAMENTO se não estiver concluída
+            status: os.status === StatusOS.CONCLUIDO ? StatusOS.CONCLUIDO : StatusOS.EM_ANDAMENTO,
+            historico: [
+                ...os.historico,
+                {
+                    data: nowIso,
+                    usuario_nome: usuario.nome,
+                    descricao: 'Solicitação de finalização recusada.',
+                },
+            ],
+        };
+
+        if (!isFirebaseConfigured || !db) {
+            setOrdens((prev) => prev.map((item) => (item.id === osId ? { ...item, ...payload } : item)));
+            setError('');
+        } else {
+            await updateDoc(doc(db, 'serviceOrders', osId), payload);
+            setOrdens((prev) => prev.map((item) => (item.id === osId ? { ...item, ...payload } : item)));
+            setError('');
+        }
+
+        // Notificar o criador da SI sobre a recusa
+        const shouldNotifyCreator =
+            (os.criado_por_uid || os.criado_por_id || os.criado_por_email)
+            && !matchesOrderActor(os, usuario, 'criado_por');
+
+        if (shouldNotifyCreator) {
+            await createUserNotification({
+                recipientUid: os.criado_por_uid || os.criado_por_id,
+                recipientEmail: os.criado_por_email,
+            }, {
+                message: `A solicitação de finalização da SI "${os.titulo}" foi recusada por ${usuario.nome}.`,
+                type: 'info', // Usar tipo 'info' ou 'warning' para recusa
+                relatedOrderId: os.id,
+            });
+        }
+
+        // Notificar o solicitante da finalização (se diferente do criador)
+        // TODO: Implementar notificação para o solicitante da finalização
+    }, [ordens]);
+
     /** Edita campos de uma OS (apenas pela diretora) */
     const editarOS = useCallback(async (osId, atualizacoes, usuario) => {
         const os = ordens.find((item) => item.id === osId);
@@ -753,6 +820,7 @@ export function OSProvider({ children }) {
                 atualizarStatus,
                 solicitarFinalizacao,
                 moverAprovacaoFinalizacao,
+                recusarFinalizacao,
                 adicionarObservacao,
                 editarOS,
                 excluirOS,

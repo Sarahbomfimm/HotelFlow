@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, MoveRight, ClipboardCheck, Clock3, UserRound, Building2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import AppLayout from '../../components/Layout/AppLayout';
 import StatusBadge from '../../components/Badge/StatusBadge';
 import { useOS } from '../../context/OSContext';
@@ -86,7 +86,7 @@ function matchesOrderActor(order, actor, prefix) {
 
 export default function Aprovacoes() {
     const navigate = useNavigate();
-    const { ordens, getOSPorLider, moverAprovacaoFinalizacao } = useOS();
+    const { ordens, getOSPorLider, moverAprovacaoFinalizacao, recusarFinalizacao } = useOS();
     const { user } = useAuth();
     const { currentUserProfile } = useUsers();
     const { addNotification } = useNotification();
@@ -157,6 +157,20 @@ export default function Aprovacoes() {
             addNotification(error.message || 'Nao foi possivel mover a SI no kanban.', 'error');
         }
     };
+
+    const handleRefuseFinalization = async (order) => {
+        if (!canMove) {
+            return;
+        }
+
+        try {
+            await recusarFinalizacao(order.id, actor);
+            addNotification(`Solicitação de finalização da SI "${order.titulo}" recusada.`, 'warning');
+        } catch (error) {
+            addNotification(error.message || 'Não foi possível recusar a solicitação de finalização.', 'error');
+        }
+    };
+
 
     const getNextStages = (currentStage) => {
         if (currentStage === ApprovalStage.SOLICITADA) {
@@ -237,7 +251,10 @@ export default function Aprovacoes() {
                                                     setDraggingId(order.id);
                                                     event.dataTransfer.setData('text/plain', order.id);
                                                 }}
-                                                onDragEnd={() => setDraggingId(null)}
+                                                onDragEnd={() => {
+                                                    setDraggingId(null);
+                                                    // Optionally, if the drag was successful, you might want to clear the state here
+                                                }}
                                                 onClick={() => navigate('/ordens', { state: { expandOsId: order.id } })}
                                                 className={`rounded-xl border border-hotel-gray/60 bg-white p-3 shadow-sm transition-all hover:border-hotel-blue/50 hover:shadow-md cursor-pointer ${canMove ? 'cursor-grab active:cursor-grabbing hover:bg-hotel-light/40' : ''}`}
                                             >
@@ -262,6 +279,21 @@ export default function Aprovacoes() {
                                                         Solicitada em {new Date(order.aprovacao_finalizacao_solicitada_em || order.criado_em).toLocaleString('pt-BR')}
                                                     </p>
                                                 </div>
+
+                                                {canMove && (order.aprovacao_finalizacao_status === ApprovalStage.SOLICITADA || order.aprovacao_finalizacao_status === ApprovalStage.EM_ANALISE) && (
+                                                    <div className="mt-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRefuseFinalization(order);
+                                                            }}
+                                                            className="inline-flex items-center gap-1 rounded-full border border-red-400 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700 transition-colors hover:border-red-500 hover:bg-red-100"
+                                                        >
+                                                            Recusar Finalização
+                                                        </button>
+                                                    </div>
+                                                )}
 
                                                 {canMove && nextStages.length > 0 && order.status !== StatusOS.CONCLUIDO && (
                                                     <div className="mt-3 flex flex-wrap gap-2">
