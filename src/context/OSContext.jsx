@@ -84,11 +84,11 @@ function normalizeOrder(id, data) {
     };
 }
 
-function normalizeIdentityValue(value) {
+export function normalizeIdentityValue(value) {
     return String(value || '').trim().toLowerCase();
 }
 
-function matchesCoResponsavel(order, actor) {
+export function matchesCoResponsavel(order, actor) {
     if (!order || !actor || !Array.isArray(order.co_responsaveis)) {
         return false;
     }
@@ -116,7 +116,7 @@ function matchesCoResponsavel(order, actor) {
     });
 }
 
-function matchesOrderActor(order, actor, prefix) {
+export function matchesOrderActor(order, actor, prefix) {
     if (!order || !actor) {
         return false;
     }
@@ -143,6 +143,27 @@ function matchesOrderActor(order, actor, prefix) {
     }
 
     return false;
+}
+
+export function isPrimaryResponsible(order, actor) {
+    if (!order || !actor) {
+        return false;
+    }
+
+    const actorIds = [actor.id, actor.firebaseUid]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+    const orderIds = [order.responsavel_id, order.responsavel_uid]
+        .map(normalizeIdentityValue)
+        .filter(Boolean);
+
+    if (actorIds.some((id) => orderIds.includes(id))) {
+        return true;
+    }
+
+    const actorEmail = normalizeIdentityValue(actor.email);
+    const orderEmail = normalizeIdentityValue(order.responsavel_email);
+    return actorEmail && orderEmail && actorEmail === orderEmail;
 }
 
 function capitalizeFirstLetter(value) {

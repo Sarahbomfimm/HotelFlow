@@ -1,21 +1,4 @@
 ﻿
-function matchesAssignedLeader(os, leader) {
-    if (!os || !leader) return false;
-
-    if (
-        os.responsavel_id === leader.id
-        || (leader.firebaseUid && os.responsavel_uid === leader.firebaseUid)
-        || (leader.email && os.responsavel_email?.toLowerCase() === leader.email.toLowerCase())
-    ) {
-        return true;
-    }
-
-    return Array.isArray(os.co_responsaveis) && os.co_responsaveis.some((responsavel) => (
-        responsavel.id === leader.id
-        || (leader.firebaseUid && responsavel.uid === leader.firebaseUid)
-        || (leader.email && responsavel.email?.toLowerCase() === leader.email.toLowerCase())
-    ));
-}
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -26,6 +9,7 @@ import PDCABadge from '../../components/Badge/PDCABadge';
 import StatusBadge from '../../components/Badge/StatusBadge';
 import StatusObservacaoModal from '../../components/Modal/StatusObservacaoModal';
 import { useOS } from '../../context/OSContext';
+import { matchesOrderActor, isPrimaryResponsible } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUsers } from '../../context/UsersContext';
 import { useNotification } from '../../context/NotificationContext';
@@ -38,84 +22,6 @@ import { isOrderInSelectedDashboardMonth } from '../../utils/osMonthRules';
 
 const DEPARTAMENTO_TESTE = 'Teste';
 const TELEGRAM_PROMO_EVENT = 'hotelflow:open-telegram-banner';
-
-function normalizeIdentityValue(value) {
-    return String(value || '').trim().toLowerCase();
-}
-
-function matchesOrderActor(order, actor, prefix) {
-    if (!order || !actor) {
-        return false;
-    }
-
-    if (prefix === 'responsavel' && Array.isArray(order.co_responsaveis)) {
-        const actorIds = [actor.id, actor.firebaseUid]
-            .map(normalizeIdentityValue)
-            .filter(Boolean);
-        const actorEmail = normalizeIdentityValue(actor.email);
-
-        const isCoResponsavel = order.co_responsaveis.some((responsavel) => {
-            const responsavelIds = [responsavel.id, responsavel.uid]
-                .map(normalizeIdentityValue)
-                .filter(Boolean);
-
-            if (actorIds.some((id) => responsavelIds.includes(id))) {
-                return true;
-            }
-
-            const responsavelEmail = normalizeIdentityValue(responsavel.email);
-            if (actorEmail && responsavelEmail && actorEmail === responsavelEmail) {
-                return true;
-            }
-
-            return false;
-        });
-
-        if (isCoResponsavel) {
-            return true;
-        }
-    }
-
-    const actorIds = [actor.id, actor.firebaseUid]
-        .map(normalizeIdentityValue)
-        .filter(Boolean);
-    const orderIds = [order[`${prefix}_id`], order[`${prefix}_uid`]]
-        .map(normalizeIdentityValue)
-        .filter(Boolean);
-
-    if (actorIds.some((id) => orderIds.includes(id))) {
-        return true;
-    }
-
-    const actorEmail = normalizeIdentityValue(actor.email);
-    const orderEmail = normalizeIdentityValue(order[`${prefix}_email`]);
-    if (actorEmail && orderEmail && actorEmail === orderEmail) {
-        return true;
-    }
-
-    return false;
-}
-
-function isPrimaryResponsible(order, actor) {
-    if (!order || !actor) {
-        return false;
-    }
-
-    const actorIds = [actor.id, actor.firebaseUid]
-        .map(normalizeIdentityValue)
-        .filter(Boolean);
-    const orderIds = [order.responsavel_id, order.responsavel_uid]
-        .map(normalizeIdentityValue)
-        .filter(Boolean);
-
-    if (actorIds.some((id) => orderIds.includes(id))) {
-        return true;
-    }
-
-    const actorEmail = normalizeIdentityValue(actor.email);
-    const orderEmail = normalizeIdentityValue(order.responsavel_email);
-    return actorEmail && orderEmail && actorEmail === orderEmail;
-}
 
 function StatCard({ icon: Icon, label, value, colorClass, onClick }) {
     return (
@@ -200,16 +106,14 @@ export default function DashboardLider() {
     );
 
     const minhasSIs = useMemo(
-        () => ordensMes.filter((o) =>
-            isPrimaryResponsible(o, actor)
-        ),
+        () => ordensMes.filter((o) => matchesOrderActor(o, actor, 'responsavel')),
         [ordensMes, actor],
     );
 
     const abertosPorMim = useMemo(
         () => ordensMes.filter(
             (o) => matchesOrderActor(o, actor, 'criado_por')
-                && !isPrimaryResponsible(o, actor),
+                && !matchesOrderActor(o, actor, 'responsavel'),
         ),
         [ordensMes, actor],
     );
@@ -493,7 +397,7 @@ export default function DashboardLider() {
                                         lista.map((os) => {
                                             const atrasada = isSIOverdue(os);
                                             const prazoEstimadoCard = getLeaderEstimatedDeadlineValue(os);
-                                            const isResponsavel = matchesAssignedLeader(os, actor);
+                                            const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
                                             const podeAtualizar = os.status !== StatusOS.CONCLUIDO
                                                 && isResponsavel
                                                 && (os.status !== StatusOS.EM_ANDAMENTO || canFinalizeSI);
