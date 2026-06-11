@@ -45,7 +45,7 @@ function progressPercent(step) {
 }
 
 export default function PDCAVisualPage() {
-    const { ordens } = useOS();
+    const { ordens, getOSPorLider } = useOS();
     const { user } = useAuth();
     const [selectedDepartment, setSelectedDepartment] = useState('');
     const [periodRange, setPeriodRange] = useState([null, null]);
@@ -62,14 +62,13 @@ export default function PDCAVisualPage() {
     );
 
     const base = useMemo(() => {
-        return ordens
+        let osList = ordens;
+        if (user?.role === UserRole.LIDER) {
+            osList = getOSPorLider(user?.departamentos || [], user);
+        }
+
+        return osList
             .filter((os) => os.departamento !== 'Teste')
-            .filter((os) => {
-                if (user?.role === UserRole.LIDER) {
-                    return os.responsavel_id === user.id;
-                }
-                return true;
-            })
             .filter((os) => {
                 if (!selectedDepartment) {
                     return true;
@@ -94,7 +93,7 @@ export default function PDCAVisualPage() {
 
                 return new Date(os.prazo) <= endDate;
             });
-    }, [ordens, periodEnd, periodStart, selectedDepartment, user]);
+    }, [ordens, periodEnd, periodStart, selectedDepartment, user, getOSPorLider]);
 
     const stats = useMemo(() => {
         const abertas = base.filter((os) => os.status === StatusOS.ABERTO).length;
