@@ -507,8 +507,15 @@ export default function ListaOS() {
         const isExpanded = expanded === os.id;
         const prazoEstimadoCard = getLeaderEstimatedDeadlineValue(os);
         const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
-        const canStart = os.status === StatusOS.ABERTO && isResponsavel;
-        const canConcludeDirectly = os.status === StatusOS.EM_ANDAMENTO && isResponsavel && canFinalizeSI && canMoveApprovals;
+        const isCriador = matchesOrderActor(os, actor, 'criado_por');
+        const isLider = actor?.role === UserRole.LIDER;
+        const isInDept = actorDepartments && actorDepartments.includes(os.departamento);
+        const isLiderOfDept = isLider && isInDept;
+        
+        const canStart = os.status === StatusOS.ABERTO && (isResponsavel || isCriador || isLiderOfDept);
+        const canConcludeDirectly = os.status === StatusOS.EM_ANDAMENTO && (
+            isCriador || isLiderOfDept || (isResponsavel && canFinalizeSI && canMoveApprovals)
+        );
         const hasPendingApproval = [ApprovalStage.SOLICITADA, ApprovalStage.EM_ANALISE].includes(os.aprovacao_finalizacao_status);
         const canRequestFinalization = os.status === StatusOS.EM_ANDAMENTO && isResponsavel && !canConcludeDirectly && !hasPendingApproval;
         const hasDownloadables = Boolean(
@@ -518,7 +525,6 @@ export default function ListaOS() {
         const podeRegistrarProgressoSemFinalizar = os.status === StatusOS.EM_ANDAMENTO
             && isResponsavel
             && !canConcludeDirectly;
-        const isCriador = matchesOrderActor(os, actor, 'criado_por');
         const podeEditar = canEditSI && (isDiretora || isCriador);
         const podeExcluir = isCriador;
 

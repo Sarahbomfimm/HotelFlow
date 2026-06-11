@@ -57,5 +57,5 @@ export function isOrderInSelectedDashboardMonth(order, selectedMonthDate) {
 
     return isSameMonth(selectedMonthDate, new Date())
         && order.status !== StatusOS.CONCLUIDO
-        && isSameMonth(createdAt, subMonths(selectedMonthDate, 1));
+        && createdAt < selectedMonthDate;
 }

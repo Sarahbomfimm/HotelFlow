@@ -106,15 +106,16 @@ export default function DashboardLider() {
     );
 
     const minhasSIs = useMemo(
-        () => ordensMes.filter((o) => matchesOrderActor(o, actor, 'responsavel')),
-        [ordensMes, actor],
+        () => ordensMes.filter((o) => {
+            const isResp = matchesOrderActor(o, actor, 'responsavel');
+            const isInDept = actorDepartments && actorDepartments.includes(o.departamento);
+            return isResp || isInDept;
+        }),
+        [ordensMes, actor, actorDepartments],
     );
 
     const abertosPorMim = useMemo(
-        () => ordensMes.filter(
-            (o) => matchesOrderActor(o, actor, 'criado_por')
-                && !matchesOrderActor(o, actor, 'responsavel'),
-        ),
+        () => ordensMes.filter((o) => matchesOrderActor(o, actor, 'criado_por')),
         [ordensMes, actor],
     );
 
@@ -388,7 +389,7 @@ export default function DashboardLider() {
                             const lista = tab === 'minhas' ? minhasSIs : abertosPorMim;
                             const msgVazia = tab === 'minhas'
                                 ? 'Nenhuma SI atribuída a você no momento.'
-                                : 'Você não abriu nenhuma SI para outro departamento.';
+                                : 'Você não abriu nenhuma SI.';
                             return (
                                 <div className="flex-1 space-y-3 min-h-[34rem] overflow-y-auto pr-1">
                                     {lista.length === 0 ? (
@@ -398,9 +399,14 @@ export default function DashboardLider() {
                                             const atrasada = isSIOverdue(os);
                                             const prazoEstimadoCard = getLeaderEstimatedDeadlineValue(os);
                                             const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
+                                            const isCriador = matchesOrderActor(os, actor, 'criado_por');
+                                            const isInDept = actorDepartments && actorDepartments.includes(os.departamento);
+                                            const canConclude = canFinalizeSI || isCriador || isInDept;
                                             const podeAtualizar = os.status !== StatusOS.CONCLUIDO
-                                                && isResponsavel
-                                                && (os.status !== StatusOS.EM_ANDAMENTO || canFinalizeSI);
+                                                && (
+                                                    (os.status === StatusOS.ABERTO && (isResponsavel || isCriador || isInDept))
+                                                    || (os.status === StatusOS.EM_ANDAMENTO && (isResponsavel || isCriador || isInDept) && canConclude)
+                                                );
                                             return (
                                                 <div
                                                     key={os.id}

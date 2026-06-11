@@ -142,6 +142,12 @@ export function matchesOrderActor(order, actor, prefix) {
         return true;
     }
 
+    const actorNome = normalizeIdentityValue(actor.nome);
+    const orderNome = normalizeIdentityValue(order[`${prefix}_nome`]);
+    if (actorNome && orderNome && actorNome === orderNome) {
+        return true;
+    }
+
     return false;
 }
 
@@ -388,17 +394,19 @@ export function OSProvider({ children }) {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
-        if (novoStatus === StatusOS.CONCLUIDO && !hasPermission(usuario, PERMISSIONS.SI_FINALIZE)) {
+        const isCriador = matchesOrderActor(os, usuario, 'criado_por');
+
+        if (novoStatus === StatusOS.CONCLUIDO && !hasPermission(usuario, PERMISSIONS.SI_FINALIZE) && !isCriador) {
             throw new Error('Você não tem permissão para finalizar SI.');
         }
 
         // O responsável pode alterar o fluxo normal; diretoria/admin podem concluir qualquer SI.
         const isResponsavel = matchesOrderActor(os, usuario, 'responsavel');
         const isManagement = isManagementRole(usuario?.role);
-        const canManagementFinalize = isManagement && novoStatus === StatusOS.CONCLUIDO;
+        const canManagementFinalize = (isManagement || isCriador) && novoStatus === StatusOS.CONCLUIDO;
 
         if (!isResponsavel && !canManagementFinalize) {
-            throw new Error('Apenas o responsável designado pode alterar o status desta SI. Diretoria/Admin podem apenas finalizá-la.');
+            throw new Error('Apenas o responsável designado pode alterar o status desta SI. Diretoria/Admin e o criador podem finalizá-la.');
         }
 
         const base = `Status alterado de ${StatusLabel[os.status]} para ${StatusLabel[novoStatus]}.`;
@@ -827,6 +835,10 @@ export function OSProvider({ children }) {
 
                 const isAssigned = matchesOrderActor(os, usuario, 'responsavel');
                 if (isAssigned) return true;
+
+                if (departamentos && departamentos.length > 0 && departamentos.includes(os.departamento)) {
+                    return true;
+                }
 
                 return false;
             }),
