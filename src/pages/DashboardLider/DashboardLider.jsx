@@ -401,11 +401,11 @@ export default function DashboardLider() {
                                             const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
                                             const isCriador = matchesOrderActor(os, actor, 'criado_por');
                                             const isInDept = actorDepartments && actorDepartments.includes(os.departamento);
-                                            const canConclude = canFinalizeSI || isCriador || isInDept;
+                                            const canConclude = isCriador || (canFinalizeSI && hasPermission(actor, PERMISSIONS.SI_APPROVALS_MOVE));
                                             const podeAtualizar = os.status !== StatusOS.CONCLUIDO
                                                 && (
                                                     (os.status === StatusOS.ABERTO && (isResponsavel || isCriador || isInDept))
-                                                    || (os.status === StatusOS.EM_ANDAMENTO && (isResponsavel || isCriador || isInDept) && canConclude)
+                                                    || (os.status === StatusOS.EM_ANDAMENTO && (isCriador || (isResponsavel && canConclude)))
                                                 );
                                             return (
                                                 <div

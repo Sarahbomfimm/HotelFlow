@@ -146,7 +146,7 @@ export function getDefaultPermissions(role) {
         [PERMISSIONS.REUNIOES_ACCESS]: true,
         [PERMISSIONS.REUNIOES_MANAGE]: true,
         [PERMISSIONS.HISTORICO_ACCESS]: false,
-        [PERMISSIONS.SI_FINALIZE]: true,
+        [PERMISSIONS.SI_FINALIZE]: false,
         [PERMISSIONS.SI_EDIT]: true,
     };
 }

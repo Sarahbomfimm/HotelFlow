@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, ChevronDown, ChevronUp, Trash2, X,
@@ -512,9 +512,9 @@ export default function ListaOS() {
         const isInDept = actorDepartments && actorDepartments.includes(os.departamento);
         const isLiderOfDept = isLider && isInDept;
         
-        const canStart = os.status === StatusOS.ABERTO && (isResponsavel || isCriador || isLiderOfDept);
+        const canStart = os.status === StatusOS.ABERTO && (isResponsavel || isCriador || isLiderOfDept || isDiretora);
         const canConcludeDirectly = os.status === StatusOS.EM_ANDAMENTO && (
-            isCriador || isLiderOfDept || (isResponsavel && canFinalizeSI && canMoveApprovals)
+            isCriador || isDiretora || (isResponsavel && canFinalizeSI && canMoveApprovals)
         );
         const hasPendingApproval = [ApprovalStage.SOLICITADA, ApprovalStage.EM_ANALISE].includes(os.aprovacao_finalizacao_status);
         const canRequestFinalization = os.status === StatusOS.EM_ANDAMENTO && isResponsavel && !canConcludeDirectly && !hasPendingApproval;
