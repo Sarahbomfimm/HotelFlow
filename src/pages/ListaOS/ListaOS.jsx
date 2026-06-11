@@ -80,6 +80,12 @@ function matchesOrderActor(order, actor, prefix) {
         return true;
     }
 
+    const actorNome = normalizeIdentityValue(actor.nome);
+    const orderNome = normalizeIdentityValue(order[`${prefix}_nome`]);
+    if (actorNome && orderNome && actorNome === orderNome) {
+        return true;
+    }
+
     return false;
 }
 
@@ -230,7 +236,6 @@ export default function ListaOS() {
     const actorDepartments = actor?.departamentos || [];
     const isDiretora = actor?.role === UserRole.DIRETORA || actor?.role === UserRole.ADMIN;
     const canFinalizeSI = hasPermission(actor, PERMISSIONS.SI_FINALIZE);
-    const canEditSI = hasPermission(actor, PERMISSIONS.SI_EDIT);
     const canMoveApprovals = hasPermission(actor, PERMISSIONS.SI_APPROVALS_MOVE);
     const isAbertasPorMimRoute = location.pathname === '/ordens/abertas-por-mim';
 
@@ -525,7 +530,7 @@ export default function ListaOS() {
         const podeRegistrarProgressoSemFinalizar = os.status === StatusOS.EM_ANDAMENTO
             && isResponsavel
             && !canConcludeDirectly;
-        const podeEditar = canEditSI && (isDiretora || isCriador);
+        const podeEditar = isDiretora || isCriador;
         const podeExcluir = isCriador;
 
         return (

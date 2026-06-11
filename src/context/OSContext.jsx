@@ -1,4 +1,4 @@
-﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+﻿﻿﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
     collection,
     deleteDoc,
@@ -684,10 +684,6 @@ export function OSProvider({ children }) {
     const editarOS = useCallback(async (osId, atualizacoes, usuario) => {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
-
-        if (!hasPermission(usuario, PERMISSIONS.SI_EDIT)) {
-            throw new Error('Você não tem permissão para editar SI.');
-        }
 
         // Diretora pode editar qualquer SI; demais usuários apenas as criadas por si mesmos.
         const isDiretora = isManagementRole(usuario?.role);
