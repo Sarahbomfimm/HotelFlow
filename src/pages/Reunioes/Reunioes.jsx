@@ -11,7 +11,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { RecorrenciaLabel, StatusLabel, RecorrenciaReuniao } from '../../models/Reuniao';
 import { hasPermission, PERMISSIONS } from '../../services/permissions';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 function SeletorParticipantes({ participantes, onChange, todosUsers, currentUserId }) {
@@ -416,9 +416,11 @@ export default function Reunioes() {
     const detalheReuniaoRef = useRef(null);
 
     const diasMes = useMemo(() => {
-        const inicio = startOfMonth(mesAtual);
-        const fim = endOfMonth(mesAtual);
-        return eachDayOfInterval({ start: inicio, end: fim });
+        const inicioDoMes = startOfMonth(mesAtual);
+        const fimDoMes = endOfMonth(mesAtual);
+        const inicioCalendario = startOfWeek(inicioDoMes, { locale: ptBR });
+        const fimCalendario = endOfWeek(fimDoMes, { locale: ptBR });
+        return eachDayOfInterval({ start: inicioCalendario, end: fimCalendario });
     }, [mesAtual]);
 
     const reunioesDoMes = reunioesPorMes(mesAtual.getFullYear(), mesAtual.getMonth());
