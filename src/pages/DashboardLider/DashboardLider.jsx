@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    ClipboardList, CheckCircle2, Clock, AlertCircle, Send, PlusCircle, Play, Check,
+    ClipboardList, CheckCircle2, Clock, AlertCircle, Send, PlusCircle, Play, Check, ArrowRight,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
@@ -69,13 +69,15 @@ function PDCAStatCard({ etapa, total, onClick }) {
 export default function DashboardLider() {
     const { getOSPorLider, atualizarStatus, error: ordensError } = useOS();
     const { user } = useAuth();
+    const { lideres, currentUserProfile, updateTelegramChatId } = useUsers();
     const { addNotification } = useNotification();
-    const { currentUserProfile, updateTelegramChatId } = useUsers();
     const navigate = useNavigate();
     const displayName = currentUserProfile?.nome || user?.nome;
 
     const [obsModal, setObsModal] = useState({ open: false, os: null, novoStatus: null });
+    const [filterLider, setFilterLider] = useState('');
     const [tab, setTab] = useState('minhas');
+    const [filterStatus, setFilterStatus] = useState('');
     const [telegramInput, setTelegramInput] = useState('');
     const [telegramSaving, setTelegramSaving] = useState(false);
     const [showTelegramForm, setShowTelegramForm] = useState(false);
@@ -118,6 +120,28 @@ export default function DashboardLider() {
         () => ordensMes.filter((o) => matchesOrderActor(o, actor, 'criado_por')),
         [ordensMes, actor],
     );
+
+    const currentTabList = useMemo(() => {
+        if (tab === 'minhas') return minhasSIs;
+        if (tab === 'abertas') return abertosPorMim;
+        return [];
+    }, [tab, minhasSIs, abertosPorMim]);
+
+    const filteredList = useMemo(() => {
+        let list = currentTabList;
+
+        if (filterLider) {
+            const selectedLeader = lideres.find((l) => l.id === filterLider);
+            if (selectedLeader) {
+                list = list.filter((o) => matchesOrderActor(o, selectedLeader, 'responsavel'));
+            }
+        }
+
+        if (filterStatus) {
+            list = list.filter((o) => o.status === filterStatus);
+        }
+        return list;
+    }, [currentTabList, filterLider, filterStatus, lideres]);
 
     const stats = useMemo(() => ({
         total: minhasSIs.length,
@@ -359,14 +383,19 @@ export default function DashboardLider() {
 
                 <div className="grid gap-6 lg:grid-cols-3">
                     {/* Todas as OS */}
-                    <div className="lg:col-span-2 card animate-fadeIn flex min-h-[42rem] flex-col">
+                    <div className="lg:col-span-2 card animate-fadeIn">
+                        <div className="mb-4">
+                            <h3 className="font-heading font-semibold text-hotel-blue text-base">
+                                Solicitações Internas
+                            </h3>
+                        </div>
                         {/* Abas */}
-                        <div className="flex gap-1 mb-4 border-b border-hotel-gray">
+                        <div className="mb-4 flex gap-2 border-b border-hotel-gray">
                             <button
                                 onClick={() => setTab('minhas')}
-                                className={`px-4 py-2 text-sm font-semibold font-body rounded-t-lg transition-colors ${
+                                className={`pb-2 px-2 text-sm font-semibold font-body transition-colors ${
                                     tab === 'minhas'
-                                        ? 'bg-hotel-blue text-white'
+                                        ? 'text-hotel-blue border-b-2 border-hotel-blue'
                                         : 'text-hotel-gray-md hover:text-hotel-blue'
                                 }`}
                             >
@@ -374,14 +403,46 @@ export default function DashboardLider() {
                             </button>
                             <button
                                 onClick={() => setTab('abertas')}
-                                className={`px-4 py-2 text-sm font-semibold font-body rounded-t-lg transition-colors ${
+                                className={`pb-2 px-2 text-sm font-semibold font-body transition-colors ${
                                     tab === 'abertas'
-                                        ? 'bg-hotel-blue text-white'
+                                        ? 'text-hotel-blue border-b-2 border-hotel-blue'
                                         : 'text-hotel-gray-md hover:text-hotel-blue'
                                 }`}
                             >
                                 SIs abertas por mim ({abertosPorMim.length})
                             </button>
+                        </div>
+
+                        {/* Filtros */}
+                        <div className="flex flex-wrap gap-3 mb-4">
+                            <select
+                                value={filterLider}
+                                onChange={(e) => setFilterLider(e.target.value)}
+                                className="input py-1.5 text-xs w-auto flex-1 min-w-[140px]"
+                            >
+                                <option value="">Todos os líderes</option>
+                                {lideres.map((l) => (
+                                    <option key={l.id} value={l.id}>{l.nome}</option>
+                                ))}
+                            </select>
+                            <select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                                className="input py-1.5 text-xs w-auto flex-1 min-w-[130px]"
+                            >
+                                <option value="">Todos os status</option>
+                                {Object.entries(StatusLabel).map(([k, v]) => (
+                                    <option key={k} value={k}>{v}</option>
+                                ))}
+                            </select>
+                            {(filterLider || filterStatus) && (
+                                <button
+                                    onClick={() => { setFilterLider(''); setFilterStatus(''); }}
+                                    className="text-xs text-hotel-gray-md hover:text-red-500 transition-colors px-2"
+                                >
+                                    Limpar
+                                </button>
+                            )}
                         </div>
 
                         {/* Lista da aba ativa */}
@@ -391,11 +452,11 @@ export default function DashboardLider() {
                                 ? 'Nenhuma SI atribuída a você no momento.'
                                 : 'Você não abriu nenhuma SI.';
                             return (
-                                <div className="flex-1 space-y-3 min-h-[34rem] overflow-y-auto pr-1">
-                                    {lista.length === 0 ? (
-                                        <p className="text-center text-hotel-gray-md text-sm py-10">{msgVazia}</p>
+                                <div className="space-y-2.5 max-h-[30rem] overflow-y-auto pr-1">
+                                    {filteredList.length === 0 ? (
+                                        <p className="text-center text-hotel-gray-md text-sm py-10">Nenhuma SI encontrada com os filtros selecionados.</p>
                                     ) : (
-                                        lista.map((os) => {
+                                        filteredList.map((os) => {
                                             const atrasada = isSIOverdue(os);
                                             const prazoEstimadoCard = getLeaderEstimatedDeadlineValue(os);
                                             const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
@@ -462,6 +523,15 @@ export default function DashboardLider() {
                                 </div>
                             );
                         })()}
+
+                        {filteredList.length > 8 && (
+                            <button
+                                onClick={() => navigate('/ordens')}
+                                className="mt-7 flex w-full items-center justify-center gap-1 rounded-xl border border-hotel-gold/30 bg-gradient-to-r from-hotel-gold/10 via-white to-hotel-blue/5 px-4 py-2.5 text-sm font-semibold text-hotel-blue shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-hotel-gold/60 hover:text-hotel-gold hover:shadow-md"
+                            >
+                                Ver todas <ArrowRight size={14} />
+                            </button>
+                        )}
                     </div>
 
                     {/* Urgentes */}
