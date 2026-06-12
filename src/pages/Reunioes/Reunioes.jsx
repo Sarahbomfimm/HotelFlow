@@ -11,7 +11,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { RecorrenciaLabel, StatusLabel, RecorrenciaReuniao } from '../../models/Reuniao';
 import { hasPermission, PERMISSIONS } from '../../services/permissions';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, startOfWeek, endOfWeek } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 function SeletorParticipantes({ participantes, onChange, todosUsers, currentUserId }) {
@@ -400,7 +400,7 @@ function HistoricoReuniaoModal({ isOpen, onClose, historico = [] }) {
 }
 
 export default function Reunioes() {
-    const { reunioes, criarReuniao, atualizarReuniao, deletarReuniao, reunioesPorMes } = useReuniao();
+    const { reunioes, criarReuniao, atualizarReuniao, deletarReuniao } = useReuniao();
     const { user } = useAuth();
     const { addNotification, notifications, marcarLida } = useNotification();
     const { users: todosUsers, currentUserProfile } = useUsers();
@@ -423,7 +423,59 @@ export default function Reunioes() {
         return eachDayOfInterval({ start: inicioCalendario, end: fimCalendario });
     }, [mesAtual]);
 
-    const reunioesDoMes = reunioesPorMes(mesAtual.getFullYear(), mesAtual.getMonth());
+    const reunioesExpandidas = useMemo(() => {
+        if (!reunioes || reunioes.length === 0 || diasMes.length === 0) return [];
+        
+        const inicioCalendario = diasMes[0];
+        const fimCalendario = diasMes[diasMes.length - 1];
+        const expandidas = [];
+
+        reunioes.forEach((reuniao) => {
+            const rec = String(reuniao.recorrencia || '').toLowerCase();
+            if (!rec || rec === 'nenhuma' || rec === 'undefined') {
+                expandidas.push({ ...reuniao, instanceId: reuniao.id });
+                return;
+            }
+
+            let proximaData = new Date(reuniao.data_inicio);
+            const dataFim = reuniao.data_fim ? new Date(reuniao.data_fim) : new Date(reuniao.data_inicio);
+            const duracao = dataFim.getTime() - new Date(reuniao.data_inicio).getTime();
+
+            while (proximaData <= fimCalendario) {
+                if (proximaData >= inicioCalendario || isSameDay(proximaData, inicioCalendario) || isSameMonth(proximaData, mesAtual)) {
+                    expandidas.push({
+                        ...reuniao,
+                        data_inicio: proximaData.toISOString(),
+                        data_fim: new Date(proximaData.getTime() + duracao).toISOString(),
+                        instanceId: `${reuniao.id}-${proximaData.toISOString()}`
+                    });
+                }
+
+                let dataAvancada = null;
+                if (rec === 'semanal' || rec === 'semanalmente') {
+                    dataAvancada = addWeeks(proximaData, 1);
+                } else if (rec === 'quinzenal' || rec === 'quinzenalmente') {
+                    dataAvancada = addWeeks(proximaData, 2);
+                } else if (rec === 'mensal' || rec === 'mensalmente') {
+                    dataAvancada = addMonths(proximaData, 1);
+                }
+
+                if (dataAvancada && dataAvancada > proximaData) {
+                    proximaData = dataAvancada;
+                } else {
+                    break;
+                }
+            }
+        });
+
+        return expandidas;
+    }, [reunioes, diasMes, mesAtual]);
+
+    const reunioesDoMes = useMemo(() => {
+        return reunioesExpandidas.filter((r) => {
+            return isSameMonth(new Date(r.data_inicio), mesAtual);
+        }).sort((a, b) => new Date(a.data_inicio) - new Date(b.data_inicio));
+    }, [reunioesExpandidas, mesAtual]);
 
     useEffect(() => {
         notifications
@@ -499,13 +551,13 @@ export default function Reunioes() {
     };
 
     const reunioesPorDia = (data) => {
-        return reunioesDoMes.filter((r) => {
+        return reunioesExpandidas.filter((r) => {
             const dataReuniao = new Date(r.data_inicio);
             return isSameDay(dataReuniao, data);
         });
     };
 
-    const totalReunioesHoje = reunioesDoMes.filter((r) => {
+    const totalReunioesHoje = reunioesExpandidas.filter((r) => {
         const dataReuniao = new Date(r.data_inicio);
         return isSameDay(dataReuniao, new Date());
     }).length;
@@ -752,13 +804,13 @@ export default function Reunioes() {
                         ) : (
                             <div className="max-h-[420px] overflow-y-auto divide-y divide-hotel-gray/10">
                                 {reunioesDoMes.map((reuniao) => {
-                                    const isAtiva = reuniaoSelecionada?.id === reuniao.id;
+                                    const isAtiva = reuniaoSelecionada?.instanceId ? reuniaoSelecionada.instanceId === reuniao.instanceId : reuniaoSelecionada?.id === reuniao.id;
                                     const dataR = new Date(reuniao.data_inicio);
                                     const isHoje = isSameDay(dataR, new Date());
                                     return (
                                         <button
                                             type="button"
-                                            key={reuniao.id}
+                                            key={reuniao.instanceId || reuniao.id}
                                             onClick={() => {
                                                 setReuniaoSelecionada(reuniao);
                                                 setDiaSelecionado(dataR);

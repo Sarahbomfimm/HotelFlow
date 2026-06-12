@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
     collection, query, addDoc, updateDoc, deleteDoc, doc, where, onSnapshot,
 } from 'firebase/firestore';
@@ -9,6 +9,26 @@ import { useAuth } from './AuthContext';
 import { StatusReuniao } from '../models/Reuniao';
 
 const ReuniaoContext = createContext(null);
+
+function toIsoDate(value) {
+    if (!value) {
+        return null;
+    }
+    if (typeof value === 'string') {
+        return value;
+    }
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+    if (typeof value?.toDate === 'function') {
+        return value.toDate().toISOString();
+    }
+    try {
+        // Tenta converter outros tipos, mas retorna null se falhar
+        const date = new Date(value);
+        return !Number.isNaN(date.getTime()) ? date.toISOString() : null;
+    } catch { return null; }
+}
 
 function normalizeText(value) {
     return String(value || '').trim();
@@ -85,18 +105,33 @@ function describeMeetingChanges(anterior, proxima) {
     return changes;
 }
 
+function normalizeReuniao(doc) {
+    const data = doc.data();
+    return {
+        id: doc.id,
+        ...data,
+        data_inicio: data.data_inicio ? toIsoDate(data.data_inicio) : null,
+        data_fim: data.data_fim ? toIsoDate(data.data_fim) : null,
+        criado_em: data.criado_em ? toIsoDate(data.criado_em) : null,
+        atualizado_em: data.atualizado_em ? toIsoDate(data.atualizado_em) : null,
+        historico: Array.isArray(data.historico)
+            ? data.historico.map((entry) => ({ ...entry, data: toIsoDate(entry?.data) }))
+            : [],
+    };
+}
+
 export function ReuniaoProvider({ children }) {
     const { user } = useAuth();
     const [reunioes, setReunioes] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const fetchReunioes = useCallback(async () => {
+    const fetchReunioes = useCallback(() => {
         const actorKeys = buildVisibilityKeys(user);
 
         if (!isFirebaseConfigured || !db || actorKeys.length === 0) {
             setReunioes([]);
-            return;
+            return () => {};
         }
 
         setLoading(true);
@@ -105,13 +140,9 @@ export function ReuniaoProvider({ children }) {
             collection(db, 'reunioes'),
             where('visivel_para', 'array-contains-any', actorKeys.slice(0, 10)),
         );
-
-        return onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs
-                .map((d) => ({
-                    id: d.id,
-                    ...d.data(),
-                }))
+                .map(normalizeReuniao)
                 .sort((a, b) => new Date(a.data_inicio) - new Date(b.data_inicio));
 
             setReunioes(data);
@@ -122,15 +153,12 @@ export function ReuniaoProvider({ children }) {
             setReunioes([]);
             setLoading(false);
         });
+        return unsubscribe;
     }, [user]);
 
     useEffect(() => {
         const unsubscribe = fetchReunioes();
-        return () => {
-            if (typeof unsubscribe === 'function') {
-                unsubscribe();
-            }
-        };
+        return unsubscribe;
     }, [fetchReunioes]);
 
     const criarReuniao = useCallback(async (reuniaoData) => {
