@@ -516,7 +516,10 @@ export default function ListaOS() {
         const isLider = actor?.role === UserRole.LIDER;
         const isInDept = actorDepartments && actorDepartments.includes(os.departamento);
         const isLiderOfDept = isLider && isInDept;
-        
+
+        const isActStage = os.etapa_pdca === PDCAStep.ACT;
+        const canReopen = (os.status === StatusOS.CONCLUIDO || (isActStage && os.status !== StatusOS.EM_ANDAMENTO)) && (isDiretora || isCriador || isResponsavel);
+
         const canStart = os.status === StatusOS.ABERTO && (isResponsavel || isCriador || isLiderOfDept || isDiretora);
         const canConcludeDirectly = os.status === StatusOS.EM_ANDAMENTO && (
             isCriador || isDiretora || (isResponsavel && canFinalizeSI && canMoveApprovals)
@@ -526,13 +529,12 @@ export default function ListaOS() {
         const hasDownloadables = Boolean(
             os.imagem || (Array.isArray(os.historico) && os.historico.some((h) => h.anexo_pdf_url)),
         );
-        const podeAtualizar = canStart || canConcludeDirectly;
+        const podeAtualizar = !canReopen && (canStart || canConcludeDirectly);
         const podeRegistrarProgressoSemFinalizar = os.status === StatusOS.EM_ANDAMENTO
             && isResponsavel
             && !canConcludeDirectly;
         const podeEditar = isDiretora || isCriador;
         const podeExcluir = isCriador;
-        const canReopen = os.status === StatusOS.CONCLUIDO && (isDiretora || isCriador);
 
         return (
             <div

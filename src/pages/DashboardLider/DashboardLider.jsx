@@ -462,14 +462,15 @@ export default function DashboardLider() {
                                             const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
                                             const isCriador = matchesOrderActor(os, actor, 'criado_por');
                                             const isInDept = actorDepartments && actorDepartments.includes(os.departamento);
-                                            const canConclude = isCriador || (canFinalizeSI && hasPermission(actor, PERMISSIONS.SI_APPROVALS_MOVE));
-                                            const podeAtualizar = os.status !== StatusOS.CONCLUIDO
-                                                && (
-                                                    (os.status === StatusOS.ABERTO && (isResponsavel || isCriador || isInDept))
-                                                    || (os.status === StatusOS.EM_ANDAMENTO && (isCriador || (isResponsavel && canConclude)))
-                                                );
+                                            const isActStage = os.etapa_pdca === PDCAStep.ACT;
                                             const isManagement = actor?.role === 'diretora' || actor?.role === 'admin';
-                                            const canReopen = os.status === StatusOS.CONCLUIDO && (isManagement || isCriador);
+                                            const canReopen = (os.status === StatusOS.CONCLUIDO || (isActStage && os.status !== StatusOS.EM_ANDAMENTO)) && (isManagement || isCriador || isResponsavel);
+
+                                            const canConclude = isCriador || (canFinalizeSI && hasPermission(actor, PERMISSIONS.SI_APPROVALS_MOVE));
+                                            const canStart = os.status === StatusOS.ABERTO && (isResponsavel || isCriador || isInDept);
+                                            const canConcludeLider = os.status === StatusOS.EM_ANDAMENTO && (isCriador || (isResponsavel && canConclude));
+                                            const podeAtualizar = !canReopen && (canStart || canConcludeLider);
+
                                             return (
                                                 <div
                                                     key={os.id}
