@@ -1,4 +1,4 @@
-﻿﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿﻿﻿﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, ChevronDown, ChevronUp, Trash2, X,
@@ -532,6 +532,7 @@ export default function ListaOS() {
             && !canConcludeDirectly;
         const podeEditar = isDiretora || isCriador;
         const podeExcluir = isCriador;
+        const canReopen = os.status === StatusOS.CONCLUIDO && (isDiretora || isCriador);
 
         return (
             <div
@@ -583,6 +584,15 @@ export default function ListaOS() {
                                 title={nextLabel[os.status]}
                             >
                                 {os.status === StatusOS.ABERTO ? <Play size={16} /> : <Check size={16} />}
+                            </button>
+                        )}
+                        {canReopen && (
+                            <button
+                                onClick={() => solicitarStatusChange(os, StatusOS.EM_ANDAMENTO)}
+                                className="flex-1 rounded-lg border border-hotel-blue/60 bg-hotel-blue/10 px-3 py-1.5 text-xs font-semibold text-hotel-blue transition-colors hover:bg-hotel-blue hover:text-white sm:flex-none flex items-center justify-center gap-1"
+                                title="Reativar SI"
+                            >
+                                <Play size={14} /> Reativar
                             </button>
                         )}
                         {canRequestFinalization && (

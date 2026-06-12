@@ -468,6 +468,8 @@ export default function DashboardLider() {
                                                     (os.status === StatusOS.ABERTO && (isResponsavel || isCriador || isInDept))
                                                     || (os.status === StatusOS.EM_ANDAMENTO && (isCriador || (isResponsavel && canConclude)))
                                                 );
+                                            const isManagement = actor?.role === 'diretora' || actor?.role === 'admin';
+                                            const canReopen = os.status === StatusOS.CONCLUIDO && (isManagement || isCriador);
                                             return (
                                                 <div
                                                     key={os.id}
@@ -513,6 +515,15 @@ export default function DashboardLider() {
                                                                 title={nextStatusLabel[os.status]}
                                                             >
                                                                 {os.status === StatusOS.ABERTO ? <Play size={16} /> : <Check size={16} />}
+                                                            </button>
+                                                        )}
+                                                        {canReopen && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); solicitarStatus(os, StatusOS.EM_ANDAMENTO); }}
+                                                                className="w-full flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-center text-xs sm:w-24 flex items-center justify-center gap-1 rounded-lg border border-hotel-blue/60 bg-hotel-blue/10 text-hotel-blue hover:bg-hotel-blue hover:text-white transition-colors"
+                                                                title="Reativar SI"
+                                                            >
+                                                                <Play size={14} /> Reativar
                                                             </button>
                                                         )}
                                                     </div>

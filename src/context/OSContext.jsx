@@ -404,24 +404,43 @@ export function OSProvider({ children }) {
         const isResponsavel = matchesOrderActor(os, usuario, 'responsavel');
         const isManagement = isManagementRole(usuario?.role);
         const canManagementFinalize = (isManagement || isCriador) && novoStatus === StatusOS.CONCLUIDO;
+        const canReopen = (isManagement || isCriador) && os.status === StatusOS.CONCLUIDO && novoStatus === StatusOS.EM_ANDAMENTO;
 
-        if (!isResponsavel && !canManagementFinalize) {
-            throw new Error('Apenas o responsável designado pode alterar o status desta SI. Diretoria/Admin e o criador podem finalizá-la.');
+        if (!isResponsavel && !canManagementFinalize && !canReopen) {
+            throw new Error('Apenas o responsável designado pode alterar o status desta SI. Diretoria/Admin e o criador podem finalizá-la ou reabri-la.');
         }
 
         const base = `Status alterado de ${StatusLabel[os.status]} para ${StatusLabel[novoStatus]}.`;
         const etapaPdca = novoStatus === StatusOS.CONCLUIDO ? PDCAStep.ACT : os.etapa_pdca;
         const concluidoEm = novoStatus === StatusOS.CONCLUIDO ? new Date().toISOString() : null;
-        const approvalPatch = novoStatus === StatusOS.CONCLUIDO
-            ? {
+
+        let approvalPatch = {};
+        if (novoStatus === StatusOS.CONCLUIDO) {
+            approvalPatch = {
                 aprovacao_finalizacao_status: ApprovalStage.FINALIZADA,
                 aprovacao_finalizacao_analisada_em: concluidoEm,
                 aprovacao_finalizacao_analisada_por_id: usuario.id || '',
                 aprovacao_finalizacao_analisada_por_uid: usuario.firebaseUid || usuario.id || '',
                 aprovacao_finalizacao_analisada_por_email: usuario.email?.toLowerCase() || '',
                 aprovacao_finalizacao_analisada_por_nome: usuario.nome || '',
-            }
-            : {};
+            };
+        } else if (os.status === StatusOS.CONCLUIDO && novoStatus === StatusOS.EM_ANDAMENTO) {
+            // Reabrindo a SI, limpa os campos de aprovação e finalização
+            approvalPatch = {
+                aprovacao_finalizacao_status: null,
+                aprovacao_finalizacao_solicitada_em: null,
+                aprovacao_finalizacao_solicitada_por_id: '',
+                aprovacao_finalizacao_solicitada_por_uid: '',
+                aprovacao_finalizacao_solicitada_por_email: '',
+                aprovacao_finalizacao_solicitada_por_nome: '',
+                aprovacao_finalizacao_analisada_em: null,
+                aprovacao_finalizacao_analisada_por_id: '',
+                aprovacao_finalizacao_analisada_por_uid: '',
+                aprovacao_finalizacao_analisada_por_email: '',
+                aprovacao_finalizacao_analisada_por_nome: '',
+            };
+        }
+
         const entrada = {
             data: concluidoEm || new Date().toISOString(),
             usuario_nome: usuario.nome,
