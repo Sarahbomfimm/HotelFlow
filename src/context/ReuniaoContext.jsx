@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
     collection, query, addDoc, updateDoc, deleteDoc, doc, where, onSnapshot,
 } from 'firebase/firestore';
@@ -240,8 +240,12 @@ export function ReuniaoProvider({ children }) {
                 ...(dados.participantes || []).flatMap((p) => buildVisibilityKeys(p)),
             ]));
             const camposAlterados = reuniaoAtual ? describeMeetingChanges(reuniaoAtual, dados) : [];
+
+            const { historico_adicional, ...dadosLimpos } = dados;
+
             const historico = [
                 ...(Array.isArray(reuniaoAtual?.historico) ? reuniaoAtual.historico : []),
+                ...(historico_adicional ? [buildHistoricoEntry(user?.nome, historico_adicional)] : []),
                 buildHistoricoEntry(
                     user?.nome,
                     camposAlterados.length > 0
@@ -249,7 +253,7 @@ export function ReuniaoProvider({ children }) {
                         : 'Reunião atualizada.',
                 ),
             ];
-            const payload = { ...dados, visivel_para: visivelPara, atualizado_em: new Date().toISOString(), historico };
+            const payload = { ...dadosLimpos, visivel_para: visivelPara, atualizado_em: new Date().toISOString(), historico };
 
             await updateDoc(doc(db, 'reunioes', id), payload);
 

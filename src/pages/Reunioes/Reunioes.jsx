@@ -399,6 +399,53 @@ function HistoricoReuniaoModal({ isOpen, onClose, historico = [] }) {
     );
 }
 
+function ModalRecusa({ isOpen, onClose, onConfirm }) {
+    const [motivo, setMotivo] = useState('');
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-hotel-gray/20 px-5 py-4 sm:px-6">
+                    <h3 className="font-heading text-lg font-bold text-hotel-blue">Recusar participação</h3>
+                    <button onClick={() => { setMotivo(''); onClose(); }} className="text-hotel-gray-md transition-colors hover:text-hotel-blue">
+                        <X size={20} />
+                    </button>
+                </div>
+                <div className="p-5 sm:p-6">
+                    <p className="text-sm text-hotel-gray-md">Por favor, informe o motivo de não poder participar desta reunião:</p>
+                    <textarea
+                        value={motivo}
+                        onChange={(e) => setMotivo(e.target.value)}
+                        className="input mt-3 min-h-[100px] w-full resize-none"
+                        placeholder="Ex: Conflito de agenda, Férias..."
+                    />
+                </div>
+                <div className="flex justify-end gap-3 border-t border-hotel-gray/20 px-5 py-4 sm:px-6">
+                    <button
+                        onClick={() => { setMotivo(''); onClose(); }}
+                        className="rounded-xl border border-hotel-gray/50 bg-white px-4 py-2 text-sm font-semibold text-hotel-gray-md hover:bg-hotel-light"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={() => {
+                            if (!motivo.trim()) return;
+                            onConfirm(motivo.trim());
+                            setMotivo('');
+                        }}
+                        disabled={!motivo.trim()}
+                        className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                    >
+                        Confirmar recusa
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function Reunioes() {
     const { reunioes, criarReuniao, atualizarReuniao, deletarReuniao } = useReuniao();
     const { user } = useAuth();
@@ -413,6 +460,7 @@ export default function Reunioes() {
     const [diaSelecionado, setDiaSelecionado] = useState(new Date());
     const [confirmDelete, setConfirmDelete] = useState(null); // id da reunião a deletar
     const [historicoAberto, setHistoricoAberto] = useState(false);
+    const [modalRecusaAberto, setModalRecusaAberto] = useState(false);
     const detalheReuniaoRef = useRef(null);
 
     const diasMes = useMemo(() => {
@@ -423,14 +471,23 @@ export default function Reunioes() {
         return eachDayOfInterval({ start: inicioCalendario, end: fimCalendario });
     }, [mesAtual]);
 
+    const reunioesFiltradas = useMemo(() => {
+        return reunioes.filter((r) => {
+            const isRecusado = r.participantes?.some(
+                (p) => (p.id === actor?.id || p.uid === actor?.firebaseUid || p.email === actor?.email) && p.status === 'RECUSADO'
+            );
+            return !isRecusado;
+        });
+    }, [reunioes, actor]);
+
     const reunioesExpandidas = useMemo(() => {
-        if (!reunioes || reunioes.length === 0 || diasMes.length === 0) return [];
+        if (!reunioesFiltradas || reunioesFiltradas.length === 0 || diasMes.length === 0) return [];
         
         const inicioCalendario = diasMes[0];
         const fimCalendario = diasMes[diasMes.length - 1];
         const expandidas = [];
 
-        reunioes.forEach((reuniao) => {
+        reunioesFiltradas.forEach((reuniao) => {
             const rec = String(reuniao.recorrencia || '').toLowerCase();
             if (!rec || rec === 'nenhuma' || rec === 'undefined') {
                 expandidas.push({ ...reuniao, instanceId: reuniao.id });
@@ -469,7 +526,7 @@ export default function Reunioes() {
         });
 
         return expandidas;
-    }, [reunioes, diasMes, mesAtual]);
+    }, [reunioesFiltradas, diasMes, mesAtual]);
 
     const reunioesDoMes = useMemo(() => {
         return reunioesExpandidas.filter((r) => {
@@ -514,6 +571,56 @@ export default function Reunioes() {
             setReuniaoEditando(null);
         } catch (err) {
             addNotification(err.message, 'error');
+        }
+    };
+
+    const handleRecusarParticipacao = async (motivo) => {
+        if (!reuniaoSelecionada) return;
+        try {
+            const novosParticipantes = reuniaoSelecionada.participantes.map((p) => {
+                if (p.id === actor?.id || p.uid === actor?.firebaseUid || p.email === actor?.email) {
+                    return { ...p, status: 'RECUSADO', motivo_recusa: motivo };
+                }
+                return p;
+            });
+
+            const payload = {
+                ...reuniaoSelecionada,
+                participantes: novosParticipantes,
+                historico_adicional: `Recusou a participação. Motivo: ${motivo}`,
+            };
+
+            await atualizarReuniao(reuniaoSelecionada.id, payload);
+            setReuniaoSelecionada(null); // Fecha os detalhes imediatamente após a recusa
+            addNotification('Participação recusada e motivo registrado.', 'success');
+            setModalRecusaAberto(false);
+        } catch (err) {
+            addNotification('Não foi possível recusar a participação.', 'error');
+        }
+    };
+
+    const handleAceitarNovamente = async () => {
+        if (!reuniaoSelecionada) return;
+        try {
+            const novosParticipantes = reuniaoSelecionada.participantes.map((p) => {
+                if (p.id === actor?.id || p.uid === actor?.firebaseUid || p.email === actor?.email) {
+                    const { status, motivo_recusa, ...resto } = p;
+                    return resto;
+                }
+                return p;
+            });
+
+            const payload = {
+                ...reuniaoSelecionada,
+                participantes: novosParticipantes,
+                historico_adicional: 'Confirmou participação (desfez a recusa).',
+            };
+
+            const atualizada = await atualizarReuniao(reuniaoSelecionada.id, payload);
+            setReuniaoSelecionada(atualizada);
+            addNotification('Participação confirmada novamente.', 'success');
+        } catch (err) {
+            addNotification('Não foi possível confirmar a participação.', 'error');
         }
     };
 
@@ -584,6 +691,14 @@ export default function Reunioes() {
         detalheReuniaoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         detalheReuniaoRef.current?.focus?.({ preventScroll: true });
     }, [reuniaoSelecionada]);
+
+    const isParticipante = reuniaoSelecionada?.participantes?.some(
+        (p) => p.id === actor?.id || p.uid === actor?.firebaseUid || p.email === actor?.email
+    );
+    const participanteAtual = reuniaoSelecionada?.participantes?.find(
+        (p) => p.id === actor?.id || p.uid === actor?.firebaseUid || p.email === actor?.email
+    );
+    const isConcluida = reuniaoSelecionada && (reuniaoSelecionada.status === 'CONCLUIDA' || new Date(reuniaoSelecionada.data_fim || reuniaoSelecionada.data_inicio) < new Date());
 
     return (
         <AppLayout pageTitle="Reuniões">
@@ -957,9 +1072,14 @@ export default function Reunioes() {
                                         {reuniaoSelecionada.participantes.map((p) => (
                                             <span
                                                 key={p.id}
-                                                className="inline-flex items-center gap-1.5 rounded-full border border-hotel-blue/10 bg-hotel-blue/10 px-3 py-1 text-xs font-semibold text-hotel-blue"
+                                                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
+                                                    p.status === 'RECUSADO'
+                                                        ? 'border-red-200 bg-red-50 text-red-600'
+                                                        : 'border-hotel-blue/10 bg-hotel-blue/10 text-hotel-blue'
+                                                }`}
+                                                title={p.status === 'RECUSADO' ? `Recusou: ${p.motivo_recusa}` : undefined}
                                             >
-                                                <Users size={11} /> {p.nome}
+                                                <Users size={11} /> {p.nome} {p.status === 'RECUSADO' && '(Recusou)'}
                                             </span>
                                         ))}
                                     </div>
@@ -1001,6 +1121,23 @@ export default function Reunioes() {
                             )}
 
                             <div className="flex flex-col-reverse gap-2 border-t border-hotel-gray/20 pt-2 sm:flex-row sm:justify-end">
+                                {isParticipante && !isConcluida && (
+                                    participanteAtual?.status === 'RECUSADO' ? (
+                                        <button
+                                            onClick={handleAceitarNovamente}
+                                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-600 transition-colors hover:bg-emerald-50 sm:w-auto"
+                                        >
+                                            Aceitar novamente
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => setModalRecusaAberto(true)}
+                                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 sm:w-auto"
+                                        >
+                                            <X size={14} /> Recusar participação
+                                        </button>
+                                    )
+                                )}
                                 {canManageReunioes && (
                                     <>
                                         <button
@@ -1046,6 +1183,12 @@ export default function Reunioes() {
                 isOpen={historicoAberto}
                 onClose={() => setHistoricoAberto(false)}
                 historico={reuniaoSelecionada?.historico || []}
+            />
+
+            <ModalRecusa
+                isOpen={modalRecusaAberto}
+                onClose={() => setModalRecusaAberto(false)}
+                onConfirm={handleRecusarParticipacao}
             />
 
             <FormularioReuniao
