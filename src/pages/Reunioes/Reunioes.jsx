@@ -3,7 +3,7 @@ import AppLayout from '../../components/Layout/AppLayout';
 import ConfirmModal from '../../components/Modal/ConfirmModal';
 import {
     CalendarDays, Clock3, MapPin, X, Users, ListTodo, CheckSquare, Square,
-    BellRing, Plus, CalendarRange, ChevronLeft, ChevronRight, Edit2, Trash2, AlertCircle, Save, Eye, Trash,
+    BellRing, Plus, CalendarRange, ChevronLeft, ChevronRight, Edit2, Trash2, AlertCircle, Save, Eye, Trash, Check
 } from 'lucide-react';
 import { useReuniao } from '../../context/ReuniaoContext';
 import { useAuth } from '../../context/AuthContext';
@@ -132,6 +132,7 @@ function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUser
 
     const [formData, setFormData] = useState(initialFormData);
     const [novoItemChecklist, setNovoItemChecklist] = useState('');
+    const [editingItemChecklist, setEditingItemChecklist] = useState({ id: null, text: '' });
 
     useEffect(() => {
         if (!isOpen) return;
@@ -183,6 +184,15 @@ function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUser
             ...formData,
             checklist: formData.checklist.filter(item => item.id !== id)
         });
+    };
+
+    const salvarEdicaoChecklistForm = (id) => {
+        if (!editingItemChecklist.text.trim()) return;
+        setFormData({
+            ...formData,
+            checklist: formData.checklist.map(item => item.id === id ? { ...item, texto: editingItemChecklist.text.trim() } : item)
+        });
+        setEditingItemChecklist({ id: null, text: '' });
     };
 
     return (
@@ -279,17 +289,39 @@ function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUser
                         <div className="mt-2 space-y-2">
                             {formData.checklist.map((item) => (
                                 <div key={item.id} className="flex items-center justify-between gap-2 rounded-xl bg-white p-2 shadow-sm border border-hotel-gray/20">
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-2 w-2 rounded-full bg-hotel-gold" />
-                                        <span className="text-sm font-body text-hotel-blue">{item.texto}</span>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => removerItemChecklist(item.id)}
-                                        className="text-hotel-gray-md hover:text-red-500 transition-colors p-1"
-                                    >
-                                        <Trash size={14} />
-                                    </button>
+                                    {editingItemChecklist.id === item.id ? (
+                                        <div className="flex flex-1 items-center gap-2">
+                                            <input
+                                                type="text"
+                                                value={editingItemChecklist.text}
+                                                onChange={(e) => setEditingItemChecklist({ ...editingItemChecklist, text: e.target.value })}
+                                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), salvarEdicaoChecklistForm(item.id))}
+                                                className="input py-1 px-2 text-sm flex-1"
+                                                autoFocus
+                                            />
+                                            <button type="button" onClick={() => salvarEdicaoChecklistForm(item.id)} className="text-emerald-600 hover:text-emerald-700 p-1">
+                                                <Check size={16} />
+                                            </button>
+                                            <button type="button" onClick={() => setEditingItemChecklist({id: null, text: ''})} className="text-hotel-gray-md hover:text-red-500 p-1">
+                                                <X size={16} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center gap-2 flex-1">
+                                                <div className="h-2 w-2 rounded-full bg-hotel-gold shrink-0" />
+                                                <span className="text-sm font-body text-hotel-blue break-all">{item.texto}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <button type="button" onClick={() => setEditingItemChecklist({ id: item.id, text: item.texto })} className="text-hotel-gray-md hover:text-hotel-blue transition-colors p-1">
+                                                    <Edit2 size={14} />
+                                                </button>
+                                                <button type="button" onClick={() => removerItemChecklist(item.id)} className="text-hotel-gray-md hover:text-red-500 transition-colors p-1">
+                                                    <Trash size={14} />
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             ))}
                             <div className="flex items-center gap-2 mt-3">
@@ -462,6 +494,7 @@ export default function Reunioes() {
     const [historicoAberto, setHistoricoAberto] = useState(false);
     const [modalRecusaAberto, setModalRecusaAberto] = useState(false);
     const detalheReuniaoRef = useRef(null);
+    const [editingChecklistDetalhe, setEditingChecklistDetalhe] = useState({ id: null, text: '' });
 
     const diasMes = useMemo(() => {
         const inicioDoMes = startOfMonth(mesAtual);
@@ -654,6 +687,22 @@ export default function Reunioes() {
             setReuniaoSelecionada(atualizada);
         } catch (err) {
             addNotification("Não foi possível atualizar o item do checklist.", "error");
+        }
+    };
+
+    const salvarEdicaoChecklistDetalhe = async (itemId) => {
+        if (!reuniaoSelecionada || !editingChecklistDetalhe.text.trim()) return;
+        const novoChecklist = reuniaoSelecionada.checklist.map(item =>
+            item.id === itemId ? { ...item, texto: editingChecklistDetalhe.text.trim() } : item
+        );
+        try {
+            const payload = { ...reuniaoSelecionada, checklist: novoChecklist };
+            const atualizada = await atualizarReuniao(reuniaoSelecionada.id, payload);
+            setReuniaoSelecionada(atualizada);
+            setEditingChecklistDetalhe({ id: null, text: '' });
+            addNotification("Item do checklist atualizado.", "success");
+        } catch (err) {
+            addNotification("Não foi possível editar o item do checklist.", "error");
         }
     };
 
@@ -1093,14 +1142,41 @@ export default function Reunioes() {
                                     </p>
                                     <div className="grid gap-2 sm:grid-cols-2">
                                         {reuniaoSelecionada.checklist.map((item) => (
-                                            <button
+                                            <div
                                                 key={item.id}
-                                                onClick={() => handleToggleChecklist(item.id)}
-                                                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${item.concluido ? 'border-emerald-100 bg-emerald-50/50 text-emerald-700' : 'border-hotel-gray/40 bg-white text-hotel-blue hover:border-hotel-blue/30'}`}
+                                                className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${item.concluido ? 'border-emerald-100 bg-emerald-50/50 text-emerald-700' : 'border-hotel-gray/40 bg-white text-hotel-blue'}`}
                                             >
-                                                {item.concluido ? <CheckSquare size={18} className="shrink-0" /> : <Square size={18} className="shrink-0 text-hotel-gray-md" />}
-                                                <span className={`text-sm font-medium ${item.concluido ? 'line-through opacity-70' : ''}`}>{item.texto}</span>
-                                            </button>
+                                                {editingChecklistDetalhe.id === item.id ? (
+                                                    <div className="flex flex-1 items-center gap-2">
+                                                        <input
+                                                            type="text"
+                                                            value={editingChecklistDetalhe.text}
+                                                            onChange={(e) => setEditingChecklistDetalhe({ ...editingChecklistDetalhe, text: e.target.value })}
+                                                            onKeyPress={(e) => e.key === 'Enter' && salvarEdicaoChecklistDetalhe(item.id)}
+                                                            className="input py-1 px-2 text-sm flex-1 bg-white"
+                                                            autoFocus
+                                                        />
+                                                        <button type="button" onClick={() => salvarEdicaoChecklistDetalhe(item.id)} className="text-emerald-600 hover:text-emerald-700 p-1">
+                                                            <Check size={16} />
+                                                        </button>
+                                                        <button type="button" onClick={() => setEditingChecklistDetalhe({id: null, text: ''})} className="text-hotel-gray-md hover:text-red-500 p-1">
+                                                            <X size={16} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <button onClick={() => handleToggleChecklist(item.id)} className="flex items-center gap-3 flex-1 text-left group">
+                                                            {item.concluido ? <CheckSquare size={18} className="shrink-0" /> : <Square size={18} className="shrink-0 text-hotel-gray-md group-hover:text-hotel-blue/50 transition-colors" />}
+                                                            <span className={`text-sm font-medium ${item.concluido ? 'line-through opacity-70' : ''}`}>{item.texto}</span>
+                                                        </button>
+                                                        {canManageReunioes && (
+                                                            <button onClick={() => setEditingChecklistDetalhe({ id: item.id, text: item.texto })} className="shrink-0 p-1 text-hotel-gray-md hover:text-hotel-blue transition-colors">
+                                                                <Edit2 size={14} />
+                                                            </button>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
                                         ))}
                                     </div>
                                 </div>

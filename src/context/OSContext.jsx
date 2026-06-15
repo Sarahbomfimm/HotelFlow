@@ -81,6 +81,7 @@ function normalizeOrder(id, data) {
         criado_por_email: data.criado_por_email || '',
         criado_por_nome: data.criado_por_nome || '',
         imagem: data.imagem || null,
+        checklist: Array.isArray(data.checklist) ? data.checklist : [],
     };
 }
 
@@ -839,6 +840,63 @@ export function OSProvider({ children }) {
         setError('');
     }, [ordens]);
 
+    /** Atualiza o checklist de uma OS */
+    const atualizarChecklist = useCallback(async (osId, novoChecklist, usuario) => {
+        const os = ordens.find((item) => item.id === osId);
+        if (!os) return;
+
+        const oldCL = Array.isArray(os.checklist) ? os.checklist : [];
+        const newCL = Array.isArray(novoChecklist) ? novoChecklist : [];
+        
+        let changeDesc = 'Checklist atualizado.';
+        
+        if (oldCL.length !== newCL.length) {
+            if (newCL.length > oldCL.length) {
+                const added = newCL.filter(n => !oldCL.some(o => o.id === n.id));
+                if (added.length > 0) {
+                    changeDesc = `Adicionou a etapa "${added[0].texto}" ao checklist.`;
+                } else {
+                    changeDesc = 'Etapa adicionada ao checklist.';
+                }
+            } else {
+                const removed = oldCL.filter(o => !newCL.some(n => n.id === o.id));
+                if (removed.length > 0) {
+                    changeDesc = `Removeu a etapa "${removed[0].texto}" do checklist.`;
+                } else {
+                    changeDesc = 'Etapa removida do checklist.';
+                }
+            }
+        } else {
+            const marked = [];
+            const unmarked = [];
+            newCL.forEach((item) => {
+                const oldItem = oldCL.find(o => o.id === item.id);
+                if (!oldItem) return;
+                if (item.concluido !== oldItem.concluido) {
+                    if (item.concluido) marked.push(`"${item.texto}"`);
+                    else unmarked.push(`"${item.texto}"`);
+                }
+            });
+            if (marked.length > 0) changeDesc = `Marcou como feito no checklist: ${marked.join(', ')}`;
+            if (unmarked.length > 0) changeDesc = `Desmarcou no checklist: ${unmarked.join(', ')}`;
+        }
+
+        const payload = {
+            checklist: novoChecklist,
+            historico: [...os.historico, { data: new Date().toISOString(), usuario_nome: usuario.nome, descricao: changeDesc }],
+        };
+
+        if (!isFirebaseConfigured || !db) {
+            setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));
+            setError('');
+            return;
+        }
+
+        await updateDoc(doc(db, 'serviceOrders', osId), payload);
+        setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));
+        setError('');
+    }, [ordens]);
+
     /** Filtra OS visíveis para líder */
     const getOSPorLider = useCallback(
         (departamentos, usuario) =>
@@ -870,6 +928,7 @@ export function OSProvider({ children }) {
                 moverAprovacaoFinalizacao,
                 recusarFinalizacao,
                 adicionarObservacao,
+                atualizarChecklist,
                 editarOS,
                 excluirOS,
                 getOSPorLider,

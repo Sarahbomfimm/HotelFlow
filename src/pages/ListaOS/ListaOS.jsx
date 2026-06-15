@@ -1,9 +1,9 @@
-﻿﻿﻿﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿﻿﻿﻿﻿﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, ChevronDown, ChevronUp, Trash2, X,
     Edit3, Clock3, ArrowLeft, CalendarRange, Image as ImageIcon,
-    Download, Paperclip, Play, Check, FileCheck, Eye,
+    Download, Paperclip, Play, Check, FileCheck, Eye, ListTodo, Plus, Trash, CheckSquare, Square,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
@@ -217,6 +217,81 @@ function escapeCsvValue(value) {
     return text;
 }
 
+function HistoricoOSModal({ isOpen, onClose, os }) {
+    if (!isOpen || !os) return null;
+
+    const historico = os.historico || [];
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fadeIn">
+            <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-hotel-gray/20 px-5 py-4 sm:px-6">
+                    <div>
+                        <h2 className="font-heading text-xl font-bold text-hotel-blue">Log de alterações</h2>
+                        <p className="mt-1 text-sm text-hotel-gray-md">Veja o histórico da SI "{os.titulo}".</p>
+                    </div>
+                    <button onClick={onClose} className="text-hotel-gray-md transition-colors hover:text-hotel-blue" aria-label="Fechar histórico">
+                        <X size={22} />
+                    </button>
+                </div>
+
+                <div className="max-h-[70vh] space-y-3 overflow-y-auto p-5 sm:p-6">
+                    {historico.length === 0 ? (
+                        <p className="text-sm text-hotel-gray-md">Nenhum histórico registrado.</p>
+                    ) : (
+                        [...historico].reverse().map((h, index) => (
+                            <div key={`${h.data}-${index}`} className="flex gap-3 rounded-2xl border border-hotel-gray/40 bg-hotel-light/20 px-4 py-4">
+                                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hotel-blue/10 text-hotel-blue">
+                                    <Clock3 size={14} />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-hotel-blue">
+                                        {h.usuario_nome}
+                                        {h.prazo_estimado && (
+                                            <span className="ml-2 text-xs font-normal text-hotel-gold">
+                                                {' · '}Prazo estimado: {format(parseISO(h.prazo_estimado), 'dd/MM/yyyy')}
+                                            </span>
+                                        )}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-hotel-gray-md">
+                                        {format(parseISO(h.data), "dd/MM/yyyy 'às' HH:mm")}
+                                    </p>
+                                    <p className="mt-1.5 text-sm leading-6 text-hotel-gray-md">{h.descricao}</p>
+                                    {h.anexo_pdf_url && (
+                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-semibold text-hotel-blue">
+                                                <Paperclip size={11} /> PDF anexado
+                                            </span>
+                                            <a
+                                                href={h.anexo_pdf_url}
+                                                download={h.anexo_pdf_nome || 'anexo.pdf'}
+                                                className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-blue hover:text-hotel-gold"
+                                                target="_blank" rel="noreferrer"
+                                            >
+                                                <Download size={11} /> {h.anexo_pdf_nome || 'Abrir anexo'}
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                <div className="flex justify-end border-t border-hotel-gray/20 px-5 py-4 sm:px-6">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="inline-flex items-center justify-center rounded-xl bg-hotel-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-hotel-blue/90"
+                    >
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function ListaOS() {
     const {
         ordens,
@@ -225,6 +300,7 @@ export default function ListaOS() {
         solicitarFinalizacao,
         excluirOS,
         adicionarObservacao,
+        atualizarChecklist,
         error: ordensError,
     } = useOS();
     const { user } = useAuth();
@@ -262,6 +338,7 @@ export default function ListaOS() {
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState(isPdcaOnlyNavigation ? [] : (locState.filterStatus ? [locState.filterStatus] : []));
     const [filterPdca, setFilterPdca] = useState(locState.filterPdca ? [locState.filterPdca] : []);
+    const [novoItemChecklist, setNovoItemChecklist] = useState('');
     const [filterLider, setFilterLider] = useState(
         Array.isArray(locState.filterLider)
             ? locState.filterLider
@@ -274,9 +351,11 @@ export default function ListaOS() {
     const [toDelete, setToDelete] = useState(null);
     const [toEdit, setToEdit] = useState(null);
     const cardRefs = useRef({});
+    const [editingChecklist, setEditingChecklist] = useState({ osId: null, itemId: null, text: '' });
     // Modal de observação ao mudar status
     const [obsModal, setObsModal] = useState({ open: false, os: null, novoStatus: null });
     const [adicionarObsModal, setAdicionarObsModal] = useState({ open: false, os: null });
+    const [historicoModal, setHistoricoModal] = useState({ open: false, os: null });
 
     useEffect(() => {
         if (!locState.expandOsId) {
@@ -292,6 +371,8 @@ export default function ListaOS() {
         setFilterDept([]);
         setPrazoRange([null, null]);
         setExpanded(locState.expandOsId);
+        setNovoItemChecklist('');
+        setEditingChecklist({ osId: null, itemId: null, text: '' });
     }, [locState.expandOsId]);
 
     const base = useMemo(() =>
@@ -451,6 +532,54 @@ export default function ListaOS() {
         setter([...currentValues, value]);
     };
 
+    useEffect(() => {
+        setNovoItemChecklist('');
+    }, [expanded]);
+
+    const handleAdicionarItemChecklist = async (os) => {
+        if (!novoItemChecklist.trim()) return;
+        const novoChecklist = [...(os.checklist || []), { id: `item-${Date.now()}`, texto: novoItemChecklist.trim(), concluido: false }];
+        try {
+            await atualizarChecklist(os.id, novoChecklist, actor);
+            setNovoItemChecklist('');
+        } catch (error) {
+            addNotification('Erro ao atualizar checklist.', 'error');
+        }
+    };
+
+    const handleToggleChecklistItem = async (os, itemId) => {
+        const novoChecklist = (os.checklist || []).map(item =>
+            item.id === itemId ? { ...item, concluido: !item.concluido } : item
+        );
+        try {
+            await atualizarChecklist(os.id, novoChecklist, actor);
+        } catch (error) {
+            addNotification('Erro ao atualizar checklist.', 'error');
+        }
+    };
+
+    const handleRemoverItemChecklist = async (os, itemId) => {
+        const novoChecklist = (os.checklist || []).filter(item => item.id !== itemId);
+        try {
+            await atualizarChecklist(os.id, novoChecklist, actor);
+        } catch (error) {
+            addNotification('Erro ao remover item do checklist.', 'error');
+        }
+    };
+
+    const handleSalvarEdicaoChecklist = async (os, itemId) => {
+        if (!editingChecklist.text.trim()) return;
+        const novoChecklist = (os.checklist || []).map(item =>
+            item.id === itemId ? { ...item, texto: editingChecklist.text.trim() } : item
+        );
+        try {
+            await atualizarChecklist(os.id, novoChecklist, actor);
+            setEditingChecklist({ osId: null, itemId: null, text: '' });
+        } catch (error) {
+            addNotification('Erro ao editar item do checklist.', 'error');
+        }
+    };
+
     // Abre modal de observação antes de confirmar mudança de status
     const solicitarStatusChange = async (os, status) => {
         // Líder iniciando: não pede observação imediatamente
@@ -535,6 +664,7 @@ export default function ListaOS() {
             && !canConcludeDirectly;
         const podeEditar = isDiretora || isCriador;
         const podeExcluir = isCriador;
+        const podeEditarChecklist = isDiretora || isCriador || isResponsavel || isLiderOfDept;
 
         return (
             <div
@@ -633,19 +763,24 @@ export default function ListaOS() {
                             </button>
                         )}
                         <button
+                            onClick={() => setHistoricoModal({ open: true, os })}
+                            className="p-1.5 rounded-lg text-hotel-gray-md hover:text-hotel-blue hover:bg-hotel-light transition-colors"
+                            aria-label="Ver histórico"
+                            title="Ver histórico"
+                        >
+                            <Eye size={15} />
+                        </button>
+                        <button
                             onClick={() => setExpanded(isExpanded ? null : os.id)}
                             className={`group inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-hotel-blue/40 ${
                                 isExpanded
                                     ? 'border-hotel-blue bg-hotel-blue text-white'
-                                    : hasDownloadables
-                                        ? 'border-hotel-gold/70 bg-gradient-to-r from-amber-50 to-yellow-50 text-hotel-blue hover:border-hotel-gold hover:from-amber-100 hover:to-yellow-100'
-                                        : 'border-hotel-blue/60 bg-hotel-blue/10 text-hotel-blue hover:bg-hotel-blue hover:text-white'
+                                    : 'border-hotel-blue/60 bg-hotel-blue/10 text-hotel-blue hover:bg-hotel-blue hover:text-white'
                             }`}
-                            aria-label={isExpanded ? 'Recolher detalhes da SI' : 'Expandir detalhes da SI para visualizar e baixar anexos'}
-                            title={isExpanded ? 'Recolher detalhes' : (hasDownloadables ? 'Clique para ver e baixar anexos' : 'Clique para ver detalhes')}
+                            aria-label={isExpanded ? 'Recolher detalhes da SI' : 'Expandir detalhes da SI'}
+                            title={isExpanded ? 'Recolher detalhes' : 'Clique para ver detalhes'}
                         >
-                            {!isExpanded && (hasDownloadables ? <Download size={15} className="transition-transform duration-200 group-hover:scale-110" /> : <Eye size={15} />)}
-                            {isExpanded ? <ChevronUp size={17} className="transition-transform duration-200 group-hover:-translate-y-0.5" /> : <ChevronDown size={17} className={`transition-transform duration-200 group-hover:translate-y-0.5 ${!isExpanded && hasDownloadables ? 'animate-bounce' : ''}`} />}
+                            {isExpanded ? <ChevronUp size={17} className="transition-transform duration-200 group-hover:-translate-y-0.5" /> : <ChevronDown size={17} className="transition-transform duration-200 group-hover:translate-y-0.5" />}
                         </button>
                     </div>
                 </div>
@@ -703,48 +838,80 @@ export default function ListaOS() {
                             </div>
                         )}
 
-                        {os.historico?.length > 0 && (
-                            <div className="pt-1">
+                        {(os.checklist?.length > 0 || podeEditarChecklist) && (
+                            <div className="pt-2">
                                 <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-hotel-blue font-body">
-                                    <Clock3 size={12} /> Histórico de atualizações
+                                    <ListTodo size={14} /> Checklist de Etapas
                                 </p>
-                                <div className="max-h-56 overflow-y-auto pr-1">
-                                    <ol className="relative ml-3 space-y-5 border-l-2 border-hotel-gray">
-                                        {[...os.historico].reverse().map((h, i) => (
-                                            <li key={i} className="ml-5 relative">
-                                                {/* Ponto da timeline */}
-                                                <span className="absolute -left-[29px] top-0.5 w-4 h-4 rounded-full bg-hotel-gold border-2 border-white shadow-sm" />
-                                                <p className="text-xs text-hotel-gray-md font-body">
-                                                    {format(parseISO(h.data), "dd/MM/yyyy 'às' HH:mm")}
-                                                    {' · '}
-                                                    <strong className="text-hotel-blue">{h.usuario_nome}</strong>
-                                                    {h.prazo_estimado && (
-                                                        <>
-                                                            {' · Prazo estimado: '}
-                                                            <span className="text-hotel-gold font-semibold">{format(parseISO(h.prazo_estimado), 'dd/MM/yyyy')}</span>
-                                                        </>
-                                                    )}
-                                                </p>
-                                                <div className="mt-1.5 rounded-xl border border-hotel-gray/40 bg-hotel-light/30 px-3 py-2.5">
-                                                    <p className="text-sm font-body text-gray-700">{h.descricao}</p>
-                                                    {h.anexo_pdf_url && (
-                                                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-semibold text-hotel-blue">
-                                                                <Paperclip size={11} /> PDF anexado
-                                                            </span>
-                                                            <a
-                                                                href={h.anexo_pdf_url}
-                                                                download={h.anexo_pdf_nome || 'anexo.pdf'}
-                                                                className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-blue hover:text-hotel-gold"
+                                
+                                <div className="space-y-2">
+                                    {os.checklist?.map((item) => (
+                                        <div key={item.id} className="flex items-center justify-between gap-2 rounded-xl border border-hotel-gray/40 bg-hotel-light/30 p-2 shadow-sm transition-colors hover:border-hotel-blue/30">
+                                            {editingChecklist.osId === os.id && editingChecklist.itemId === item.id ? (
+                                                <div className="flex flex-1 items-center gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={editingChecklist.text}
+                                                        onChange={(e) => setEditingChecklist({ ...editingChecklist, text: e.target.value })}
+                                                        onKeyPress={(e) => e.key === 'Enter' && handleSalvarEdicaoChecklist(os, item.id)}
+                                                        className="input py-1 px-2 text-sm flex-1 bg-white"
+                                                        autoFocus
+                                                    />
+                                                    <button onClick={() => handleSalvarEdicaoChecklist(os, item.id)} className="p-1.5 text-emerald-600 hover:text-emerald-700 transition-colors" title="Salvar">
+                                                        <Check size={16} />
+                                                    </button>
+                                                    <button onClick={() => setEditingChecklist({ osId: null, itemId: null, text: '' })} className="p-1.5 text-hotel-gray-md hover:text-red-500 transition-colors" title="Cancelar">
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        onClick={() => podeEditarChecklist && handleToggleChecklistItem(os, item.id)}
+                                                        className={`flex flex-1 items-center gap-3 text-left ${item.concluido ? 'text-emerald-700' : 'text-hotel-blue'} ${!podeEditarChecklist ? 'cursor-default' : ''}`}
+                                                    >
+                                                        {item.concluido ? <CheckSquare size={16} className="shrink-0 text-emerald-500" /> : <Square size={16} className="shrink-0 text-hotel-gray-md" />}
+                                                        <span className={`text-sm font-medium font-body ${item.concluido ? 'line-through opacity-70' : ''}`}>{item.texto}</span>
+                                                    </button>
+                                                    {podeEditarChecklist && (
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                            <button onClick={() => setEditingChecklist({ osId: os.id, itemId: item.id, text: item.texto })} className="p-1.5 text-hotel-gray-md hover:text-hotel-blue transition-colors" title="Editar etapa">
+                                                                <Edit3 size={14} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleRemoverItemChecklist(os, item.id)}
+                                                                className="p-1.5 text-hotel-gray-md hover:text-red-500 transition-colors"
+                                                                title="Remover etapa"
                                                             >
-                                                                <Download size={11} /> {h.anexo_pdf_nome || 'Abrir anexo'}
-                                                            </a>
+                                                                <Trash size={14} />
+                                                            </button>
                                                         </div>
                                                     )}
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ol>
+                                                </>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    {podeEditarChecklist && (
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <input
+                                                type="text"
+                                                value={novoItemChecklist}
+                                                onChange={(e) => setNovoItemChecklist(e.target.value)}
+                                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdicionarItemChecklist(os))}
+                                                placeholder="Adicionar nova etapa..."
+                                                className="input py-1.5 text-sm flex-1"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => handleAdicionarItemChecklist(os)}
+                                                className="rounded-lg bg-hotel-blue p-2 text-white hover:bg-hotel-blue/90 transition-colors"
+                                                title="Adicionar etapa"
+                                            >
+                                                <Plus size={16} />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -925,6 +1092,11 @@ export default function ListaOS() {
                             onConfirm={handleAdicionarObs}
                             onCancel={() => setAdicionarObsModal({ open: false, os: null })}
                         />
+            <HistoricoOSModal
+                isOpen={historicoModal.open}
+                os={historicoModal.os}
+                onClose={() => setHistoricoModal({ open: false, os: null })}
+            />
         </AppLayout>
     );
 }
