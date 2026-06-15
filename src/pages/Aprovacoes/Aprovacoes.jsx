@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft, MoveRight, ClipboardCheck, Clock3, UserRound, Building2 } from 'lucide-react';
+import { ArrowLeft, MoveRight, ClipboardCheck, Clock3, UserRound, Building2, X } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import AppLayout from '../../components/Layout/AppLayout';
 import StatusBadge from '../../components/Badge/StatusBadge';
@@ -84,6 +84,53 @@ function matchesOrderActor(order, actor, prefix) {
     return false;
 }
 
+function ModalRecusaFinalizacao({ isOpen, onClose, onConfirm }) {
+    const [motivo, setMotivo] = useState('');
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fadeIn">
+            <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-hotel-gray/20 px-5 py-4 sm:px-6">
+                    <h3 className="font-heading text-lg font-bold text-hotel-blue">Motivo da Recusa</h3>
+                    <button onClick={() => { setMotivo(''); onClose(); }} className="text-hotel-gray-md transition-colors hover:text-hotel-blue">
+                        <X size={20} />
+                    </button>
+                </div>
+                <div className="p-5 sm:p-6">
+                    <p className="text-sm text-hotel-gray-md">Por favor, informe o motivo de estar recusando a finalização desta SI:</p>
+                    <textarea
+                        value={motivo}
+                        onChange={(e) => setMotivo(e.target.value)}
+                        className="input mt-3 min-h-[100px] w-full resize-none"
+                        placeholder="Ex: Faltou anexar a foto, Serviço incompleto..."
+                    />
+                </div>
+                <div className="flex justify-end gap-3 border-t border-hotel-gray/20 px-5 py-4 sm:px-6">
+                    <button
+                        onClick={() => { setMotivo(''); onClose(); }}
+                        className="rounded-xl border border-hotel-gray/50 bg-white px-4 py-2 text-sm font-semibold text-hotel-gray-md hover:bg-hotel-light"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={() => {
+                            if (!motivo.trim()) return;
+                            onConfirm(motivo.trim());
+                            setMotivo('');
+                        }}
+                        disabled={!motivo.trim()}
+                        className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                    >
+                        Confirmar recusa
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function Aprovacoes() {
     const navigate = useNavigate();
     const { ordens, getOSPorLider, moverAprovacaoFinalizacao, recusarFinalizacao } = useOS();
@@ -96,6 +143,8 @@ export default function Aprovacoes() {
     const canViewAll = hasPermission(actor, PERMISSIONS.SI_APPROVALS_VIEW_ALL);
     const actorDepartments = actor?.departamentos || [];
     const [draggingId, setDraggingId] = useState(null);
+    const [modalRecusaAberto, setModalRecusaAberto] = useState(false);
+    const [osParaRecusar, setOsParaRecusar] = useState(null);
 
     const visibleOrders = useMemo(() => {
         if (canViewAll) {
@@ -158,16 +207,22 @@ export default function Aprovacoes() {
         }
     };
 
-    const handleRefuseFinalization = async (order) => {
-        if (!canMove) {
-            return;
-        }
+    const handleAbrirRecusa = (order) => {
+        setOsParaRecusar(order);
+        setModalRecusaAberto(true);
+    };
 
+    const handleConfirmarRecusa = async (motivo) => {
+        if (!osParaRecusar || !canMove) return;
+        
         try {
-            await recusarFinalizacao(order.id, actor);
-            addNotification(`Solicitação de finalização da SI "${order.titulo}" recusada.`, 'warning');
+            await recusarFinalizacao(osParaRecusar.id, actor, motivo);
+            addNotification(`Solicitação de finalização da SI "${osParaRecusar.titulo}" recusada.`, 'warning');
         } catch (error) {
             addNotification(error.message || 'Não foi possível recusar a solicitação de finalização.', 'error');
+        } finally {
+            setModalRecusaAberto(false);
+            setOsParaRecusar(null);
         }
     };
 
@@ -286,7 +341,7 @@ export default function Aprovacoes() {
                                                             type="button"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleRefuseFinalization(order);
+                                                                handleAbrirRecusa(order);
                                                             }}
                                                             className="inline-flex items-center gap-1 rounded-full border border-red-400 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700 transition-colors hover:border-red-500 hover:bg-red-100"
                                                         >
@@ -321,6 +376,12 @@ export default function Aprovacoes() {
                     })}
                 </div>
             </div>
+
+            <ModalRecusaFinalizacao
+                isOpen={modalRecusaAberto}
+                onClose={() => { setModalRecusaAberto(false); setOsParaRecusar(null); }}
+                onConfirm={handleConfirmarRecusa}
+            />
         </AppLayout>
     );
 }

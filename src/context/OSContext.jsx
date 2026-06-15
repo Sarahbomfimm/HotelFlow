@@ -1,4 +1,4 @@
-﻿﻿﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+﻿﻿﻿﻿﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
     collection,
     deleteDoc,
@@ -632,7 +632,7 @@ export function OSProvider({ children }) {
         }
     }, [ordens]);
 
-    const recusarFinalizacao = useCallback(async (osId, usuario) => {
+    const recusarFinalizacao = useCallback(async (osId, usuario, motivo = '') => {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
@@ -665,7 +665,7 @@ export function OSProvider({ children }) {
                 {
                     data: nowIso,
                     usuario_nome: usuario.nome,
-                    descricao: 'Solicitação de finalização recusada.',
+                    descricao: motivo ? `Solicitação de finalização recusada. Motivo: ${motivo}` : 'Solicitação de finalização recusada.',
                 },
             ],
         };
@@ -689,7 +689,7 @@ export function OSProvider({ children }) {
                 recipientUid: os.criado_por_uid || os.criado_por_id,
                 recipientEmail: os.criado_por_email,
             }, {
-                message: `A solicitação de finalização da SI "${os.titulo}" foi recusada por ${usuario.nome}.`,
+                message: `A solicitação de finalização da SI "${os.titulo}" foi recusada por ${usuario.nome}.${motivo ? ` Motivo: ${motivo}` : ''}`,
                 type: 'info', // Usar tipo 'info' ou 'warning' para recusa
                 relatedOrderId: os.id,
             });
