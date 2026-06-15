@@ -938,9 +938,15 @@ export default function Reunioes() {
 
                                 <div className="rounded-2xl border border-hotel-gray/50 bg-hotel-light/40 p-4">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hotel-gray-md">Status</p>
-                                    <span className="mt-2 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                                        {StatusLabel[reuniaoSelecionada.status]}
-                                    </span>
+                                    {(() => {
+                                        const isConcluida = reuniaoSelecionada.status === 'CONCLUIDA' || new Date(reuniaoSelecionada.data_fim || reuniaoSelecionada.data_inicio) < new Date();
+                                        const statusLabel = isConcluida ? 'Concluída' : (StatusLabel[reuniaoSelecionada.status] || 'Agendada');
+                                        return (
+                                            <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${isConcluida ? 'bg-emerald-100 text-emerald-700' : 'bg-hotel-gold/20 text-hotel-gold'}`}>
+                                                {statusLabel}
+                                            </span>
+                                        );
+                                    })()}
                                 </div>
                             </div>
 
