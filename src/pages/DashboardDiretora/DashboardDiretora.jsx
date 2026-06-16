@@ -1,4 +1,4 @@
-﻿
+
 function belongsToLeader(os, leader) {
     if (!os || !leader) return false;
 
@@ -21,7 +21,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ClipboardList, CheckCircle2, Clock, AlertCircle,
-    Users, TrendingUp, ArrowRight, Send, PlusCircle,
+    Users, TrendingUp, ArrowRight, Send, PlusCircle, CalendarDays,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
@@ -194,16 +194,20 @@ export default function DashboardDiretora() {
                 </button>
             </div>
 
-            <div className="mb-6 rounded-xl border border-hotel-gray/50 bg-white px-4 py-3 shadow-sm">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-hotel-gray-md">Resumo por mês</p>
-                    <div className="w-full cursor-pointer sm:w-auto">
+            <div className="mb-6 rounded-2xl border border-hotel-gray/20 bg-white/40 px-4 py-3.5 backdrop-blur-md shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs font-bold uppercase tracking-[0.08em] text-hotel-blue font-heading">Resumo por mês</p>
+                    <div className="relative inline-flex items-center justify-between gap-2 rounded-xl border border-hotel-gray/30 bg-white px-3 py-2 text-xs font-semibold text-hotel-blue hover:border-hotel-blue/30 transition-all shadow-sm cursor-pointer w-full sm:w-[220px]">
+                        <div className="flex items-center gap-2">
+                            <CalendarDays size={14} className="text-hotel-blue/70" />
+                            <span className="capitalize">{format(selectedMonthDate, "MMMM 'de' yyyy", { locale: ptBR })}</span>
+                        </div>
                         <input
                             type="month"
                             value={selectedMonth}
                             onChange={(event) => setSelectedMonth(event.target.value)}
                             onClick={(event) => event.currentTarget.showPicker?.()}
-                            className="input w-full cursor-pointer py-1.5 text-xs sm:w-[220px]"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         />
                     </div>
                 </div>
