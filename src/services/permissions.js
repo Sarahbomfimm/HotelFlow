@@ -14,6 +14,7 @@ export const PERMISSIONS = {
     HISTORICO_ACCESS: 'historico_access',
     SI_FINALIZE: 'si_finalize',
     SI_EDIT: 'si_edit',
+    INVESTIMENTOS_VIEW: 'investimentos_view',
 };
 
 export const PERMISSION_DEFINITIONS = [
@@ -95,6 +96,12 @@ export const PERMISSION_DEFINITIONS = [
         description: 'Permite editar dados de solicitações internas.',
         category: 'SI',
     },
+    {
+        key: PERMISSIONS.INVESTIMENTOS_VIEW,
+        label: 'Vizualizar app de investimentos',
+        description: 'Permite abrir o módulo de Investimentos na barra lateral.',
+        category: 'Investimentos',
+    },
 ];
 
 export function getDefaultPermissions(role) {
@@ -113,6 +120,7 @@ export function getDefaultPermissions(role) {
             [PERMISSIONS.HISTORICO_ACCESS]: true,
             [PERMISSIONS.SI_FINALIZE]: true,
             [PERMISSIONS.SI_EDIT]: true,
+            [PERMISSIONS.INVESTIMENTOS_VIEW]: true,
         };
     }
 
@@ -131,15 +139,16 @@ export function getDefaultPermissions(role) {
             [PERMISSIONS.HISTORICO_ACCESS]: true,
             [PERMISSIONS.SI_FINALIZE]: true,
             [PERMISSIONS.SI_EDIT]: true,
+            [PERMISSIONS.INVESTIMENTOS_VIEW]: false,
         };
     }
 
     return {
         [PERMISSIONS.ADMIN_PANEL_ACCESS]: false,
         [PERMISSIONS.SI_CREATE_ACCESS]: true,
-            [PERMISSIONS.SI_APPROVALS_ACCESS]: true,
-            [PERMISSIONS.SI_APPROVALS_MOVE]: false,
-            [PERMISSIONS.SI_APPROVALS_VIEW_ALL]: false,
+        [PERMISSIONS.SI_APPROVALS_ACCESS]: true,
+        [PERMISSIONS.SI_APPROVALS_MOVE]: false,
+        [PERMISSIONS.SI_APPROVALS_VIEW_ALL]: false,
         [PERMISSIONS.AUDITORIAS_ACCESS]: true,
         [PERMISSIONS.AUDITORIAS_CREATE]: true,
         [PERMISSIONS.AUDITORIAS_MANAGE]: false,
@@ -148,6 +157,7 @@ export function getDefaultPermissions(role) {
         [PERMISSIONS.HISTORICO_ACCESS]: false,
         [PERMISSIONS.SI_FINALIZE]: false,
         [PERMISSIONS.SI_EDIT]: true,
+        [PERMISSIONS.INVESTIMENTOS_VIEW]: false,
     };
 }
 

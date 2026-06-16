@@ -1,7 +1,7 @@
-﻿import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, History, ChartNoAxesCombined, CalendarDays,
-    LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus,
+    LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus, TrendingUp,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import Logo from '../Logo/Logo';
@@ -19,6 +19,7 @@ const liderLinks = [
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
+    { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
 const diretoraLinks = [
@@ -30,6 +31,7 @@ const diretoraLinks = [
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/historico', label: 'Histórico', icon: History },
+    { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
 const adminLinks = [
@@ -41,6 +43,7 @@ const adminLinks = [
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/historico', label: 'Histórico', icon: History },
+    { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
 export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
@@ -59,6 +62,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const canAccessAprovacoes = hasPermission(displayUser, PERMISSIONS.SI_APPROVALS_ACCESS);
     const canAccessHistorico = hasPermission(displayUser, PERMISSIONS.HISTORICO_ACCESS);
     const canAccessAdminPanel = hasPermission(displayUser, PERMISSIONS.ADMIN_PANEL_ACCESS);
+    const canAccessInvestimentos = hasPermission(displayUser, PERMISSIONS.INVESTIMENTOS_VIEW);
 
     const isManagementRole = displayUser?.role === UserRole.ADMIN || displayUser?.role === UserRole.DIRETORA;
     const links = displayUser?.role === UserRole.ADMIN
@@ -72,6 +76,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
         if (link.to === '/aprovacoes') return canAccessAprovacoes;
         if (link.to === '/historico') return canAccessHistorico;
         if (link.to === '/admin') return canAccessAdminPanel;
+        if (link.label === 'Investimentos') return canAccessInvestimentos;
         return true;
     });
     const showLabels = !collapsed || mobileMenuOpen;
@@ -161,10 +166,29 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
 
             {/* Navegação */}
             <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4">
-                {visibleLinks.map(({ to, label, icon: Icon }) => {
+                {visibleLinks.map(({ to, label, icon: Icon, external }) => {
                     const isAuditoriasLink = to === '/auditorias/visualizar';
                     const isReunioesLink = to === '/reunioes';
                     const badgeCount = isReunioesLink ? reunioesUnreadCount : isAuditoriasLink ? auditoriasUnreadCount : 0;
+
+                    if (external) {
+                        return (
+                            <a
+                                key={to}
+                                href={to}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => onCloseMobile?.()}
+                                className={`sidebar-link ${collapsed ? 'lg:justify-center lg:px-2' : ''}`}
+                                title={!showLabels ? label : undefined}
+                            >
+                                <span className="relative inline-flex flex-shrink-0">
+                                    <Icon size={19} className="flex-shrink-0" />
+                                </span>
+                                {showLabels && <span className="truncate">{label}</span>}
+                            </a>
+                        );
+                    }
 
                     if (!isAuditoriasLink) {
                         return (
