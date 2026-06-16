@@ -2,6 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, History, ChartNoAxesCombined, CalendarDays,
     LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus, TrendingUp,
+    User,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import Logo from '../Logo/Logo';
@@ -14,7 +15,7 @@ import { hasPermission, PERMISSIONS } from '../../services/permissions';
 const liderLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/ordens', label: 'Minhas SI', icon: ClipboardList },
-    { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
+    { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: User },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
@@ -25,7 +26,7 @@ const liderLinks = [
 const diretoraLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
-    { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
+    { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: User },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
@@ -37,7 +38,7 @@ const diretoraLinks = [
 const adminLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
-    { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: ClipboardList },
+    { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: User },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
