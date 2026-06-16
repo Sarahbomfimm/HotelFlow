@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿﻿﻿﻿﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, ChevronDown, ChevronUp, Trash2, X,
@@ -382,7 +382,13 @@ export default function ListaOS() {
 
     const filtered = useMemo(() => {
         return base
-            .filter((o) => isPdcaOnlyNavigation || filterStatus.length === 0 || filterStatus.includes(o.status))
+            .filter((o) => {
+                if (isPdcaOnlyNavigation) return true;
+                if (filterStatus.length === 0) return true;
+                if (filterStatus.includes(o.status)) return true;
+                if (filterStatus.includes('atrasada') && isSIOverdue(o)) return true;
+                return false;
+            })
             .filter((o) => filterPdca.length === 0 || filterPdca.includes(o.etapa_pdca))
             .filter((o) => {
                 if (filterLider.length === 0) return true;
@@ -956,7 +962,10 @@ export default function ListaOS() {
                     <MultiSelectFilter
                         title="Status"
                         selectedValues={filterStatus}
-                        options={Object.entries(StatusLabel).map(([k, v]) => ({ value: k, label: v }))}
+                        options={[
+                            ...Object.entries(StatusLabel).map(([k, v]) => ({ value: k, label: v })),
+                            { value: 'atrasada', label: 'Atrasada' },
+                        ]}
                         onToggle={(value) => toggleInFilter(setFilterStatus, filterStatus, value)}
                         onClear={() => setFilterStatus([])}
                     />
