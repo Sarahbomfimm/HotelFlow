@@ -1,4 +1,4 @@
-﻿﻿﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, ChevronDown, ChevronUp, Trash2, X,
@@ -1031,33 +1031,39 @@ export default function ListaOS() {
                 </div>
 
                 {/* Filtro por período de prazo */}
-                <div className="mb-4 flex flex-col gap-3 rounded-xl border border-hotel-gray/50 bg-white p-3 sm:flex-row sm:flex-nowrap sm:items-center">
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-hotel-blue font-body">
-                        <CalendarRange size={14} /> Período do Prazo:
-                    </span>
-                    <DatePicker
-                        selectsRange
-                        startDate={prazoInicio}
-                        endDate={prazoFim}
-                        onChange={(update) => setPrazoRange(update)}
-                        isClearable
-                        dateFormat="dd/MM/yyyy"
-                        locale={ptBR}
-                        className="input w-full py-1.5 text-xs sm:w-[220px]"
-                        placeholderText="Selecione o período do prazo"
-                    />
-                    {(prazoInicio || prazoFim) && (
-                        <button
-                            onClick={() => setPrazoRange([null, null])}
-                            className="inline-flex items-center justify-center rounded-full border border-hotel-gray/70 bg-hotel-light px-3 py-1.5 text-xs font-semibold text-hotel-blue transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500"
-                        >
-                            Limpar período
-                        </button>
-                    )}
+                <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-hotel-gray/20 bg-white/40 p-4 shadow-sm backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 flex-1">
+                        <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-hotel-blue font-heading">
+                            <CalendarRange size={15} className="text-hotel-blue/70" />
+                            Período do Prazo
+                        </span>
+                        <div className="relative flex items-center w-full sm:w-[240px]">
+                            <DatePicker
+                                selectsRange
+                                startDate={prazoInicio}
+                                endDate={prazoFim}
+                                onChange={(update) => setPrazoRange(update)}
+                                isClearable
+                                dateFormat="dd/MM/yyyy"
+                                locale={ptBR}
+                                className="w-full rounded-xl border border-hotel-gray/30 bg-white px-3.5 py-2 text-xs font-semibold text-hotel-blue placeholder-hotel-gray-md/70 hover:border-hotel-blue/30 focus:border-hotel-blue focus:outline-none transition-all shadow-sm cursor-pointer"
+                                placeholderText="Selecione o período"
+                            />
+                        </div>
+                        {(prazoInicio || prazoFim) && (
+                            <button
+                                type="button"
+                                onClick={() => setPrazoRange([null, null])}
+                                className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50/50 px-3 py-2 text-xs font-semibold text-red-600 transition-all hover:bg-red-50 hover:text-red-700 shadow-sm"
+                            >
+                                <X size={13} /> Limpar
+                            </button>
+                        )}
+                    </div>
                     <button
                         type="button"
                         onClick={exportarCsv}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-full border border-emerald-500/20 bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-50/70 hover:bg-emerald-50 hover:text-emerald-800 text-emerald-700 px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all hover:-translate-y-0.5 shadow-sm hover:shadow-emerald-500/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                     >
                         <Download size={14} /> Exportar CSV
                     </button>
