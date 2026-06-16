@@ -18,7 +18,10 @@ function SeletorParticipantes({ participantes, onChange, todosUsers, currentUser
     const [busca, setBusca] = useState('');
 
     const usersDisponiveis = todosUsers.filter(
-        (u) => u.id !== currentUserId && !participantes.some((p) => p.id === u.id),
+        (u) => 
+            u.id !== currentUserId && 
+            u.email?.toLowerCase() !== 'sofiadiretoria@pajucarahotel.com.br' &&
+            !participantes.some((p) => p.id === u.id),
     );
 
     const filtrados = usersDisponiveis.filter(
@@ -37,6 +40,7 @@ function SeletorParticipantes({ participantes, onChange, todosUsers, currentUser
                 nome: user.nome,
                 email: user.email,
                 telegram_chat_id: user.telegram_chat_id || null,
+                status: 'PENDENTE',
             },
         ]);
         setBusca('');
@@ -632,13 +636,12 @@ export default function Reunioes() {
         }
     };
 
-    const handleAceitarNovamente = async () => {
+    const handleAceitarReuniao = async () => {
         if (!reuniaoSelecionada) return;
         try {
             const novosParticipantes = reuniaoSelecionada.participantes.map((p) => {
                 if (p.id === actor?.id || p.uid === actor?.firebaseUid || p.email === actor?.email) {
-                    const { status, motivo_recusa, ...resto } = p;
-                    return resto;
+                    return { ...p, status: 'ACEITO', motivo_recusa: null };
                 }
                 return p;
             });
@@ -646,12 +649,12 @@ export default function Reunioes() {
             const payload = {
                 ...reuniaoSelecionada,
                 participantes: novosParticipantes,
-                historico_adicional: 'Confirmou participação (desfez a recusa).',
+                historico_adicional: 'Confirmou participação.',
             };
 
             const atualizada = await atualizarReuniao(reuniaoSelecionada.id, payload);
             setReuniaoSelecionada(atualizada);
-            addNotification('Participação confirmada novamente.', 'success');
+            addNotification('Participação confirmada.', 'success');
         } catch (err) {
             addNotification('Não foi possível confirmar a participação.', 'error');
         }
@@ -725,7 +728,9 @@ export default function Reunioes() {
     const totalParticipantesUnicos = useMemo(() => {
         const ids = new Set();
         reunioesDoMes.forEach((r) => {
-            (r.participantes || []).forEach((p) => p.id && ids.add(p.id));
+            (r.participantes || [])
+                .filter((p) => (p.status || 'ACEITO') === 'ACEITO')
+                .forEach((p) => p.id && ids.add(p.id));
             if (r.criado_por_id) ids.add(r.criado_por_id);
         });
         return ids.size;
@@ -747,7 +752,10 @@ export default function Reunioes() {
     const participanteAtual = reuniaoSelecionada?.participantes?.find(
         (p) => p.id === actor?.id || p.uid === actor?.firebaseUid || p.email === actor?.email
     );
-    const isConcluida = reuniaoSelecionada && (reuniaoSelecionada.status === 'CONCLUIDA' || new Date(reuniaoSelecionada.data_fim || reuniaoSelecionada.data_inicio) < new Date());
+    const isConcluida = reuniaoSelecionada && (
+        reuniaoSelecionada.status?.toLowerCase() === 'concluida' ||
+        reuniaoSelecionada.status?.toLowerCase() === 'cancelada'
+    );
 
     return (
         <AppLayout pageTitle="Reuniões">
@@ -905,9 +913,17 @@ export default function Reunioes() {
                                         {format(dia, 'd')}
                                         {reunioesNoDia.length > 0 && (
                                             <div className="mt-1 flex gap-0.5">
-                                                {reunioesNoDia.slice(0, 2).map((_, idx) => (
-                                                    <div key={idx} className="h-1 w-1 rounded-full bg-hotel-gold" />
-                                                ))}
+                                                {reunioesNoDia.slice(0, 2).map((r, idx) => {
+                                                    const isPendente = r.participantes?.some(
+                                                        (p) => (p.id === actor?.id || p.uid === actor?.firebaseUid || p.email === actor?.email) && p.status === 'PENDENTE'
+                                                    );
+                                                    return (
+                                                        <div
+                                                            key={idx}
+                                                            className={`h-1 w-1 rounded-full ${isPendente ? 'bg-amber-500 animate-pulse' : 'bg-hotel-gold'}`}
+                                                        />
+                                                    );
+                                                })}
                                                 {reunioesNoDia.length > 2 && <span className="text-[9px]">+{reunioesNoDia.length - 2}</span>}
                                             </div>
                                         )}
@@ -991,11 +1007,26 @@ export default function Reunioes() {
                                             }`} />
 
                                             <div className="min-w-0 flex-1">
-                                                <p className={`text-sm font-semibold truncate ${
-                                                    isAtiva ? 'text-hotel-gold' : 'text-hotel-blue'
-                                                }`}>
-                                                    {reuniao.titulo}
-                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className={`text-sm font-semibold truncate ${
+                                                        isAtiva ? 'text-hotel-gold' : 'text-hotel-blue'
+                                                    }`}>
+                                                        {reuniao.titulo}
+                                                    </p>
+                                                    {(() => {
+                                                        const pAtual = reuniao.participantes?.find(
+                                                            (p) => p.id === actor?.id || p.uid === actor?.firebaseUid || p.email === actor?.email
+                                                        );
+                                                        if (pAtual?.status === 'PENDENTE') {
+                                                            return (
+                                                                <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-700">
+                                                                    Convite
+                                                                </span>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    })()}
+                                                </div>
                                                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                                                     <span className="inline-flex items-center gap-1 text-xs text-hotel-gray-md">
                                                         <Clock3 size={11} />
@@ -1008,24 +1039,28 @@ export default function Reunioes() {
                                                         </span>
                                                     )}
                                                 </div>
-                                                {reuniao.participantes?.length > 0 && (
-                                                    <div className="mt-1.5 flex -space-x-1.5">
-                                                        {reuniao.participantes.slice(0, 4).map((p) => (
-                                                            <div
-                                                                key={p.id}
-                                                                title={p.nome}
-                                                                className="flex h-5 w-5 items-center justify-center rounded-full border border-white bg-hotel-blue/20 text-[9px] font-bold text-hotel-blue"
-                                                            >
-                                                                {p.nome?.charAt(0).toUpperCase()}
-                                                            </div>
-                                                        ))}
-                                                        {reuniao.participantes.length > 4 && (
-                                                            <div className="flex h-5 w-5 items-center justify-center rounded-full border border-white bg-hotel-gray/20 text-[9px] font-semibold text-hotel-gray-md">
-                                                                +{reuniao.participantes.length - 4}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                {(() => {
+                                                    const aceitos = (reuniao.participantes || []).filter(p => (p.status || 'ACEITO') === 'ACEITO');
+                                                    if (aceitos.length === 0) return null;
+                                                    return (
+                                                        <div className="mt-1.5 flex -space-x-1.5">
+                                                            {aceitos.slice(0, 4).map((p) => (
+                                                                <div
+                                                                    key={p.id}
+                                                                    title={p.nome}
+                                                                    className="flex h-5 w-5 items-center justify-center rounded-full border border-white bg-hotel-blue/20 text-[9px] font-bold text-hotel-blue"
+                                                                >
+                                                                    {p.nome?.charAt(0).toUpperCase()}
+                                                                </div>
+                                                            ))}
+                                                            {aceitos.length > 4 && (
+                                                                <div className="flex h-5 w-5 items-center justify-center rounded-full border border-white bg-hotel-gray/20 text-[9px] font-semibold text-hotel-gray-md">
+                                                                    +{aceitos.length - 4}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
 
                                             {isHoje && !isAtiva && (
@@ -1103,7 +1138,7 @@ export default function Reunioes() {
                                 <div className="rounded-2xl border border-hotel-gray/50 bg-hotel-light/40 p-4">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hotel-gray-md">Status</p>
                                     {(() => {
-                                        const isConcluida = reuniaoSelecionada.status === 'CONCLUIDA' || new Date(reuniaoSelecionada.data_fim || reuniaoSelecionada.data_inicio) < new Date();
+                                        const isConcluida = reuniaoSelecionada.status === 'concluida' || new Date(reuniaoSelecionada.data_fim || reuniaoSelecionada.data_inicio) < new Date();
                                         const statusLabel = isConcluida ? 'Concluída' : (StatusLabel[reuniaoSelecionada.status] || 'Agendada');
                                         return (
                                             <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${isConcluida ? 'bg-emerald-100 text-emerald-700' : 'bg-hotel-gold/20 text-hotel-gold'}`}>
@@ -1114,26 +1149,62 @@ export default function Reunioes() {
                                 </div>
                             </div>
 
-                            {reuniaoSelecionada.participantes?.length > 0 && (
-                                <div className="rounded-2xl border border-hotel-gray/50 bg-white px-4 py-4 shadow-[0_1px_0_rgba(4,21,35,0.02)]">
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hotel-gray-md">Participantes</p>
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                        {reuniaoSelecionada.participantes.map((p) => (
-                                            <span
-                                                key={p.id}
-                                                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
-                                                    p.status === 'RECUSADO'
-                                                        ? 'border-red-200 bg-red-50 text-red-600'
-                                                        : 'border-hotel-blue/10 bg-hotel-blue/10 text-hotel-blue'
-                                                }`}
-                                                title={p.status === 'RECUSADO' ? `Recusou: ${p.motivo_recusa}` : undefined}
-                                            >
-                                                <Users size={11} /> {p.nome} {p.status === 'RECUSADO' && '(Recusou)'}
-                                            </span>
-                                        ))}
+                            {reuniaoSelecionada.participantes?.length > 0 && (() => {
+                                const aceitos = reuniaoSelecionada.participantes.filter((p) => (p.status || 'ACEITO') === 'ACEITO');
+                                const pendentes = reuniaoSelecionada.participantes.filter((p) => p.status === 'PENDENTE');
+                                const recusados = reuniaoSelecionada.participantes.filter((p) => p.status === 'RECUSADO');
+                                
+                                return (
+                                    <div className="space-y-4 rounded-2xl border border-hotel-gray/50 bg-white px-4 py-4 shadow-[0_1px_0_rgba(4,21,35,0.02)]">
+                                        {aceitos.length > 0 && (
+                                            <div>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hotel-gray-md">Participantes Confirmados</p>
+                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                    {aceitos.map((p) => (
+                                                        <span
+                                                            key={p.id}
+                                                            className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
+                                                        >
+                                                            <Users size={11} /> {p.nome}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {pendentes.length > 0 && (
+                                            <div>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hotel-gray-md">Aguardando Confirmação</p>
+                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                    {pendentes.map((p) => (
+                                                        <span
+                                                            key={p.id}
+                                                            className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 animate-pulse"
+                                                        >
+                                                            <Users size={11} /> {p.nome}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {recusados.length > 0 && (
+                                            <div>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hotel-gray-md">Recusados</p>
+                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                    {recusados.map((p) => (
+                                                        <span
+                                                            key={p.id}
+                                                            className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 cursor-help"
+                                                            title={`Motivo: ${p.motivo_recusa || 'Não especificado'}`}
+                                                        >
+                                                            <Users size={11} /> {p.nome} (Recusou)
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
 
                             {reuniaoSelecionada.checklist?.length > 0 && (
                                 <div className="rounded-2xl border border-hotel-gray/50 bg-white px-4 py-4 shadow-[0_1px_0_rgba(4,21,35,0.02)]">
@@ -1198,21 +1269,63 @@ export default function Reunioes() {
 
                             <div className="flex flex-col-reverse gap-2 border-t border-hotel-gray/20 pt-2 sm:flex-row sm:justify-end">
                                 {isParticipante && !isConcluida && (
-                                    participanteAtual?.status === 'RECUSADO' ? (
-                                        <button
-                                            onClick={handleAceitarNovamente}
-                                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-600 transition-colors hover:bg-emerald-50 sm:w-auto"
-                                        >
-                                            Aceitar novamente
-                                        </button>
-                                    ) : (
-                                        <button
-                                            onClick={() => setModalRecusaAberto(true)}
-                                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 sm:w-auto"
-                                        >
-                                            <X size={14} /> Recusar participação
-                                        </button>
-                                    )
+                                    (() => {
+                                        const status = participanteAtual?.status || 'ACEITO';
+                                        
+                                        const dataReuniao = new Date(reuniaoSelecionada.data_inicio);
+                                        const hoje = new Date();
+                                        const dataReuniaoZerada = new Date(dataReuniao.getFullYear(), dataReuniao.getMonth(), dataReuniao.getDate());
+                                        const hojeZerado = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+                                        const isMesmoDiaOuPassado = dataReuniaoZerada.getTime() <= hojeZerado.getTime();
+                                        const podeRecusar = !isMesmoDiaOuPassado;
+                                        
+                                        if (status === 'PENDENTE') {
+                                            return (
+                                                <div className="flex gap-2">
+                                                    {podeRecusar && (
+                                                        <button
+                                                            onClick={() => setModalRecusaAberto(true)}
+                                                            title="Recusar convite"
+                                                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 transition-colors hover:bg-red-50"
+                                                        >
+                                                            <X size={18} />
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={handleAceitarReuniao}
+                                                        title="Aceitar convite"
+                                                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700"
+                                                    >
+                                                        <Check size={18} />
+                                                    </button>
+                                                </div>
+                                            );
+                                        }
+                                        if (status === 'RECUSADO') {
+                                            return (
+                                                <button
+                                                    onClick={handleAceitarReuniao}
+                                                    title="Aceitar novamente"
+                                                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700"
+                                                >
+                                                    <Check size={18} />
+                                                </button>
+                                            );
+                                        }
+                                        // status === 'ACEITO'
+                                        if (podeRecusar) {
+                                            return (
+                                                <button
+                                                    onClick={() => setModalRecusaAberto(true)}
+                                                    title="Recusar participação"
+                                                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 transition-colors hover:bg-red-50"
+                                                >
+                                                    <X size={18} />
+                                                </button>
+                                            );
+                                        }
+                                        return null;
+                                    })()
                                 )}
                                 {canManageReunioes && (
                                     <>
