@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+﻿﻿﻿﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
     collection,
     deleteDoc,
@@ -812,6 +812,82 @@ export function OSProvider({ children }) {
         };
     }, [ordens]);
 
+    /** Edita ou remove o anexo de um item do histórico */
+    const editarAnexoHistorico = useCallback(async (osId, dataItem, novoPdfFile, removerAnexo, motivo, usuario) => {
+        const os = ordens.find((item) => item.id === osId);
+        if (!os) return;
+
+        let anexoPdfUrl = null;
+        let anexoPdfNome = null;
+        let anexoErro = '';
+
+        if (removerAnexo && os.historico.find(h => h.data === dataItem)?.anexo_pdf_url) {
+            try {
+                await deleteFileByUrl(os.historico.find(h => h.data === dataItem).anexo_pdf_url);
+            } catch (err) {
+                console.warn('Erro ao deletar anexo anterior:', err.message);
+            }
+        }
+
+        if (novoPdfFile) {
+            try {
+                const anteriorUrl = os.historico.find(h => h.data === dataItem)?.anexo_pdf_url;
+                if (anteriorUrl) {
+                    try {
+                        await deleteFileByUrl(anteriorUrl);
+                    } catch (err) {
+                        console.warn('Erro ao deletar anexo anterior:', err.message);
+                    }
+                }
+
+                const uploadResult = await uploadProgressPdf(novoPdfFile, osId);
+                anexoPdfUrl = uploadResult?.url || null;
+                anexoPdfNome = uploadResult?.fileName || novoPdfFile.name || 'anexo.pdf';
+            } catch (error) {
+                anexoErro = error?.message || 'Não foi possível enviar o novo PDF.';
+                throw new Error(anexoErro);
+            }
+        }
+
+        const historico = os.historico.map((h) => {
+            if (h.data === dataItem) {
+                let descOriginal = h.descricao || '';
+                const dataAjuste = new Date().toLocaleDateString('pt-BR');
+                const horaAjuste = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                
+                let acaoTxt = removerAnexo ? 'Anexo removido' : (novoPdfFile ? 'Anexo substituído' : 'Anexo ajustado');
+                let novaDesc = descOriginal + `\n\n[Ajuste em ${dataAjuste} às ${horaAjuste} por ${usuario.nome}]: ${acaoTxt}. Motivo: ${motivo}`;
+
+                const updatedItem = {
+                    ...h,
+                    descricao: novaDesc,
+                };
+
+                if (removerAnexo) {
+                    updatedItem.anexo_pdf_url = null;
+                    updatedItem.anexo_pdf_nome = null;
+                } else if (novoPdfFile && anexoPdfUrl) {
+                    updatedItem.anexo_pdf_url = anexoPdfUrl;
+                    updatedItem.anexo_pdf_nome = anexoPdfNome;
+                }
+                return updatedItem;
+            }
+            return h;
+        });
+
+        const payload = { historico };
+
+        if (!isFirebaseConfigured || !db) {
+            setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));
+            setError('');
+            return;
+        }
+
+        await updateDoc(doc(db, 'serviceOrders', osId), payload);
+        setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));
+        setError('');
+    }, [ordens]);
+
     /** Remove uma OS (apenas pela diretora) */
     const excluirOS = useCallback(async (osId, usuario) => {
         const os = ordens.find((item) => item.id === osId);
@@ -929,6 +1005,7 @@ export function OSProvider({ children }) {
                 recusarFinalizacao,
                 adicionarObservacao,
                 atualizarChecklist,
+                editarAnexoHistorico,
                 editarOS,
                 excluirOS,
                 getOSPorLider,

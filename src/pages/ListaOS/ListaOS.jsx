@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿﻿﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, ChevronDown, ChevronUp, Trash2, X,
@@ -12,6 +12,7 @@ import ConfirmModal from '../../components/Modal/ConfirmModal';
 import EditarOSModal from '../../components/Modal/EditarOSModal';
 import StatusObservacaoModal from '../../components/Modal/StatusObservacaoModal';
 import AdicionarObservacaoModal from '../../components/Modal/AdicionarObservacaoModal';
+import EditarAnexoHistoricoModal from '../../components/Modal/EditarAnexoHistoricoModal';
 import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
@@ -217,7 +218,7 @@ function escapeCsvValue(value) {
     return text;
 }
 
-function HistoricoOSModal({ isOpen, onClose, os }) {
+function HistoricoOSModal({ isOpen, onClose, os, actor, isDiretora, onEditarAnexo }) {
     if (!isOpen || !os) return null;
 
     const historico = os.historico || [];
@@ -244,7 +245,7 @@ function HistoricoOSModal({ isOpen, onClose, os }) {
                                 <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hotel-blue/10 text-hotel-blue">
                                     <Clock3 size={14} />
                                 </div>
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                     <p className="text-sm font-semibold text-hotel-blue">
                                         {h.usuario_nome}
                                         {h.prazo_estimado && (
@@ -256,7 +257,7 @@ function HistoricoOSModal({ isOpen, onClose, os }) {
                                     <p className="mt-0.5 text-xs text-hotel-gray-md">
                                         {format(parseISO(h.data), "dd/MM/yyyy 'às' HH:mm")}
                                     </p>
-                                    <p className="mt-1.5 text-sm leading-6 text-hotel-gray-md">{h.descricao}</p>
+                                    <p className="mt-1.5 text-sm leading-6 text-hotel-gray-md whitespace-pre-line">{h.descricao}</p>
                                     {h.anexo_pdf_url && (
                                         <div className="mt-2 flex flex-wrap items-center gap-2">
                                             <span className="inline-flex items-center gap-1 rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-semibold text-hotel-blue">
@@ -265,11 +266,21 @@ function HistoricoOSModal({ isOpen, onClose, os }) {
                                             <a
                                                 href={h.anexo_pdf_url}
                                                 download={h.anexo_pdf_nome || 'anexo.pdf'}
-                                                className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-blue hover:text-hotel-gold"
+                                                className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-blue hover:text-hotel-gold mr-3"
                                                 target="_blank" rel="noreferrer"
                                             >
                                                 <Download size={11} /> {h.anexo_pdf_nome || 'Abrir anexo'}
                                             </a>
+                                            {(isDiretora || h.usuario_nome === actor?.nome) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onEditarAnexo(h)}
+                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-gray-md hover:text-hotel-blue transition-colors border-l border-hotel-gray-md/30 pl-3"
+                                                    title="Editar ou remover documento anexado"
+                                                >
+                                                    <Edit3 size={11} /> Editar anexo
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -301,6 +312,7 @@ export default function ListaOS() {
         excluirOS,
         adicionarObservacao,
         atualizarChecklist,
+        editarAnexoHistorico,
         error: ordensError,
     } = useOS();
     const { user } = useAuth();
@@ -356,6 +368,7 @@ export default function ListaOS() {
     const [obsModal, setObsModal] = useState({ open: false, os: null, novoStatus: null });
     const [adicionarObsModal, setAdicionarObsModal] = useState({ open: false, os: null });
     const [historicoModal, setHistoricoModal] = useState({ open: false, os: null });
+    const [editarAnexoModalState, setEditarAnexoModalState] = useState({ open: false, os: null, item: null });
 
     useEffect(() => {
         if (!locState.expandOsId) {
@@ -618,6 +631,19 @@ export default function ListaOS() {
             setAdicionarObsModal({ open: false, os: null });
         } catch (error) {
             addNotification(error?.message || 'Nao foi possivel registrar o progresso.', 'error');
+        }
+    };
+
+    const handleConfirmEditarAnexo = async (osId, dataItem, novoPdfFile, removerAnexo, motivo) => {
+        try {
+            await editarAnexoHistorico(osId, dataItem, novoPdfFile, removerAnexo, motivo, actor);
+            addNotification(
+                removerAnexo ? 'Anexo do histórico removido com sucesso.' : 'Anexo do histórico substituído com sucesso.',
+                'success'
+            );
+            setEditarAnexoModalState({ open: false, os: null, item: null });
+        } catch (error) {
+            addNotification(error?.message || 'Erro ao ajustar anexo do histórico.', 'error');
         }
     };
 
@@ -1103,8 +1129,21 @@ export default function ListaOS() {
                         />
             <HistoricoOSModal
                 isOpen={historicoModal.open}
-                os={historicoModal.os}
+                os={ordens.find(o => o.id === historicoModal.os?.id) || historicoModal.os}
+                actor={actor}
+                isDiretora={isDiretora}
                 onClose={() => setHistoricoModal({ open: false, os: null })}
+                onEditarAnexo={(historicoItem) => {
+                    setEditarAnexoModalState({ open: true, os: historicoModal.os, item: historicoItem });
+                }}
+            />
+
+            <EditarAnexoHistoricoModal
+                isOpen={editarAnexoModalState.open}
+                os={editarAnexoModalState.os}
+                historicoItem={editarAnexoModalState.item}
+                onCancel={() => setEditarAnexoModalState({ open: false, os: null, item: null })}
+                onConfirm={handleConfirmEditarAnexo}
             />
         </AppLayout>
     );
