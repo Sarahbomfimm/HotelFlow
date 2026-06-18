@@ -2,7 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, History, ChartNoAxesCombined, CalendarDays,
     LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus, TrendingUp,
-    User,
+    User, GraduationCap,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import Logo from '../Logo/Logo';
@@ -20,6 +20,7 @@ const liderLinks = [
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
+    { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
@@ -31,6 +32,7 @@ const diretoraLinks = [
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
+    { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
     { to: '/historico', label: 'Histórico', icon: History },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
@@ -43,6 +45,7 @@ const adminLinks = [
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
+    { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
     { to: '/historico', label: 'Histórico', icon: History },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
@@ -62,6 +65,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const canAccessReunioes = hasPermission(displayUser, PERMISSIONS.REUNIOES_ACCESS);
     const canAccessAprovacoes = hasPermission(displayUser, PERMISSIONS.SI_APPROVALS_ACCESS);
     const canAccessHistorico = hasPermission(displayUser, PERMISSIONS.HISTORICO_ACCESS);
+    const canAccessTreinamentos = hasPermission(displayUser, PERMISSIONS.TREINAMENTOS_ACCESS);
     const canAccessAdminPanel = hasPermission(displayUser, PERMISSIONS.ADMIN_PANEL_ACCESS);
     const canAccessInvestimentos = hasPermission(displayUser, PERMISSIONS.INVESTIMENTOS_VIEW);
 
@@ -73,6 +77,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
             : liderLinks;
     const visibleLinks = links.filter((link) => {
         if (link.to === '/auditorias/visualizar') return canAccessAuditorias;
+        if (link.to === '/treinamentos') return canAccessTreinamentos;
         if (link.to === '/reunioes') return canAccessReunioes;
         if (link.to === '/aprovacoes') return canAccessAprovacoes;
         if (link.to === '/historico') return canAccessHistorico;

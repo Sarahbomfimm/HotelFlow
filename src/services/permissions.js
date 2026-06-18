@@ -15,6 +15,7 @@ export const PERMISSIONS = {
     SI_FINALIZE: 'si_finalize',
     SI_EDIT: 'si_edit',
     INVESTIMENTOS_VIEW: 'investimentos_view',
+    TREINAMENTOS_ACCESS: 'treinamentos_access',
 };
 
 export const PERMISSION_DEFINITIONS = [
@@ -102,6 +103,12 @@ export const PERMISSION_DEFINITIONS = [
         description: 'Permite abrir o módulo de Investimentos na barra lateral.',
         category: 'Investimentos',
     },
+    {
+        key: PERMISSIONS.TREINAMENTOS_ACCESS,
+        label: 'Acessar Treinamentos',
+        description: 'Permite abrir as telas do módulo de Treinamentos.',
+        category: 'Treinamentos',
+    },
 ];
 
 export function getDefaultPermissions(role) {
@@ -121,6 +128,7 @@ export function getDefaultPermissions(role) {
             [PERMISSIONS.SI_FINALIZE]: true,
             [PERMISSIONS.SI_EDIT]: true,
             [PERMISSIONS.INVESTIMENTOS_VIEW]: true,
+            [PERMISSIONS.TREINAMENTOS_ACCESS]: true,
         };
     }
 
@@ -140,6 +148,7 @@ export function getDefaultPermissions(role) {
             [PERMISSIONS.SI_FINALIZE]: true,
             [PERMISSIONS.SI_EDIT]: true,
             [PERMISSIONS.INVESTIMENTOS_VIEW]: false,
+            [PERMISSIONS.TREINAMENTOS_ACCESS]: true,
         };
     }
 
@@ -158,6 +167,7 @@ export function getDefaultPermissions(role) {
         [PERMISSIONS.SI_FINALIZE]: false,
         [PERMISSIONS.SI_EDIT]: true,
         [PERMISSIONS.INVESTIMENTOS_VIEW]: false,
+        [PERMISSIONS.TREINAMENTOS_ACCESS]: false,
     };
 }
 
@@ -225,6 +235,11 @@ export function getPermissionDeniedCopy(permissionKey) {
             return {
                 title: 'Acesso negado ao Histórico',
                 message: 'Seu usuário não está autorizado no Gerenciamento para acessar a tela de Histórico.',
+            };
+        case PERMISSIONS.TREINAMENTOS_ACCESS:
+            return {
+                title: 'Acesso negado a Treinamentos',
+                message: 'Seu usuário não está autorizado no Gerenciamento para acessar o módulo de Treinamentos.',
             };
         default:
             return {

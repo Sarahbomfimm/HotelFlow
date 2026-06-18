@@ -16,6 +16,7 @@ import PDCAVisualPage from '../pages/PDCAVisualPage/PDCAVisualPage';
 import Aprovacoes from '../pages/Aprovacoes/Aprovacoes';
 import Reunioes from '../pages/Reunioes/Reunioes';
 import Auditorias from '../pages/Auditorias/Auditorias';
+import Treinamentos from '../pages/Treinamentos/Treinamentos';
 
 function DashboardRouter() {
     const { user } = useAuth();
@@ -101,6 +102,14 @@ export default function AppRouter() {
                 element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.AUDITORIAS_ACCESS}>
                         <Auditorias mode="visualizar" />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/treinamentos"
+                element={
+                    <ProtectedRoute requiredPermission={PERMISSIONS.TREINAMENTOS_ACCESS}>
+                        <Treinamentos />
                     </ProtectedRoute>
                 }
             />
