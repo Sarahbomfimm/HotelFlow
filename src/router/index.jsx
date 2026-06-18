@@ -18,6 +18,7 @@ import Reunioes from '../pages/Reunioes/Reunioes';
 import Auditorias from '../pages/Auditorias/Auditorias';
 import Treinamentos from '../pages/Treinamentos/Treinamentos';
 import Pops from '../pages/Pops/Pops';
+import Mundo from '../pages/Mundo/Mundo';
 
 function DashboardRouter() {
     const { user } = useAuth();
@@ -119,6 +120,14 @@ export default function AppRouter() {
                 element={
                     <ProtectedRoute>
                         <Pops />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/mundo"
+                element={
+                    <ProtectedRoute>
+                        <Mundo />
                     </ProtectedRoute>
                 }
             />
