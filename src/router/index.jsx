@@ -17,6 +17,7 @@ import Aprovacoes from '../pages/Aprovacoes/Aprovacoes';
 import Reunioes from '../pages/Reunioes/Reunioes';
 import Auditorias from '../pages/Auditorias/Auditorias';
 import Treinamentos from '../pages/Treinamentos/Treinamentos';
+import Pops from '../pages/Pops/Pops';
 
 function DashboardRouter() {
     const { user } = useAuth();
@@ -113,6 +114,15 @@ export default function AppRouter() {
                     </ProtectedRoute>
                 }
             />
+            <Route
+                path="/pops"
+                element={
+                    <ProtectedRoute>
+                        <Pops />
+                    </ProtectedRoute>
+                }
+            />
+
 
             {/* Diretora e Líderes */}
             <Route

@@ -30,6 +30,8 @@ import {
     saveTreinamento,
     deleteTreinamento
 } from '../../services/treinamentosStorage';
+import { uploadTreinamentoPdf } from '../../services/storage';
+
 
 function getCurrentMonth() {
     return new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -80,7 +82,8 @@ export default function Treinamentos() {
         descricao: '',
         colaboradoresIds: [],
         customColaboradores: [],
-        pdf: null
+        pdf: null,
+        pdfFile: null
     });
 
     const [customColabName, setCustomColabName] = useState('');
@@ -216,6 +219,20 @@ export default function Treinamentos() {
             // Extrair apenas os nomes dos participantes para o array final de string
             const colaboradoresNomes = formData.customColaboradores.map((c) => c.nome);
 
+            let finalPdf = formData.pdf || null;
+            if (formData.pdfFile) {
+                addNotification('Enviando anexo PDF para o servidor...', 'info');
+                const uploadResult = await uploadTreinamentoPdf(formData.pdfFile, formData.tema);
+                if (uploadResult && uploadResult.url) {
+                    finalPdf = {
+                        name: formData.pdf.name,
+                        data: uploadResult.url
+                    };
+                } else {
+                    throw new Error('Falha no upload do arquivo PDF.');
+                }
+            }
+
             const record = {
                 id: editingId || undefined,
                 tema: formData.tema.trim(),
@@ -232,7 +249,7 @@ export default function Treinamentos() {
                 // Mantemos informações de ID de usuários para futuras edições
                 usersIds: formData.colaboradoresIds,
                 customList: formData.customColaboradores,
-                pdf: formData.pdf || null
+                pdf: finalPdf
             };
 
             await saveTreinamento(record);
@@ -263,7 +280,8 @@ export default function Treinamentos() {
             descricao: '',
             colaboradoresIds: [],
             customColaboradores: [],
-            pdf: null
+            pdf: null,
+            pdfFile: null
         });
         setCustomColabName('');
         setEditingId(null);
@@ -293,7 +311,8 @@ export default function Treinamentos() {
             descricao: t.descricao || '',
             colaboradoresIds: userIds,
             customColaboradores: colabList,
-            pdf: t.pdf || null
+            pdf: t.pdf || null,
+            pdfFile: null
         });
 
         setShowForm(true);
@@ -711,7 +730,7 @@ export default function Treinamentos() {
                                             </div>
                                             <button
                                                 type="button"
-                                                onClick={() => setFormData((prev) => ({ ...prev, pdf: null }))}
+                                                onClick={() => setFormData((prev) => ({ ...prev, pdf: null, pdfFile: null }))}
                                                 className="rounded-lg p-1 text-red-500 hover:bg-red-50"
                                                 title="Remover anexo"
                                             >
@@ -733,17 +752,14 @@ export default function Treinamentos() {
                                                         addNotification('O PDF deve ter no máximo 10MB.', 'error');
                                                         return;
                                                     }
-                                                    const reader = new FileReader();
-                                                    reader.onload = () => {
-                                                        setFormData((prev) => ({
-                                                            ...prev,
-                                                            pdf: {
-                                                                name: file.name,
-                                                                data: reader.result
-                                                            }
-                                                        }));
-                                                    };
-                                                    reader.readAsDataURL(file);
+                                                    setFormData((prev) => ({
+                                                        ...prev,
+                                                        pdfFile: file,
+                                                        pdf: {
+                                                            name: file.name,
+                                                            data: null
+                                                        }
+                                                    }));
                                                 }}
                                             />
                                         </label>
@@ -971,16 +987,21 @@ export default function Treinamentos() {
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                const link = document.createElement('a');
-                                                link.href = selectedTreinamento.pdf.data;
-                                                link.download = selectedTreinamento.pdf.name;
-                                                document.body.appendChild(link);
-                                                link.click();
-                                                document.body.removeChild(link);
+                                                const pdfData = selectedTreinamento.pdf.data;
+                                                if (pdfData && pdfData.startsWith('http')) {
+                                                    window.open(pdfData, '_blank');
+                                                } else {
+                                                    const link = document.createElement('a');
+                                                    link.href = pdfData;
+                                                    link.download = selectedTreinamento.pdf.name;
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    document.body.removeChild(link);
+                                                }
                                             }}
                                             className="inline-flex items-center gap-1.5 rounded-xl bg-hotel-blue px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-hotel-blue-md"
                                         >
-                                            Download PDF
+                                            {selectedTreinamento.pdf.data && selectedTreinamento.pdf.data.startsWith('http') ? 'Visualizar PDF' : 'Download PDF'}
                                         </button>
                                     </div>
                                 </div>

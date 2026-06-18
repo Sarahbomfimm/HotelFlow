@@ -2,7 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, History, ChartNoAxesCombined, CalendarDays,
     LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus, TrendingUp,
-    User, GraduationCap,
+    User, GraduationCap, BookOpen,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import Logo from '../Logo/Logo';
@@ -21,6 +21,7 @@ const liderLinks = [
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
+    { to: '/pops', label: 'POPs', icon: BookOpen },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
@@ -33,6 +34,7 @@ const diretoraLinks = [
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
+    { to: '/pops', label: 'POPs', icon: BookOpen },
     { to: '/historico', label: 'Histórico', icon: History },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
@@ -46,6 +48,7 @@ const adminLinks = [
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
+    { to: '/pops', label: 'POPs', icon: BookOpen },
     { to: '/historico', label: 'Histórico', icon: History },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
