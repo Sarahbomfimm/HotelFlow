@@ -1,4 +1,4 @@
-﻿﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, ChevronDown, ChevronUp, Trash2, X,
@@ -317,8 +317,25 @@ export default function ListaOS() {
     } = useOS();
     const { user } = useAuth();
     const { addNotification } = useNotification();
-    const { lideres, availableDepartments, currentUserProfile } = useUsers();
+    const { lideres, availableDepartments, currentUserProfile, users } = useUsers();
     const navigate = useNavigate();
+
+    const sofiaIds = useMemo(() => {
+        if (!users) return [];
+        return users
+            .filter((u) => u.nome?.toLowerCase() === 'sofia' || u.email?.toLowerCase() === 'sofia@hotelflow.com')
+            .flatMap((u) => [u.id, u.firebaseUid])
+            .filter(Boolean);
+    }, [users]);
+
+    const liderFilterOptions = useMemo(() => {
+        const options = lideres.map((lider) => ({ value: lider.id, label: lider.nome }));
+        const hasSofiaUser = users?.some((u) => u.nome?.toLowerCase() === 'sofia' || u.email?.toLowerCase() === 'sofia@hotelflow.com');
+        if (hasSofiaUser && !options.some(o => o.label?.toLowerCase() === 'sofia')) {
+            options.push({ value: 'sofia_filter_val', label: 'Sofia' });
+        }
+        return options;
+    }, [lideres, users]);
     const location = useLocation();
     const actor = currentUserProfile || user;
     const actorDepartments = actor?.departamentos || [];
@@ -407,6 +424,15 @@ export default function ListaOS() {
                 if (filterLider.length === 0) return true;
 
                 return filterLider.some((leaderId) => {
+                    const isSofiaFilter = leaderId === 'sofia_filter_val' || sofiaIds.includes(leaderId);
+                    if (isSofiaFilter) {
+                        return (
+                            o.responsavel_nome?.toLowerCase() === 'sofia' ||
+                            sofiaIds.includes(o.responsavel_id) ||
+                            sofiaIds.includes(o.responsavel_uid)
+                        );
+                    }
+
                     const leader = lideres.find((item) => item.id === leaderId);
                     if (!leader) {
                         return normalizeIdentityValue(o.responsavel_id) === normalizeIdentityValue(leaderId);
@@ -471,6 +497,7 @@ export default function ListaOS() {
         shouldShowOnlyOverdue,
         lideres,
         actor,
+        sofiaIds,
     ]);
 
     const activeOrders = useMemo(
@@ -1007,7 +1034,7 @@ export default function ListaOS() {
                     <MultiSelectFilter
                         title="Líder"
                         selectedValues={filterLider}
-                        options={lideres.map((lider) => ({ value: lider.id, label: lider.nome }))}
+                        options={liderFilterOptions}
                         onToggle={(value) => toggleInFilter(setFilterLider, filterLider, value)}
                         onClear={() => setFilterLider([])}
                     />
