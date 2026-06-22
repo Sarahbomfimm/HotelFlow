@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ClipboardList, Clock3, Building2, CalendarRange } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import { useOS } from '../../context/OSContext';
@@ -47,6 +48,7 @@ function progressPercent(step) {
 export default function PDCAVisualPage() {
     const { ordens, getOSPorLider } = useOS();
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [selectedDepartment, setSelectedDepartment] = useState('');
     const [periodRange, setPeriodRange] = useState([null, null]);
 
@@ -245,7 +247,11 @@ export default function PDCAVisualPage() {
                                         const isLate = isSIOverdue(os);
 
                                         return (
-                                            <article key={os.id} className="rounded-xl border border-hotel-gray/50 bg-white p-3 transition-colors hover:bg-hotel-light/60">
+                                            <article
+                                                key={os.id}
+                                                onClick={() => navigate('/ordens', { state: { expandOsId: os.id } })}
+                                                className="rounded-xl border border-hotel-gray/50 bg-white p-3 transition-colors hover:bg-hotel-light/60 cursor-pointer hover:border-hotel-blue/40"
+                                            >
                                                 <div className="mb-2 flex items-center justify-between gap-2">
                                                     <span className={`status-${os.status}`}>{StatusLabel[os.status]}</span>
                                                     <span className="text-[11px] font-semibold text-hotel-gray-md">{os.departamento}</span>
