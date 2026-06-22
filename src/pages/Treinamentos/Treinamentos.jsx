@@ -45,6 +45,23 @@ export default function Treinamentos() {
     const { users, availableDepartments, currentUserProfile } = useUsers();
     const profile = currentUserProfile || user;
  
+    // Verificar se o usuário pode gerenciar treinamentos (criar, editar, excluir)
+    const canManageTreinamentos = useMemo(() => {
+        if (!profile) return false;
+        if (profile.role === UserRole.ADMIN) return true;
+        
+        const depts = Array.isArray(profile.departamentos)
+            ? profile.departamentos
+            : typeof profile.departamentos === 'string'
+            ? [profile.departamentos]
+            : [];
+            
+        return depts.some(d => {
+            const norm = d.trim().toLowerCase();
+            return norm === 'rh' || norm === 'recursos humanos';
+        });
+    }, [profile]);
+ 
     // Filtrar e ordenar a lista de líderes selecionáveis
     const sortedSelectableUsers = useMemo(() => {
         const uniqueMap = new Map();
@@ -281,6 +298,10 @@ export default function Treinamentos() {
     // Submissão do Formulário (Salvar)
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!canManageTreinamentos) {
+            addNotification('Apenas usuários do departamento de RH ou Administradores podem registrar/editar treinamentos.', 'error');
+            return;
+        }
         if (!formData.tema || !formData.departamento || !formData.palestrante) {
             addNotification('Por favor, preencha todos os campos obrigatórios.', 'error');
             return;
@@ -412,6 +433,10 @@ export default function Treinamentos() {
     // Iniciar edição de um treinamento
     const handleStartEdit = (t, event) => {
         event.stopPropagation();
+        if (!canManageTreinamentos) {
+            addNotification('Apenas usuários do departamento de RH ou Administradores podem editar treinamentos.', 'error');
+            return;
+        }
         setEditingId(t.id);
 
         // Mapear dados existentes de volta para o formulário
@@ -460,6 +485,10 @@ export default function Treinamentos() {
     // Excluir treinamento
     const handleDelete = async (tId, event) => {
         event.stopPropagation();
+        if (!canManageTreinamentos) {
+            addNotification('Apenas usuários do departamento de RH ou Administradores podem excluir treinamentos.', 'error');
+            return;
+        }
         if (!window.confirm('Tem certeza que deseja remover este registro de treinamento permanente?')) return;
 
         try {
@@ -499,18 +528,20 @@ export default function Treinamentos() {
                             </p>
                         </div>
                         
-                        <div className="flex flex-wrap gap-3">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    resetForm();
-                                    setShowForm(true);
-                                }}
-                                className="inline-flex items-center gap-2.5 rounded-2xl bg-hotel-gold px-5 py-3 text-sm font-bold text-white shadow-lg shadow-hotel-gold/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-hotel-gold-lt hover:shadow-hotel-gold/40"
-                            >
-                                <Plus size={16} /> Registrar Treinamento
-                            </button>
-                        </div>
+                        {canManageTreinamentos && (
+                            <div className="flex flex-wrap gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        resetForm();
+                                        setShowForm(true);
+                                    }}
+                                    className="inline-flex items-center gap-2.5 rounded-2xl bg-hotel-gold px-5 py-3 text-sm font-bold text-white shadow-lg shadow-hotel-gold/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-hotel-gold-lt hover:shadow-hotel-gold/40"
+                                >
+                                    <Plus size={16} /> Registrar Treinamento
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -656,24 +687,26 @@ export default function Treinamentos() {
                                                 {t.departamento}
                                             </span>
                                             
-                                            <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => handleStartEdit(t, e)}
-                                                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-hotel-blue"
-                                                    title="Editar registro"
-                                                >
-                                                    <Edit3 size={13} />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => handleDelete(t.id, e)}
-                                                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                                                    title="Excluir registro"
-                                                >
-                                                    <Trash2 size={13} />
-                                                </button>
-                                            </div>
+                                            {canManageTreinamentos && (
+                                                <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => handleStartEdit(t, e)}
+                                                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-hotel-blue"
+                                                        title="Editar registro"
+                                                    >
+                                                        <Edit3 size={13} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => handleDelete(t.id, e)}
+                                                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                                        title="Excluir registro"
+                                                    >
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Tema */}
@@ -1353,24 +1386,28 @@ export default function Treinamentos() {
 
                             {/* Rodapé do Modal */}
                             <div className="flex gap-2 pt-4 border-t border-slate-100">
-                                <button
-                                    type="button"
-                                    onClick={(e) => handleDelete(selectedTreinamento.id, e)}
-                                    className="inline-flex justify-center items-center rounded-xl border border-red-200 bg-red-50 p-2.5 text-red-600 transition-colors hover:bg-red-100 active:scale-95 flex-shrink-0"
-                                    title="Excluir Registro de Treinamento"
-                                >
-                                    <Trash2 size={15} />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        handleStartEdit(selectedTreinamento, e);
-                                        setSelectedTreinamento(null);
-                                    }}
-                                    className="flex-1 inline-flex justify-center items-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
-                                >
-                                    <Edit3 size={12} /> Editar Registro
-                                </button>
+                                {canManageTreinamentos && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => handleDelete(selectedTreinamento.id, e)}
+                                            className="inline-flex justify-center items-center rounded-xl border border-red-200 bg-red-50 p-2.5 text-red-600 transition-colors hover:bg-red-100 active:scale-95 flex-shrink-0"
+                                            title="Excluir Registro de Treinamento"
+                                        >
+                                            <Trash2 size={15} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                handleStartEdit(selectedTreinamento, e);
+                                                setSelectedTreinamento(null);
+                                            }}
+                                            className="flex-1 inline-flex justify-center items-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                                        >
+                                            <Edit3 size={12} /> Editar Registro
+                                        </button>
+                                    </>
+                                )}
                                 <button
                                     type="button"
                                     onClick={() => setSelectedTreinamento(null)}
