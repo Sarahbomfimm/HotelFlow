@@ -182,7 +182,15 @@ export default function Treinamentos() {
     const modalInviteStatus = useMemo(() => {
         if (!selectedTreinamento) return null;
         const uId = profile?.firebaseUid || profile?.id || user?.firebaseUid || user?.id;
-        const userInvite = selectedTreinamento.customList?.find((c) => c.id === uId);
+        const uNome = profile?.nome || user?.nome || '';
+        const uEmail = profile?.email || user?.email || '';
+
+        const userInvite = selectedTreinamento.customList?.find((c) => {
+            const matchId = c.id === profile?.firebaseUid || c.id === profile?.id || c.id === user?.firebaseUid || c.id === user?.id;
+            const matchName = c.nome && uNome && c.nome.trim().toLowerCase() === uNome.trim().toLowerCase();
+            const matchEmail = c.email && uEmail && c.email.trim().toLowerCase() === uEmail.trim().toLowerCase();
+            return matchId || matchName || matchEmail;
+        });
         return userInvite ? userInvite.status : null;
     }, [selectedTreinamento, profile, user]);
 
@@ -197,10 +205,12 @@ export default function Treinamentos() {
                     customColaboradores: prev.customColaboradores.filter((c) => c.id !== userId)
                 };
             } else {
+                const userObj = sortedSelectableUsers.find((u) => u.id === userId);
+                const email = userObj?.email || '';
                 return {
                     ...prev,
                     colaboradoresIds: [...prev.colaboradoresIds, userId],
-                    customColaboradores: [...prev.customColaboradores, { id: userId, nome, isUser: true }]
+                    customColaboradores: [...prev.customColaboradores, { id: userId, nome, email, isUser: true }]
                 };
             }
         });
@@ -406,8 +416,25 @@ export default function Treinamentos() {
 
         // Mapear dados existentes de volta para o formulário
         const colabList = Array.isArray(t.customList)
-            ? t.customList
-            : (t.colaboradores || []).map((name, idx) => ({ id: `legacy_${idx}`, nome: name, isUser: false, status: 'aceito' }));
+            ? t.customList.map((colab) => {
+                if (colab.isUser && !colab.email) {
+                    const userObj = sortedSelectableUsers.find((u) => u.nome?.toLowerCase() === colab.nome?.toLowerCase());
+                    if (userObj) {
+                        return { ...colab, email: userObj.email };
+                    }
+                }
+                return colab;
+            })
+            : (t.colaboradores || []).map((name, idx) => {
+                const userObj = sortedSelectableUsers.find((u) => u.nome?.toLowerCase() === name.toLowerCase());
+                return {
+                    id: userObj?.id || `legacy_${idx}`,
+                    nome: name,
+                    email: userObj?.email || '',
+                    isUser: !!userObj,
+                    status: 'aceito'
+                };
+            });
 
         const userIds = Array.isArray(t.usersIds) ? t.usersIds : [];
 
@@ -605,7 +632,15 @@ export default function Treinamentos() {
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {filteredTreinamentos.map((t) => {
                             const uId = profile?.firebaseUid || profile?.id || user?.firebaseUid || user?.id;
-                            const userInvite = t.customList?.find((c) => c.id === uId);
+                            const uNome = profile?.nome || user?.nome || '';
+                            const uEmail = profile?.email || user?.email || '';
+
+                            const userInvite = t.customList?.find((c) => {
+                                const matchId = c.id === profile?.firebaseUid || c.id === profile?.id || c.id === user?.firebaseUid || c.id === user?.id;
+                                const matchName = c.nome && uNome && c.nome.trim().toLowerCase() === uNome.trim().toLowerCase();
+                                const matchEmail = c.email && uEmail && c.email.trim().toLowerCase() === uEmail.trim().toLowerCase();
+                                return matchId || matchName || matchEmail;
+                            });
                             const inviteStatus = userInvite ? userInvite.status : null;
 
                             return (

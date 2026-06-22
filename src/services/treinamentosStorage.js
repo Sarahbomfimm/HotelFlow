@@ -157,7 +157,9 @@ export async function respondToTrainingInvite(trainingId, userId, userName, acce
 
     let updated = false;
     const nextCustomList = (training.customList || []).map((colab) => {
-        if (colab.id === userId) {
+        const matchId = colab.id === userId;
+        const matchName = colab.nome && userName && colab.nome.trim().toLowerCase() === userName.trim().toLowerCase();
+        if (matchId || matchName) {
             updated = true;
             return {
                 ...colab,
