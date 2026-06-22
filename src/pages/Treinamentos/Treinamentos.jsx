@@ -28,9 +28,11 @@ import { hasPermission, PERMISSIONS } from '../../services/permissions';
 import {
     subscribeTreinamentos,
     saveTreinamento,
-    deleteTreinamento
+    deleteTreinamento,
+    respondToTrainingInvite
 } from '../../services/treinamentosStorage';
 import { uploadTreinamentoPdf } from '../../services/storage';
+import { createUserNotification } from '../../services/notifications';
 
 
 function getCurrentMonth() {
@@ -150,6 +152,40 @@ export default function Treinamentos() {
         };
     }, [filteredTreinamentos]);
 
+    // Group participants of the selected training by status
+    const selectedTrainingParticipants = useMemo(() => {
+        if (!selectedTreinamento) return { accepted: [], pending: [], declined: [] };
+
+        const list = selectedTreinamento.customList || [];
+        if (list.length === 0) {
+            // Legacy fallback using colaboradores names array
+            return {
+                accepted: (selectedTreinamento.colaboradores || []).map((nome, idx) => ({
+                    id: `legacy_${idx}`,
+                    nome,
+                    isUser: false,
+                    status: 'aceito'
+                })),
+                pending: [],
+                declined: []
+            };
+        }
+
+        return {
+            accepted: list.filter((c) => c.status === 'aceito' || !c.isUser),
+            pending: list.filter((c) => c.isUser && c.status === 'pendente'),
+            declined: list.filter((c) => c.isUser && c.status === 'recusado')
+        };
+    }, [selectedTreinamento]);
+
+    // Check invite status of logged-in user for selected training
+    const modalInviteStatus = useMemo(() => {
+        if (!selectedTreinamento) return null;
+        const uId = profile?.firebaseUid || profile?.id || user?.firebaseUid || user?.id;
+        const userInvite = selectedTreinamento.customList?.find((c) => c.id === uId);
+        return userInvite ? userInvite.status : null;
+    }, [selectedTreinamento, profile, user]);
+
     // Lidar com a seleção de participantes (usuários do sistema)
     const handleToggleUserColab = (userId, nome) => {
         setFormData((prev) => {
@@ -204,6 +240,34 @@ export default function Treinamentos() {
         }));
     };
 
+    const handleCardAccept = async (trainingId, event) => {
+        event?.stopPropagation();
+        const uId = profile?.firebaseUid || profile?.id || user?.firebaseUid || user?.id;
+        const uNome = profile?.nome || user?.nome || 'Usuário';
+        if (!uId) return;
+
+        try {
+            await respondToTrainingInvite(trainingId, uId, uNome, true);
+            addNotification('Convite de treinamento aceito com sucesso!', 'success');
+        } catch (error) {
+            addNotification(`Erro ao aceitar convite: ${error.message}`, 'error');
+        }
+    };
+
+    const handleCardDecline = async (trainingId, event) => {
+        event?.stopPropagation();
+        const uId = profile?.firebaseUid || profile?.id || user?.firebaseUid || user?.id;
+        const uNome = profile?.nome || user?.nome || 'Usuário';
+        if (!uId) return;
+
+        try {
+            await respondToTrainingInvite(trainingId, uId, uNome, false);
+            addNotification('Convite de treinamento recusado.', 'info');
+        } catch (error) {
+            addNotification(`Erro ao recusar convite: ${error.message}`, 'error');
+        }
+    };
+
     // Submissão do Formulário (Salvar)
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -216,8 +280,24 @@ export default function Treinamentos() {
         try {
             const finalDuracao = formData.duracao === 'custom' ? formData.customDuracao : formData.duracao;
 
-            // Extrair apenas os nomes dos participantes para o array final de string
-            const colaboradoresNomes = formData.customColaboradores.map((c) => c.nome);
+            const nextCustomColaboradores = formData.customColaboradores.map((colab) => {
+                if (colab.isUser) {
+                    return {
+                        ...colab,
+                        status: colab.status || 'pendente'
+                    };
+                } else {
+                    return {
+                        ...colab,
+                        status: 'aceito'
+                    };
+                }
+            });
+
+            // Extrair apenas os nomes dos participantes aceitos para o array final de string
+            const colaboradoresNomes = nextCustomColaboradores
+                .filter((c) => c.status === 'aceito')
+                .map((c) => c.nome);
 
             let finalPdf = formData.pdf || null;
             if (formData.pdfFile) {
@@ -233,6 +313,17 @@ export default function Treinamentos() {
                 }
             }
 
+            const existingTraining = editingId ? treinamentos.find(t => t.id === editingId) : null;
+            const existingUserIds = existingTraining 
+                ? (existingTraining.customList || []).map(c => c.id)
+                : [];
+
+            const newPendingUsers = nextCustomColaboradores.filter(c => 
+                c.isUser && 
+                c.status === 'pendente' && 
+                !existingUserIds.includes(c.id)
+            );
+
             const record = {
                 id: editingId || undefined,
                 tema: formData.tema.trim(),
@@ -246,13 +337,34 @@ export default function Treinamentos() {
                 criadoPorNome: profile?.nome || 'Usuário',
                 createdAt: editingId ? undefined : new Date().toISOString(),
                 updatedAt: editingId ? new Date().toISOString() : null,
-                // Mantemos informações de ID de usuários para futuras edições
                 usersIds: formData.colaboradoresIds,
-                customList: formData.customColaboradores,
+                customList: nextCustomColaboradores,
                 pdf: finalPdf
             };
 
-            await saveTreinamento(record);
+            const savedRecord = await saveTreinamento(record);
+
+            // Enviar solicitações aos novos participantes pendentes
+            if (newPendingUsers.length > 0) {
+                await Promise.allSettled(
+                    newPendingUsers.map(async (pendingUser) => {
+                        const userObj = users.find(u => u.id === pendingUser.id);
+                        if (!userObj) return;
+
+                        const recipientUid = userObj.firebaseUid || userObj.id || null;
+                        const recipientEmail = userObj.email || null;
+
+                        await createUserNotification(
+                            { recipientUid, recipientEmail },
+                            {
+                                message: `Convite de Treinamento: Você foi selecionado para participar do treinamento "${savedRecord.tema}" no dia ${new Date(savedRecord.data + 'T12:00:00').toLocaleDateString('pt-BR')}. Por favor, responda ao convite nesta tela de Treinamentos.`,
+                                type: 'info',
+                                relatedTrainingId: savedRecord.id
+                            }
+                        );
+                    })
+                );
+            }
 
             addNotification(
                 editingId ? 'Treinamento atualizado com sucesso!' : 'Treinamento registrado com sucesso!',
@@ -295,7 +407,7 @@ export default function Treinamentos() {
         // Mapear dados existentes de volta para o formulário
         const colabList = Array.isArray(t.customList)
             ? t.customList
-            : (t.colaboradores || []).map((name, idx) => ({ id: `legacy_${idx}`, nome: name, isUser: false }));
+            : (t.colaboradores || []).map((name, idx) => ({ id: `legacy_${idx}`, nome: name, isUser: false, status: 'aceito' }));
 
         const userIds = Array.isArray(t.usersIds) ? t.usersIds : [];
 
@@ -491,49 +603,88 @@ export default function Treinamentos() {
                     </div>
                 ) : (
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {filteredTreinamentos.map((t) => (
-                            <div
-                                key={t.id}
-                                onClick={() => setSelectedTreinamento(t)}
-                                className="group relative flex flex-col justify-between overflow-hidden rounded-[24px] border border-slate-150 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-hotel-blue/20 hover:shadow-md cursor-pointer"
-                            >
-                                <div>
-                                    {/* Badge Departamento e Ações */}
-                                    <div className="flex items-center justify-between gap-3">
-                                        <span className="inline-flex items-center rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-bold text-hotel-blue">
-                                            {t.departamento}
-                                        </span>
-                                        
-                                        <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                                            <button
-                                                type="button"
-                                                onClick={(e) => handleStartEdit(t, e)}
-                                                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-hotel-blue"
-                                                title="Editar registro"
-                                            >
-                                                <Edit3 size={13} />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => handleDelete(t.id, e)}
-                                                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                                                title="Excluir registro"
-                                            >
-                                                <Trash2 size={13} />
-                                            </button>
+                        {filteredTreinamentos.map((t) => {
+                            const uId = profile?.firebaseUid || profile?.id || user?.firebaseUid || user?.id;
+                            const userInvite = t.customList?.find((c) => c.id === uId);
+                            const inviteStatus = userInvite ? userInvite.status : null;
+
+                            return (
+                                <div
+                                    key={t.id}
+                                    onClick={() => setSelectedTreinamento(t)}
+                                    className="group relative flex flex-col justify-between overflow-hidden rounded-[24px] border border-slate-150 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-hotel-blue/20 hover:shadow-md cursor-pointer"
+                                >
+                                    <div>
+                                        {/* Badge Departamento e Ações */}
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="inline-flex items-center rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-bold text-hotel-blue">
+                                                {t.departamento}
+                                            </span>
+                                            
+                                            <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => handleStartEdit(t, e)}
+                                                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-hotel-blue"
+                                                    title="Editar registro"
+                                                >
+                                                    <Edit3 size={13} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => handleDelete(t.id, e)}
+                                                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                                    title="Excluir registro"
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            </div>
                                         </div>
+
+                                        {/* Tema */}
+                                        <h3 className="mt-3 font-heading text-base font-bold text-slate-800 group-hover:text-hotel-blue transition-colors">
+                                            {t.tema}
+                                        </h3>
+
+                                        {/* Descrição curta */}
+                                        <p className="mt-2 text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                                            {t.descricao || 'Sem descrição cadastrada.'}
+                                        </p>
+
+                                        {inviteStatus === 'pendente' && (
+                                            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-3 space-y-2 animate-fadeIn" onClick={(e) => e.stopPropagation()}>
+                                                <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Você foi convidado para este treinamento:</p>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => handleCardAccept(t.id, e)}
+                                                        className="flex-1 inline-flex items-center justify-center rounded-lg bg-emerald-500 py-1.5 px-2 text-[10px] font-bold text-white hover:bg-emerald-600 transition-colors shadow-sm"
+                                                    >
+                                                        Aceitar
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => handleCardDecline(t.id, e)}
+                                                        className="flex-1 inline-flex items-center justify-center rounded-lg border border-red-200 bg-white py-1.5 px-2 text-[10px] font-bold text-red-600 hover:bg-red-50 transition-colors shadow-sm"
+                                                    >
+                                                        Recusar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {inviteStatus === 'aceito' && (
+                                            <div className="mt-3.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-700 w-fit">
+                                                <Check size={10} /> Presença Confirmada
+                                            </div>
+                                        )}
+
+                                        {inviteStatus === 'recusado' && (
+                                            <div className="mt-3.5 inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-100 px-2 py-0.5 text-[9px] font-bold text-red-700 w-fit">
+                                                <X size={10} /> Presença Recusada
+                                            </div>
+                                        )}
                                     </div>
-
-                                    {/* Tema */}
-                                    <h3 className="mt-3 font-heading text-base font-bold text-slate-800 group-hover:text-hotel-blue transition-colors">
-                                        {t.tema}
-                                    </h3>
-
-                                    {/* Descrição curta */}
-                                    <p className="mt-2 text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                                        {t.descricao || 'Sem descrição cadastrada.'}
-                                    </p>
-                                </div>
 
                                 <div className="mt-5 border-t border-slate-100 pt-4">
                                     {/* Meta info */}
@@ -572,7 +723,8 @@ export default function Treinamentos() {
                                     <ChevronRight size={18} />
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -846,6 +998,15 @@ export default function Treinamentos() {
                                                         }`}
                                                     >
                                                         {c.nome}
+                                                        {c.isUser && (
+                                                            <span className={`text-[9px] px-1 py-0.25 rounded-md ${
+                                                                c.status === 'aceito' ? 'bg-emerald-100 text-emerald-800' :
+                                                                c.status === 'recusado' ? 'bg-red-100 text-red-800' :
+                                                                'bg-amber-100 text-amber-800'
+                                                            }`}>
+                                                                {c.status === 'aceito' ? 'Aceitou' : c.status === 'recusado' ? 'Recusou' : 'Pendente'}
+                                                            </span>
+                                                        )}
                                                         <button
                                                             type="button"
                                                             onClick={() => handleRemoveColaborador(c.id)}
@@ -914,6 +1075,40 @@ export default function Treinamentos() {
                                     <X size={20} />
                                 </button>
                             </div>
+
+                            {/* Invite Status inside Detail Modal */}
+                            {modalInviteStatus === 'pendente' && (
+                                <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-amber-800 font-bold text-sm">
+                                            <Clock size={16} /> Convite de Participação Pendente
+                                        </div>
+                                        <span className="text-[11px] text-amber-700 font-bold">Por favor, responda a este convite</span>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                handleCardAccept(selectedTreinamento.id, e);
+                                                setSelectedTreinamento(null);
+                                            }}
+                                            className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-600 shadow-sm"
+                                        >
+                                            Confirmar Presença (Aceitar)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                handleCardDecline(selectedTreinamento.id, e);
+                                                setSelectedTreinamento(null);
+                                            }}
+                                            className="flex-1 rounded-xl border border-red-200 bg-white py-2.5 text-xs font-bold text-red-600 transition-colors hover:bg-red-50 shadow-sm"
+                                        >
+                                            Recusar Participação
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Detalhes Técnicos */}
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1008,47 +1203,115 @@ export default function Treinamentos() {
                             )}
 
                             {/* Lista de Colaboradores Presentes */}
-                            <div className="space-y-2">
-                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-body">
-                                    <Users size={14} className="text-hotel-gold" /> 
-                                    Colaboradores Qualificados ({selectedTreinamento.colaboradores?.length || 0})
-                                </h4>
-                                
-                                {!(selectedTreinamento.colaboradores?.length) ? (
-                                    <p className="text-xs text-slate-400 italic font-body">Nenhum participante registrado nesta sessão.</p>
-                                ) : (
-                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-[200px] overflow-y-auto py-1">
-                                        {((selectedTreinamento.customList && selectedTreinamento.customList.length > 0)
-                                            ? selectedTreinamento.customList
-                                            : (selectedTreinamento.colaboradores || []).map((nome, idx) => ({ id: `legacy_${idx}`, nome, isUser: true }))
-                                        ).map((colab) => {
-                                            const initials = colab.nome
-                                                .split(' ')
-                                                .filter(Boolean)
-                                                .slice(0, 2)
-                                                .map((w) => w[0].toUpperCase())
-                                                .join('');
+                            <div className="space-y-4">
+                                {/* Colaboradores Qualificados */}
+                                <div className="space-y-2">
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-body">
+                                        <Users size={14} className="text-hotel-gold" /> 
+                                        Colaboradores Qualificados ({selectedTrainingParticipants.accepted.length})
+                                    </h4>
+                                    
+                                    {selectedTrainingParticipants.accepted.length === 0 ? (
+                                        <p className="text-xs text-slate-400 italic font-body">Nenhum participante qualificado ainda.</p>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-[150px] overflow-y-auto py-1">
+                                            {selectedTrainingParticipants.accepted.map((colab) => {
+                                                const initials = colab.nome
+                                                    .split(' ')
+                                                    .filter(Boolean)
+                                                    .slice(0, 2)
+                                                    .map((w) => w[0].toUpperCase())
+                                                    .join('');
 
-                                            return (
-                                                <div
-                                                    key={colab.id}
-                                                    className="flex items-center gap-2.5 rounded-xl border border-slate-150 bg-white p-2 shadow-sm hover:border-slate-300 transition-colors duration-200"
-                                                >
-                                                    <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                                                        colab.isUser
-                                                            ? 'bg-hotel-gold/10 text-hotel-gold-dk'
-                                                            : 'bg-slate-100 text-slate-600'
-                                                    }`}>
-                                                        {initials || '?'}
+                                                return (
+                                                    <div
+                                                        key={colab.id}
+                                                        className="flex items-center gap-2.5 rounded-xl border border-slate-150 bg-white p-2 shadow-sm hover:border-slate-300 transition-colors duration-200"
+                                                    >
+                                                        <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600`}>
+                                                            {initials || '?'}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <span className="text-xs font-bold text-slate-700 truncate block" title={colab.nome}>
+                                                                {colab.nome}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <span className="text-xs font-bold text-slate-700 truncate block" title={colab.nome}>
-                                                            {colab.nome}
-                                                        </span>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Convites Pendentes */}
+                                {selectedTrainingParticipants.pending.length > 0 && (
+                                    <div className="space-y-2">
+                                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-body">
+                                            <Clock size={14} className="text-amber-500" /> 
+                                            Aguardando Confirmação ({selectedTrainingParticipants.pending.length})
+                                        </h4>
+                                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-[150px] overflow-y-auto py-1">
+                                            {selectedTrainingParticipants.pending.map((colab) => {
+                                                const initials = colab.nome
+                                                    .split(' ')
+                                                    .filter(Boolean)
+                                                    .slice(0, 2)
+                                                    .map((w) => w[0].toUpperCase())
+                                                    .join('');
+
+                                                return (
+                                                    <div
+                                                        key={colab.id}
+                                                        className="flex items-center gap-2.5 rounded-xl border border-dashed border-amber-200 bg-amber-50/20 p-2 shadow-sm transition-colors duration-200"
+                                                    >
+                                                        <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold bg-amber-50 text-amber-600`}>
+                                                            {initials || '?'}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <span className="text-xs font-bold text-slate-600 truncate block" title={colab.nome}>
+                                                                {colab.nome}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Recusados */}
+                                {selectedTrainingParticipants.declined.length > 0 && (
+                                    <div className="space-y-2">
+                                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-body">
+                                            <X size={14} className="text-red-500" /> 
+                                            Recusaram Participação ({selectedTrainingParticipants.declined.length})
+                                        </h4>
+                                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-[150px] overflow-y-auto py-1">
+                                            {selectedTrainingParticipants.declined.map((colab) => {
+                                                const initials = colab.nome
+                                                    .split(' ')
+                                                    .filter(Boolean)
+                                                    .slice(0, 2)
+                                                    .map((w) => w[0].toUpperCase())
+                                                    .join('');
+
+                                                return (
+                                                    <div
+                                                        key={colab.id}
+                                                        className="flex items-center gap-2.5 rounded-xl border border-red-100 bg-red-50/20 p-2 shadow-sm transition-colors duration-200"
+                                                    >
+                                                        <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold bg-red-50 text-red-600`}>
+                                                            {initials || '?'}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <span className="text-xs font-bold text-slate-600 line-through truncate block" title={colab.nome}>
+                                                                {colab.nome}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 )}
                             </div>

@@ -2,6 +2,7 @@ import {
     collection,
     deleteDoc,
     doc,
+    getDoc,
     onSnapshot,
     orderBy,
     query,
@@ -132,4 +133,59 @@ export async function deleteTreinamento(treinamentoId) {
     }
 
     await deleteDoc(doc(db, TREINAMENTOS_COLLECTION, treinamentoId));
+}
+
+export async function getTreinamento(id) {
+    if (!isFirebaseConfigured || !db) {
+        const local = readStoredTreinamentos();
+        return local.find((t) => t.id === id) || null;
+    }
+    const docRef = doc(db, TREINAMENTOS_COLLECTION, id);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+        return normalizeTreinamentoRecord(snap.id, snap.data());
+    }
+    return null;
+}
+
+export async function respondToTrainingInvite(trainingId, userId, userName, accept) {
+    const training = await getTreinamento(trainingId);
+
+    if (!training) {
+        throw new Error('Treinamento não encontrado.');
+    }
+
+    let updated = false;
+    const nextCustomList = (training.customList || []).map((colab) => {
+        if (colab.id === userId) {
+            updated = true;
+            return {
+                ...colab,
+                status: accept ? 'aceito' : 'recusado'
+            };
+        }
+        return colab;
+    });
+
+    if (!updated) {
+        nextCustomList.push({
+            id: userId,
+            nome: userName,
+            isUser: true,
+            status: accept ? 'aceito' : 'recusado'
+        });
+    }
+
+    const colaboradoresNomes = nextCustomList
+        .filter((c) => c.status === 'aceito' || !c.isUser)
+        .map((c) => c.nome);
+
+    const nextTraining = {
+        ...training,
+        customList: nextCustomList,
+        colaboradores: colaboradoresNomes
+    };
+
+    await saveTreinamento(nextTraining);
+    return nextTraining;
 }

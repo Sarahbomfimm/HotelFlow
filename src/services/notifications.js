@@ -8,6 +8,7 @@ export async function createUserNotification({
     message,
     type = 'info',
     relatedOrderId = null,
+    relatedTrainingId = null,
 }) {
     if (!db || (!recipientUid && !recipientEmail) || !message) {
         return null;
@@ -20,6 +21,7 @@ export async function createUserNotification({
         type,
         lida: false,
         relatedOrderId,
+        relatedTrainingId,
         createdAt: new Date().toISOString(),
     };
 
