@@ -496,10 +496,10 @@ export default function Indicadores() {
                 </div>
 
                 {/* DASHBOARD ANALYTICS E GRÁFICO HISTÓRICO */}
-                <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
                     
                     {/* Estatísticas Gerais do Mês */}
-                    <div className="rounded-3xl border border-hotel-gray/40 bg-white p-6 shadow-card flex flex-col justify-between space-y-6">
+                    <div className="rounded-3xl border border-hotel-gray/40 bg-white p-4 sm:p-6 shadow-card flex flex-col justify-between space-y-6 min-w-0">
                         <div>
                             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                                 <h3 className="font-heading text-sm font-bold text-slate-800 uppercase tracking-wider">
@@ -581,7 +581,7 @@ export default function Indicadores() {
                     </div>
 
                     {/* Gráfico Histórico Interativo */}
-                    <div className="rounded-3xl border border-hotel-gray/40 bg-white p-6 shadow-card space-y-4">
+                    <div className="rounded-3xl border border-hotel-gray/40 bg-white p-4 sm:p-6 shadow-card space-y-4 min-w-0 overflow-hidden">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                             <div>
                                 <h3 className="font-heading text-sm font-bold text-slate-800 uppercase tracking-wider">
