@@ -2,7 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, History, ChartNoAxesCombined, CalendarDays,
     LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus, TrendingUp,
-    User, GraduationCap, BookOpen, Gamepad2
+    User, GraduationCap, BookOpen, Gamepad2, BarChart3
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import Logo from '../Logo/Logo';
@@ -17,6 +17,7 @@ const liderLinks = [
     { to: '/ordens', label: 'Minhas SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: User },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
+    { to: '/indicadores', label: 'Indicadores', icon: BarChart3 },
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
@@ -31,6 +32,7 @@ const diretoraLinks = [
     { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: User },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
+    { to: '/indicadores', label: 'Indicadores', icon: BarChart3 },
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
@@ -46,6 +48,7 @@ const adminLinks = [
     { to: '/ordens', label: 'Todas as SI', icon: ClipboardList },
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: User },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
+    { to: '/indicadores', label: 'Indicadores', icon: BarChart3 },
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },

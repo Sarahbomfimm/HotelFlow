@@ -19,6 +19,7 @@ import Auditorias from '../pages/Auditorias/Auditorias';
 import Treinamentos from '../pages/Treinamentos/Treinamentos';
 import Pops from '../pages/Pops/Pops';
 import Mundo from '../pages/Mundo/Mundo';
+import Indicadores from '../pages/Indicadores/Indicadores';
 
 function DashboardRouter() {
     const { user } = useAuth();
@@ -128,6 +129,14 @@ export default function AppRouter() {
                 element={
                     <ProtectedRoute>
                         <Mundo />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/indicadores"
+                element={
+                    <ProtectedRoute>
+                        <Indicadores />
                     </ProtectedRoute>
                 }
             />

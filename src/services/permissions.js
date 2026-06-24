@@ -16,6 +16,7 @@ export const PERMISSIONS = {
     SI_EDIT: 'si_edit',
     INVESTIMENTOS_VIEW: 'investimentos_view',
     TREINAMENTOS_ACCESS: 'treinamentos_access',
+    INDICADORES_MANAGE: 'indicadores_manage',
 };
 
 export const PERMISSION_DEFINITIONS = [
@@ -109,6 +110,12 @@ export const PERMISSION_DEFINITIONS = [
         description: 'Permite abrir as telas do módulo de Treinamentos.',
         category: 'Treinamentos',
     },
+    {
+        key: PERMISSIONS.INDICADORES_MANAGE,
+        label: 'Lançar Indicadores',
+        description: 'Permite registrar e editar as metas/KPIs mensais dos indicadores de setor.',
+        category: 'Indicadores',
+    },
 ];
 
 export function getDefaultPermissions(role) {
@@ -129,6 +136,7 @@ export function getDefaultPermissions(role) {
             [PERMISSIONS.SI_EDIT]: true,
             [PERMISSIONS.INVESTIMENTOS_VIEW]: true,
             [PERMISSIONS.TREINAMENTOS_ACCESS]: true,
+            [PERMISSIONS.INDICADORES_MANAGE]: true,
         };
     }
 
@@ -149,6 +157,7 @@ export function getDefaultPermissions(role) {
             [PERMISSIONS.SI_EDIT]: true,
             [PERMISSIONS.INVESTIMENTOS_VIEW]: false,
             [PERMISSIONS.TREINAMENTOS_ACCESS]: true,
+            [PERMISSIONS.INDICADORES_MANAGE]: true,
         };
     }
 
@@ -168,6 +177,7 @@ export function getDefaultPermissions(role) {
         [PERMISSIONS.SI_EDIT]: true,
         [PERMISSIONS.INVESTIMENTOS_VIEW]: false,
         [PERMISSIONS.TREINAMENTOS_ACCESS]: false,
+        [PERMISSIONS.INDICADORES_MANAGE]: false,
     };
 }
 
