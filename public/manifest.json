@@ -1,0 +1,20 @@
+{
+  "short_name": "HotelFlow",
+  "name": "HotelFlow — Organização que flui",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0A3D62",
+  "theme_color": "#0A3D62",
+  "display": "standalone"
+}
