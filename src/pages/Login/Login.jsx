@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
 import Logo from '../../components/Logo/Logo';
@@ -30,7 +30,7 @@ export default function Login() {
                 style={{ backgroundImage: 'linear-gradient(135deg, #062135 0%, #0A3D62 50%, #1a5276 100%)' }}
             >
                 <Logo size={48} showText light />
-                <div className="login-visual-stage mt-6">
+                <div className="login-visual-stage mt-16">
                     <div className="login-visual-glow" aria-hidden="true" />
                     <div className="login-visual-card">
                         <svg viewBox="0 0 380 230" className="w-full" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ilustração de prédio com painéis de acompanhamento">

@@ -158,17 +158,11 @@ export default function Aprovacoes() {
         return visibleOrders
             .filter((order) => [ApprovalStage.SOLICITADA, ApprovalStage.EM_ANALISE, ApprovalStage.FINALIZADA].includes(order.aprovacao_finalizacao_status))
             .filter((order) => {
-                if (canViewAll) {
-                    return true;
-                }
-
-                return (
-                    matchesOrderActor(order, actor, 'responsavel')
-                    || matchesOrderActor(order, actor, 'criado_por')
-                );
+                // Apenas as SIs criadas pelo próprio usuário logado (actor) devem aparecer em sua esteira de aprovação
+                return matchesOrderActor(order, actor, 'criado_por');
             })
             .sort((left, right) => new Date(right.aprovacao_finalizacao_solicitada_em || right.criado_em) - new Date(left.aprovacao_finalizacao_solicitada_em || left.criado_em));
-    }, [visibleOrders, canViewAll, actor]);
+    }, [visibleOrders, actor]);
 
     const grouped = useMemo(() => {
         return COLUMNS.reduce((acc, column) => {
