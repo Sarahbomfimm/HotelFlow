@@ -2,7 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, History, ChartNoAxesCombined, CalendarDays,
     LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus, TrendingUp,
-    User, GraduationCap, BookOpen, Gamepad2, BarChart3
+    User, GraduationCap, BookOpen, BarChart3
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import Logo from '../Logo/Logo';
@@ -23,7 +23,6 @@ const liderLinks = [
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
     { to: '/pops', label: 'POPs', icon: BookOpen },
-    { to: '/mundo', label: 'Mundo HotelFlow', icon: Gamepad2 },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
@@ -38,7 +37,6 @@ const diretoraLinks = [
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
     { to: '/pops', label: 'POPs', icon: BookOpen },
-    { to: '/mundo', label: 'Mundo HotelFlow', icon: Gamepad2 },
     { to: '/historico', label: 'Histórico', icon: History },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
@@ -54,7 +52,6 @@ const adminLinks = [
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
     { to: '/pops', label: 'POPs', icon: BookOpen },
-    { to: '/mundo', label: 'Mundo HotelFlow', icon: Gamepad2 },
     { to: '/historico', label: 'Histórico', icon: History },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
