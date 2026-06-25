@@ -11,7 +11,6 @@ import AdminPanel from '../pages/AdminPanel/AdminPanel';
 import EditLeader from '../pages/AdminPanel/EditLeader';
 import FormOS from '../pages/FormOS/FormOS';
 import ListaOS from '../pages/ListaOS/ListaOS';
-import HistoricoOS from '../pages/HistoricoOS/HistoricoOS';
 import PDCAVisualPage from '../pages/PDCAVisualPage/PDCAVisualPage';
 import Aprovacoes from '../pages/Aprovacoes/Aprovacoes';
 import Reunioes from '../pages/Reunioes/Reunioes';
@@ -151,14 +150,7 @@ export default function AppRouter() {
                     </ProtectedRoute>
                 }
             />
-            <Route
-                path="/historico"
-                element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.HISTORICO_ACCESS}>
-                        <HistoricoOS />
-                    </ProtectedRoute>
-                }
-            />
+
 
             {/* Admin */}
             <Route

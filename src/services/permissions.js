@@ -11,7 +11,6 @@ export const PERMISSIONS = {
     AUDITORIAS_MANAGE: 'auditorias_manage',
     REUNIOES_ACCESS: 'reunioes_access',
     REUNIOES_MANAGE: 'reunioes_manage',
-    HISTORICO_ACCESS: 'historico_access',
     SI_FINALIZE: 'si_finalize',
     SI_EDIT: 'si_edit',
     INVESTIMENTOS_VIEW: 'investimentos_view',
@@ -81,12 +80,6 @@ export const PERMISSION_DEFINITIONS = [
         category: 'Reuniões',
     },
     {
-        key: PERMISSIONS.HISTORICO_ACCESS,
-        label: 'Acessar Histórico',
-        description: 'Permite abrir a tela de histórico das SI.',
-        category: 'SI',
-    },
-    {
         key: PERMISSIONS.SI_FINALIZE,
         label: 'Finalizar SI',
         description: 'Permite concluir solicitações internas.',
@@ -131,7 +124,6 @@ export function getDefaultPermissions(role) {
             [PERMISSIONS.AUDITORIAS_MANAGE]: true,
             [PERMISSIONS.REUNIOES_ACCESS]: true,
             [PERMISSIONS.REUNIOES_MANAGE]: true,
-            [PERMISSIONS.HISTORICO_ACCESS]: true,
             [PERMISSIONS.SI_FINALIZE]: true,
             [PERMISSIONS.SI_EDIT]: true,
             [PERMISSIONS.INVESTIMENTOS_VIEW]: true,
@@ -152,7 +144,6 @@ export function getDefaultPermissions(role) {
             [PERMISSIONS.AUDITORIAS_MANAGE]: true,
             [PERMISSIONS.REUNIOES_ACCESS]: true,
             [PERMISSIONS.REUNIOES_MANAGE]: true,
-            [PERMISSIONS.HISTORICO_ACCESS]: true,
             [PERMISSIONS.SI_FINALIZE]: true,
             [PERMISSIONS.SI_EDIT]: true,
             [PERMISSIONS.INVESTIMENTOS_VIEW]: false,
@@ -172,7 +163,6 @@ export function getDefaultPermissions(role) {
         [PERMISSIONS.AUDITORIAS_MANAGE]: false,
         [PERMISSIONS.REUNIOES_ACCESS]: true,
         [PERMISSIONS.REUNIOES_MANAGE]: true,
-        [PERMISSIONS.HISTORICO_ACCESS]: false,
         [PERMISSIONS.SI_FINALIZE]: false,
         [PERMISSIONS.SI_EDIT]: true,
         [PERMISSIONS.INVESTIMENTOS_VIEW]: false,
@@ -240,11 +230,6 @@ export function getPermissionDeniedCopy(permissionKey) {
             return {
                 title: 'Acesso negado a Reuniões',
                 message: 'Seu usuário não está autorizado no Gerenciamento para acessar o módulo de Reuniões.',
-            };
-        case PERMISSIONS.HISTORICO_ACCESS:
-            return {
-                title: 'Acesso negado ao Histórico',
-                message: 'Seu usuário não está autorizado no Gerenciamento para acessar a tela de Histórico.',
             };
         case PERMISSIONS.TREINAMENTOS_ACCESS:
             return {

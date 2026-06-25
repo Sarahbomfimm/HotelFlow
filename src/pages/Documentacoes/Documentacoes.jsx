@@ -39,6 +39,21 @@ export default function Documentacoes() {
 
     const profile = currentUserProfile || user;
 
+    const canDeleteCategory = (cat) => {
+        if (!profile || !profile.id) return false;
+        if (profile.role === 'admin') return true;
+        return cat.criadoPorId === profile.id;
+    };
+
+    const canDeleteDocument = (docRec) => {
+        if (!profile || !profile.id) return false;
+        if (profile.role === 'admin') return true;
+        if (docRec.criadoPorId === profile.id) return true;
+        const parentCat = categories.find((c) => c.id === docRec.categoryId);
+        if (parentCat && parentCat.criadoPorId === profile.id) return true;
+        return false;
+    };
+
     const [categories, setCategories] = useState([]);
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -150,6 +165,12 @@ export default function Documentacoes() {
     // Delete category
     const handleDeleteCategoryConfirm = async () => {
         if (!deleteCatId) return;
+        const cat = categories.find((c) => c.id === deleteCatId);
+        if (!cat || !canDeleteCategory(cat)) {
+            addNotification('Você não tem permissão para excluir esta categoria.', 'error');
+            setDeleteCatId(null);
+            return;
+        }
         try {
             await deleteCategory(deleteCatId);
             addNotification('Categoria e seus documentos excluídos com sucesso!', 'success');
@@ -222,6 +243,12 @@ export default function Documentacoes() {
     // Delete document
     const handleDeleteDocumentConfirm = async () => {
         if (!deleteDocId) return;
+        const docRec = documents.find((d) => d.id === deleteDocId);
+        if (!docRec || !canDeleteDocument(docRec)) {
+            addNotification('Você não tem permissão para excluir este documento.', 'error');
+            setDeleteDocId(null);
+            return;
+        }
         try {
             await deleteDocument(deleteDocId);
             addNotification('Documento excluído com sucesso!', 'success');
@@ -322,16 +349,18 @@ export default function Documentacoes() {
                                                         }`}>
                                                             {docCount} {docCount === 1 ? 'Arquivo' : 'Arquivos'}
                                                         </span>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setDeleteCatId(cat.id);
-                                                            }}
-                                                            className="rounded-lg p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors"
-                                                            title="Excluir Categoria"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
+                                                        {canDeleteCategory(cat) && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setDeleteCatId(cat.id);
+                                                                }}
+                                                                className="rounded-lg p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors"
+                                                                title="Excluir Categoria"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
 
@@ -474,13 +503,15 @@ export default function Documentacoes() {
                                                     </a>
                                                 </>
                                             )}
-                                            <button
-                                                onClick={() => setDeleteDocId(docRec.id)}
-                                                className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors border border-slate-100 bg-white"
-                                                title="Excluir Documento"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                                            {canDeleteDocument(docRec) && (
+                                                <button
+                                                    onClick={() => setDeleteDocId(docRec.id)}
+                                                    className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors border border-slate-100 bg-white"
+                                                    title="Excluir Documento"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
