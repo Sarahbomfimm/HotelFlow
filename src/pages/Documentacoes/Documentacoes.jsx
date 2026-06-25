@@ -295,7 +295,7 @@ export default function Documentacoes() {
                             </div>
                             <button
                                 onClick={() => setShowCategoryModal(true)}
-                                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-hotel-blue px-4 py-2.5 text-xs font-bold text-white transition-all hover:bg-hotel-blue/90 shadow-sm cursor-pointer"
+                                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-hotel-blue px-4 py-2.5 text-xs font-bold text-white transition-all hover:bg-hotel-blue/90 shadow-sm cursor-pointer"
                             >
                                 <Plus size={14} /> Criar Categoria
                             </button>
@@ -398,38 +398,38 @@ export default function Documentacoes() {
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={() => setSelectedCategory(null)}
-                                    className="h-10 w-10 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center bg-white shadow-sm"
+                                    className="h-10 w-10 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center bg-white shadow-sm flex-shrink-0"
                                     title="Voltar para categorias"
                                 >
                                     <ArrowLeft size={16} className="text-slate-600" />
                                 </button>
-                                <div>
+                                <div className="min-w-0">
                                     <div className="flex items-center gap-2">
-                                        <Folder size={18} className="text-hotel-blue" />
-                                        <h2 className="text-lg font-extrabold text-slate-800 font-heading truncate max-w-sm sm:max-w-md">
+                                        <Folder size={18} className="text-hotel-blue flex-shrink-0" />
+                                        <h2 className="text-lg font-extrabold text-slate-800 font-heading truncate max-w-[180px] sm:max-w-md">
                                             {selectedCategory.titulo}
                                         </h2>
                                     </div>
-                                    <p className="text-xs text-slate-400 font-body truncate max-w-sm sm:max-w-md mt-0.5">
+                                    <p className="text-xs text-slate-400 font-body truncate max-w-[180px] sm:max-w-md mt-0.5">
                                         {selectedCategory.descricao || 'Diretório de documentos.'}
                                     </p>
                                 </div>
                             </div>
                             
-                            <div className="flex flex-wrap items-center gap-2">
-                                <div className="relative flex-1 min-w-[200px]">
+                            <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center sm:w-auto">
+                                <div className="relative w-full sm:w-64">
                                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                     <input
                                         type="text"
                                         placeholder="Pesquisar documento..."
-                                        className="input pl-9 pr-4 py-2 text-xs font-semibold"
+                                        className="input w-full pl-9 pr-4 py-2 text-xs font-semibold"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                     />
                                 </div>
                                 <button
                                     onClick={() => setShowDocModal(true)}
-                                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-hotel-blue px-4 py-2.5 text-xs font-bold text-white transition-all hover:bg-hotel-blue/90 shadow-sm cursor-pointer"
+                                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-hotel-blue px-4 py-2.5 text-xs font-bold text-white transition-all hover:bg-hotel-blue/90 shadow-sm cursor-pointer"
                                 >
                                     <Plus size={14} /> Anexar Documento
                                 </button>
@@ -449,7 +449,7 @@ export default function Documentacoes() {
                                 {filteredDocuments.map((docRec) => (
                                     <div
                                         key={docRec.id}
-                                        className="rounded-2xl border border-slate-150 bg-white p-4 shadow-sm hover:shadow-md transition-all flex items-start justify-between gap-4"
+                                        className="rounded-2xl border border-slate-150 bg-white p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4 sm:flex-row sm:items-start"
                                     >
                                         <div className="flex items-start gap-3 min-w-0">
                                             <div className="rounded-xl bg-indigo-50 text-indigo-600 p-2.5 flex-shrink-0">
@@ -481,7 +481,7 @@ export default function Documentacoes() {
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                                        <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-auto">
                                             {docRec.pdf?.data && (
                                                 <>
                                                     <a
