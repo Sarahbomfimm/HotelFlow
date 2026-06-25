@@ -2,9 +2,9 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, History, ChartNoAxesCombined, CalendarDays,
     LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus, TrendingUp,
-    User, GraduationCap, BookOpen, BarChart3
+    User, GraduationCap, BookOpen, BarChart3, Folder, FileText
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import Logo from '../Logo/Logo';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
@@ -64,6 +64,13 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const location = useLocation();
     const [collapsed, setCollapsed] = useState(false);
     const [auditoriasExpanded, setAuditoriasExpanded] = useState(location.pathname.startsWith('/auditorias'));
+    const [popsExpanded, setPopsExpanded] = useState(location.pathname.startsWith('/pops') || location.pathname.startsWith('/documentacoes'));
+
+    const navRef = useRef(null);
+
+    const handleScroll = (e) => {
+        sessionStorage.setItem('hotelflow:sidebar:scroll', e.target.scrollTop);
+    };
 
     const displayUser = currentUserProfile || user;
     const canAccessAuditorias = hasPermission(displayUser, PERMISSIONS.AUDITORIAS_ACCESS);
@@ -124,7 +131,23 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
         if (location.pathname.startsWith('/auditorias')) {
             setAuditoriasExpanded(true);
         }
+        if (location.pathname.startsWith('/pops') || location.pathname.startsWith('/documentacoes')) {
+            setPopsExpanded(true);
+        }
     }, [location.pathname]);
+
+    useEffect(() => {
+        const savedScroll = sessionStorage.getItem('hotelflow:sidebar:scroll');
+        if (savedScroll && navRef.current) {
+            navRef.current.scrollTop = parseInt(savedScroll, 10);
+            const timer = setTimeout(() => {
+                if (navRef.current) {
+                    navRef.current.scrollTop = parseInt(savedScroll, 10);
+                }
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, []);
 
     return (
         <aside
@@ -177,9 +200,14 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
             )}
 
             {/* Navegação */}
-            <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4">
+            <nav
+                ref={navRef}
+                onScroll={handleScroll}
+                className="flex-1 space-y-1 overflow-y-auto px-2 py-4"
+            >
                 {visibleLinks.map(({ to, label, icon: Icon, external }) => {
                     const isAuditoriasLink = to === '/auditorias/visualizar';
+                    const isPopsLink = to === '/pops';
                     const isReunioesLink = to === '/reunioes';
                     const badgeCount = isReunioesLink ? reunioesUnreadCount : isAuditoriasLink ? auditoriasUnreadCount : 0;
 
@@ -202,7 +230,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
                         );
                     }
 
-                    if (!isAuditoriasLink) {
+                    if (!isAuditoriasLink && !isPopsLink) {
                         return (
                             <NavLink
                                 key={to}
@@ -232,14 +260,70 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
                         );
                     }
 
+                    if (isPopsLink) {
+                        const isPopsActive = location.pathname.startsWith('/pops') || location.pathname.startsWith('/documentacoes');
+                        const showPopsSubmenu = showLabels && popsExpanded;
+
+                        return (
+                            <div key={to}>
+                                <div
+                                    onClick={() => setPopsExpanded((value) => !value)}
+                                    className={`sidebar-link ${isPopsActive ? 'active' : ''} ${collapsed ? 'lg:justify-center lg:px-2' : ''} cursor-pointer select-none`}
+                                    title={!showLabels ? label : undefined}
+                                >
+                                    <span className="relative inline-flex flex-shrink-0">
+                                        <Icon size={19} className="flex-shrink-0" />
+                                    </span>
+                                    {showLabels && <span className="truncate">{label}</span>}
+                                    {showLabels && (
+                                        <div className="ml-auto inline-flex rounded-md p-0.5 text-white/70">
+                                            <ChevronRight
+                                                size={16}
+                                                className={`transition-transform ${popsExpanded ? 'rotate-90 text-white' : 'text-white/70'}`}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {showPopsSubmenu && (
+                                    <div className="ml-8 mt-1 space-y-1 border-l border-white/15 pl-3">
+                                        <NavLink
+                                            to="/pops"
+                                            onClick={() => onCloseMobile?.()}
+                                            className={({ isActive }) =>
+                                                `inline-flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
+                                                    isActive && location.pathname === '/pops' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+                                                }`
+                                            }
+                                        >
+                                            <FileText size={14} className="flex-shrink-0" />
+                                            Procedimentos
+                                        </NavLink>
+                                        <NavLink
+                                            to="/documentacoes"
+                                            onClick={() => onCloseMobile?.()}
+                                            className={({ isActive }) =>
+                                                `inline-flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
+                                                    isActive ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+                                                }`
+                                            }
+                                        >
+                                            <Folder size={14} className="flex-shrink-0" />
+                                            Documentações
+                                        </NavLink>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    }
+
+                    const isAuditoriasActive = location.pathname.startsWith('/auditorias');
+
                     return (
                         <div key={to}>
-                            <NavLink
-                                to={to}
-                                onClick={() => onCloseMobile?.()}
-                                className={({ isActive }) =>
-                                    `sidebar-link ${isActive ? 'active' : ''} ${collapsed ? 'lg:justify-center lg:px-2' : ''}`
-                                }
+                            <div
+                                onClick={() => setAuditoriasExpanded((value) => !value)}
+                                className={`sidebar-link ${isAuditoriasActive ? 'active' : ''} ${collapsed ? 'lg:justify-center lg:px-2' : ''} cursor-pointer select-none`}
                                 title={!showLabels ? label : undefined}
                             >
                                 <span className="relative inline-flex flex-shrink-0">
@@ -252,28 +336,19 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
                                 </span>
                                 {showLabels && <span className="truncate">{label}</span>}
                                 {showLabels && badgeCount > 0 && (
-                                    <span className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-hotel-gold px-1 text-[10px] font-bold leading-none text-white animate-pulse">
+                                    <span className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-hotel-gold px-1 text-[10px] font-bold leading-none text-white animate-pulse mr-2">
                                         {badgeCount > 9 ? '9+' : badgeCount}
                                     </span>
                                 )}
                                 {showLabels && (
-                                    <button
-                                        type="button"
-                                        onClick={(event) => {
-                                            event.preventDefault();
-                                            event.stopPropagation();
-                                            setAuditoriasExpanded((value) => !value);
-                                        }}
-                                        className="ml-auto inline-flex rounded-md p-0.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-                                        aria-label={auditoriasExpanded ? 'Recolher auditorias' : 'Expandir auditorias'}
-                                    >
+                                    <div className="ml-auto inline-flex rounded-md p-0.5 text-white/70">
                                         <ChevronRight
                                             size={16}
                                             className={`transition-transform ${auditoriasExpanded ? 'rotate-90 text-white' : 'text-white/70'}`}
                                         />
-                                    </button>
+                                    </div>
                                 )}
-                            </NavLink>
+                            </div>
 
                             {showAuditoriasSubmenu && canAccessAuditorias && (
                                 <div className="ml-8 mt-1 space-y-1 border-l border-white/15 pl-3">

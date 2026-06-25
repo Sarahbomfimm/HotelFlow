@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bell, X, CheckCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function NotificationBell() {
     const { notifications, naoLidas, marcarLida, marcarTodasLidas, remover } = useNotification();
+    const navigate = useNavigate();
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
 
@@ -17,6 +19,22 @@ export default function NotificationBell() {
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, []);
+
+    const handleNotificationClick = (n) => {
+        marcarLida(n.id);
+        setOpen(false);
+
+        if (n.relatedOrderId) {
+            if (n.type === 'reuniao') {
+                navigate('/reunioes');
+            } else if (n.type === 'auditoria') {
+                navigate('/auditorias');
+            } else {
+                // É uma SI (Solicitação Interna)
+                navigate('/ordens', { state: { expandOsId: n.relatedOrderId } });
+            }
+        }
+    };
 
     const typeColors = {
         info: { border: 'border-l-hotel-blue', dot: 'bg-hotel-blue' },
@@ -71,7 +89,7 @@ export default function NotificationBell() {
                                 return (
                                     <div
                                         key={n.id}
-                                        onClick={() => marcarLida(n.id)}
+                                        onClick={() => handleNotificationClick(n)}
                                         className={`flex items-start gap-3 px-4 py-3 cursor-pointer
                                           border-l-4 ${cfg.border} transition-colors
                                           ${n.lida

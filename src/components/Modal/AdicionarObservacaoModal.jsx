@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { X, ArrowRight, Paperclip, User } from 'lucide-react';
 import PDCABadge from '../Badge/PDCABadge';
 import { PDCALabel, PDCAStep } from '../../models/OrdemDeServico';
@@ -70,7 +70,6 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
         setAnexoPdf(null);
         setAnexoErro('');
         setCoResponsaveisSelecionados(new Set((os?.co_responsaveis || []).map((item) => item.id).filter(Boolean)));
-        setTimeout(() => textRef.current?.focus(), 80);
 
         const handler = (e) => { if (e.key === 'Escape') onCancel(); };
         window.addEventListener('keydown', handler);

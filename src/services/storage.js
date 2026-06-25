@@ -168,3 +168,42 @@ export async function uploadTreinamentoPdf(file, tema) {
     };
 }
 
+export async function uploadDocumentoFile(file, categoryName) {
+    if (!progressPdfUploadsEnabled) {
+        throw new Error('Anexo de arquivo indisponível. Configure Cloudinary para anexos e tente novamente.');
+    }
+
+    if (!file) {
+        return null;
+    }
+
+    if (file.size > MAX_PROGRESS_PDF_SIZE_BYTES) {
+        throw new Error('O arquivo deve ter no máximo 10MB.');
+    }
+
+    const safeName = String(file.name || 'documento.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', cloudinaryRawUploadPreset);
+    const folderPath = categoryName ? `documentacoes/${categoryName.replace(/[^a-zA-Z0-9._-]/g, '_')}` : 'documentacoes';
+    formData.append('folder', folderPath);
+    formData.append('public_id', `${Date.now()}-${safeName}`);
+
+    const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/raw/upload`,
+        { method: 'POST', body: formData },
+    );
+
+    const data = await response.json();
+    if (!response.ok) {
+        const cloudinaryMessage = data?.error?.message || 'Erro ao enviar arquivo para Cloudinary.';
+        throw new Error(cloudinaryMessage);
+    }
+
+    return {
+        url: data.secure_url,
+        publicId: data.public_id,
+        fileName: safeName,
+    };
+}
+

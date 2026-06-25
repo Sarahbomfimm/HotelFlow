@@ -167,7 +167,7 @@ export default function DashboardDiretora() {
             .slice(0, 8);
     }, [base, filterLider, filterStatus, lideres]);
 
-    const navigateToOrders = (state = {}) => navigate('/ordens', { state: { selectedMonth, ...state } });
+    const navigateToOrders = (state = {}) => navigate('/ordens', { state: { selectedMonth, viewMode: 'todos', ...state } });
 
     return (
         <AppLayout pageTitle={isAdmin ? 'Dashboard — Administradora' : 'Dashboard — Diretora'}>
@@ -477,7 +477,7 @@ export default function DashboardDiretora() {
 
                     {ordens.length > 8 && (
                         <button
-                            onClick={() => navigate('/ordens')}
+                            onClick={() => navigate('/ordens', { state: { viewMode: 'todos' } })}
                             className="mt-7 flex w-full items-center justify-center gap-1 rounded-xl border border-hotel-gold/30 bg-gradient-to-r from-hotel-gold/10 via-white to-hotel-blue/5 px-4 py-2.5 text-sm font-semibold text-hotel-blue shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-hotel-gold/60 hover:text-hotel-gold hover:shadow-md"
                         >
                             Ver todas <ArrowRight size={14} />

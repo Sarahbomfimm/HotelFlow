@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
     collection,
     deleteDoc,
@@ -284,11 +284,17 @@ export function NotificationProvider({ children }) {
         await deleteDoc(doc(db, 'notifications', id));
     }, [currentUserId]);
 
+    const dismissToast = useCallback((id) => {
+        clearTimeout(timeoutsRef.current[id]);
+        delete timeoutsRef.current[id];
+        setDismissedToastIds((prev) => ({ ...prev, [id]: true }));
+    }, []);
+
     const naoLidas = notifications.filter((n) => !n.lida).length;
 
     return (
         <NotificationContext.Provider
-            value={{ notifications, addNotification, marcarLida, marcarTodasLidas, remover, naoLidas, error }}
+            value={{ notifications, addNotification, marcarLida, marcarTodasLidas, remover, naoLidas, error, dismissToast }}
         >
             {children}
         </NotificationContext.Provider>

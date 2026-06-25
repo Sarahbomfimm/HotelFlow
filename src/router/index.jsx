@@ -18,6 +18,7 @@ import Reunioes from '../pages/Reunioes/Reunioes';
 import Auditorias from '../pages/Auditorias/Auditorias';
 import Treinamentos from '../pages/Treinamentos/Treinamentos';
 import Pops from '../pages/Pops/Pops';
+import Documentacoes from '../pages/Documentacoes/Documentacoes';
 import Indicadores from '../pages/Indicadores/Indicadores';
 
 function DashboardRouter() {
@@ -120,6 +121,14 @@ export default function AppRouter() {
                 element={
                     <ProtectedRoute>
                         <Pops />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/documentacoes"
+                element={
+                    <ProtectedRoute>
+                        <Documentacoes />
                     </ProtectedRoute>
                 }
             />
