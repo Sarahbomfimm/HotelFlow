@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+﻿﻿﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
     collection,
     deleteDoc,
@@ -45,7 +45,7 @@ function toIsoDate(value) {
 function normalizeOrder(id, data) {
     return {
         id,
-        titulo: data.titulo || '',
+        titulo: data.titulo ? (data.titulo.charAt(0).toUpperCase() + data.titulo.slice(1)) : '',
         descricao: data.descricao || '',
         departamento: data.departamento || '',
         responsavel_id: data.responsavel_id || '',
