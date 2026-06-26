@@ -538,4 +538,19 @@ input[type='tel'].input {
 
 .animate-cloud-fast {
     animation: cloudsFloat 32s linear infinite;
-}
+}
+
+/* Custom subtle bounce animation for tooltips and hints */
+@keyframes bounceSubtle {
+    0%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+    50% {
+        transform: translateX(-50%) translateY(-6px);
+    }
+}
+
+.animate-bounce-subtle {
+    animation: bounceSubtle 1.8s ease-in-out infinite;
+}
+

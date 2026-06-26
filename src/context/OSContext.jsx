@@ -1,4 +1,4 @@
-﻿﻿﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
     collection,
     deleteDoc,
@@ -15,7 +15,6 @@ import { UserRole } from '../models/User';
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { hasPermission, PERMISSIONS } from '../services/permissions';
 import { createUserNotification } from '../services/notifications';
-import { enviarNotificacaoWhatsApp } from '../services/whatsappService';
 import { enviarNotificacaoTelegram } from '../services/telegramService';
 import { deleteFileByUrl, uploadProgressPdf, uploadServiceOrderImage } from '../services/storage';
 import { useAuth } from './AuthContext';
@@ -359,18 +358,6 @@ export function OSProvider({ children }) {
                 });
             } catch {
                 // Nao impede a criacao da SI se a notificacao falhar.
-            }
-
-            // Envia notificação via WhatsApp (se configurado e se o telefone estiver disponível)
-            try {
-                if (resp.telefone) {
-                    await enviarNotificacaoWhatsApp(
-                        { nome: resp.nome, telefone: resp.telefone },
-                        { titulo, descricao: dados.descricao, departamento: dados.departamento, prazo: dados.prazo, criado_em: new Date().toISOString() }
-                    );
-                }
-            } catch (error) {
-                console.warn('Erro ao enviar notificação WhatsApp:', error.message);
             }
 
             // Envia notificação via Telegram (se o chat_id estiver configurado)

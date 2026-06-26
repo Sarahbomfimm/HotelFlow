@@ -4,7 +4,7 @@ import {
     Search, Filter, ChevronDown, ChevronUp, Trash2, X,
     Edit3, Clock3, ArrowLeft, CalendarRange, Image as ImageIcon,
     Download, Paperclip, Play, Check, FileCheck, Eye, ListTodo, Plus, Trash, CheckSquare, Square,
-    CalendarDays, ChevronLeft, ChevronRight, Calendar, Tag, User, Hash, Activity, CheckCircle2,
+    CalendarDays, ChevronLeft, ChevronRight, Calendar, Tag, User, Hash, Activity, CheckCircle2, Sparkles,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
@@ -410,6 +410,11 @@ export default function ListaOS() {
     const [editarAnexoModalState, setEditarAnexoModalState] = useState({ open: false, os: null, item: null });
 
     const [viewMode, setViewMode] = useState(locState.viewMode || 'diario');
+    const [showAlert, setShowAlert] = useState(true);
+
+    const handleDismissAlert = () => {
+        setShowAlert(false);
+    };
     const [selectedDate, setSelectedDate] = useState(() => {
         const d = new Date();
         const y = d.getFullYear();
@@ -994,7 +999,6 @@ export default function ListaOS() {
                                     <span>Solicitar Finalização</span>
                                 </button>
                             )}
-
                         </div>
                     </div>
                 </div>
@@ -1492,18 +1496,52 @@ export default function ListaOS() {
                             <CalendarDays size={14} />
                             Agenda
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => setViewMode('todos')}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                viewMode === 'todos'
-                                    ? 'bg-hotel-blue text-white shadow-sm'
-                                    : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
-                            }`}
-                        >
-                            <ListTodo size={14} />
-                            Todas as SIs
-                        </button>
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setViewMode('todos');
+                                    handleDismissAlert();
+                                }}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
+                                    viewMode === 'todos'
+                                        ? 'bg-hotel-blue text-white shadow-sm'
+                                        : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
+                                }`}
+                            >
+                                <ListTodo size={14} />
+                                Todas as SIs
+                                {showAlert && viewMode === 'diario' && (
+                                    <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-hotel-gold opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-hotel-gold"></span>
+                                    </span>
+                                )}
+                            </button>
+                            {/* Balão de Dica Animado */}
+                            {showAlert && viewMode === 'diario' && (
+                                <div className="absolute top-full left-1/2 mt-3 w-56 bg-gradient-to-br from-amber-400 via-hotel-gold to-amber-600 text-white text-[11px] font-bold p-3 rounded-2xl shadow-[0_12px_32px_rgba(196,154,108,0.45)] border border-white/20 animate-bounce-subtle z-30 text-center backdrop-blur-sm">
+                                    <div className="flex items-center gap-1.5 justify-center mb-1 select-none">
+                                        <Sparkles size={11} className="text-white animate-pulse shrink-0" />
+                                        <span className="uppercase tracking-widest text-[9px] opacity-90 font-black">Dica de Navegação</span>
+                                    </div>
+                                    <span className="block leading-relaxed">Visualize todas as SIs registradas e acompanhe seus progressos de forma consolidada.</span>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDismissAlert();
+                                        }}
+                                        className="absolute top-1.5 right-1.5 text-white/80 hover:text-white transition-all p-1 rounded-full hover:bg-white/20 bg-black/15 flex items-center justify-center"
+                                        aria-label="Fechar alerta"
+                                    >
+                                        <X size={10} />
+                                    </button>
+                                    {/* Arrow pointing up */}
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-b-amber-400"></div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 

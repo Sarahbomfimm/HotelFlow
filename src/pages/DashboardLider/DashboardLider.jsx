@@ -287,7 +287,7 @@ export default function DashboardLider() {
                                 <div>
                                     <p className="font-semibold font-body text-blue-800 text-sm">Receba notificações pelo Telegram</p>
                                     <p className="text-blue-600 font-body text-xs mt-0.5">
-                                        Conecte seu Telegram para receber alertas de novas SIs instantaneamente, sem depender de WhatsApp.
+                                        Conecte seu Telegram para receber alertas de novas SIs instantaneamente.
                                     </p>
                                 </div>
                             </div>
