@@ -35,7 +35,9 @@ function writeStoredTelegramChatId(email, chatId) {
 }
 
 function sanitizeMockUsers() {
-    return USERS.map(({ senha: _omit, ...safeUser }) => safeUser);
+    return USERS
+        .filter((user) => user.email?.toLowerCase() !== 'bernadino@hotelflow.com')
+        .map(({ senha: _omit, ...safeUser }) => safeUser);
 }
 
 function mergeUsersWithFallback(firebaseUsers) {
