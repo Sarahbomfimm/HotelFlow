@@ -351,13 +351,27 @@ export default function ListaOS() {
     }, [users]);
 
     const liderFilterOptions = useMemo(() => {
-        const options = lideres.map((lider) => ({ value: lider.id, label: lider.nome }));
-        const hasSofiaUser = users?.some((u) => u.nome?.toLowerCase() === 'sofia' || u.email?.toLowerCase() === 'sofia@hotelflow.com');
-        if (hasSofiaUser && !options.some(o => o.label?.toLowerCase() === 'sofia')) {
-            options.push({ value: 'sofia_filter_val', label: 'Sofia' });
-        }
-        return options;
-    }, [lideres, users]);
+        if (!users) return [];
+        const assignable = users.filter((u) => [UserRole.LIDER, UserRole.ADMIN, UserRole.DIRETORA].includes(u.role));
+        
+        const uniqueByName = new Map();
+        assignable.forEach((u) => {
+            const normName = String(u.nome || '').trim().toLowerCase();
+            if (normName && !uniqueByName.has(normName)) {
+                uniqueByName.set(normName, u);
+            }
+        });
+
+        return Array.from(uniqueByName.values())
+            .map((u) => {
+                const isSofia = u.nome?.toLowerCase() === 'sofia' || u.email?.toLowerCase() === 'sofia@hotelflow.com';
+                return {
+                    value: isSofia ? 'sofia_filter_val' : u.id,
+                    label: u.nome,
+                };
+            })
+            .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    }, [users]);
     const location = useLocation();
     const actor = currentUserProfile || user;
     const actorDepartments = actor?.departamentos || [];

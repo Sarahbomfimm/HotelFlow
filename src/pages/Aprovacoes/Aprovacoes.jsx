@@ -158,8 +158,11 @@ export default function Aprovacoes() {
         return visibleOrders
             .filter((order) => [ApprovalStage.SOLICITADA, ApprovalStage.EM_ANALISE, ApprovalStage.FINALIZADA].includes(order.aprovacao_finalizacao_status))
             .filter((order) => {
-                // Apenas as SIs criadas pelo próprio usuário logado (actor) devem aparecer em sua esteira de aprovação
-                return matchesOrderActor(order, actor, 'criado_por');
+                // SIs criadas pelo usuário logado (actor) ou que ele participe (como responsável ou co-responsável)
+                return (
+                    matchesOrderActor(order, actor, 'criado_por') ||
+                    matchesOrderActor(order, actor, 'responsavel')
+                );
             })
             .sort((left, right) => new Date(right.aprovacao_finalizacao_solicitada_em || right.criado_em) - new Date(left.aprovacao_finalizacao_solicitada_em || left.criado_em));
     }, [visibleOrders, actor]);

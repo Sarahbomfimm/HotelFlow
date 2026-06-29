@@ -193,7 +193,7 @@ export function UsersProvider({ children }) {
     }, [users]);
 
     const lideres = useMemo(
-        () => normalizedUsers.filter((item) => item.role === UserRole.LIDER && (item.departamentos || []).length > 0),
+        () => normalizedUsers.filter((item) => item.role === UserRole.LIDER),
         [normalizedUsers],
     );
 
