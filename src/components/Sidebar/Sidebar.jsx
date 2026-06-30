@@ -98,11 +98,18 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const showAuditoriasSubmenu = showLabels && auditoriasExpanded;
     const reunioesUnreadCount = useMemo(() => notifications.filter((item) => !item.lida && item.type === 'reuniao').length, [notifications]);
     const auditoriasUnreadCount = useMemo(() => notifications.filter((item) => !item.lida && item.type === 'auditoria').length, [notifications]);
-    const profileSubtitle = displayUser?.role === UserRole.ADMIN
-        ? 'Adm'
-        : displayUser?.role === UserRole.DIRETORA
-            ? 'Diretoria'
-            : displayUser?.role;
+    const isBernardino = (
+        displayUser?.email?.toLowerCase() === 'bernadino@hotelflow.com' ||
+        displayUser?.nome?.toLowerCase() === 'bernardino' ||
+        displayUser?.nome?.toLowerCase() === 'bernadino'
+    );
+    const profileSubtitle = isBernardino
+        ? 'Diretoria'
+        : displayUser?.role === UserRole.ADMIN
+            ? 'Adm'
+            : displayUser?.role === UserRole.DIRETORA
+                ? 'Diretoria'
+                : displayUser?.role;
 
     const handleBrandClick = () => {
         navigate('/dashboard');

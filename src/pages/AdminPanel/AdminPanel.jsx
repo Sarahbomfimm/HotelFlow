@@ -77,6 +77,14 @@ function getRoleBadgeClass(role) {
     return 'bg-zinc-50 text-zinc-700 border border-zinc-200';
 }
 
+function isBernardinoRow(row) {
+    return (
+        row?.email?.toLowerCase() === 'bernadino@hotelflow.com' ||
+        row?.nome?.toLowerCase() === 'bernardino' ||
+        row?.nome?.toLowerCase() === 'bernadino'
+    );
+}
+
 export default function AdminPanel() {
     const { usersFromFirestore, availableDepartments } = useUsers();
     const { addNotification } = useNotification();
@@ -734,8 +742,8 @@ export default function AdminPanel() {
                                             <td className="px-5 py-4 font-bold text-slate-900">{row.nome}</td>
                                             <td className="px-5 py-4 text-slate-500 font-medium">{row.email}</td>
                                             <td className="px-5 py-4">
-                                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${getRoleBadgeClass(row.role)}`}>
-                                                    {row.role === UserRole.ADMIN ? 'Admin' : row.role === UserRole.DIRETORA ? 'Diretora' : 'Líder'}
+                                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${isBernardinoRow(row) ? getRoleBadgeClass(UserRole.DIRETORA) : getRoleBadgeClass(row.role)}`}>
+                                                    {isBernardinoRow(row) ? 'Diretoria' : row.role === UserRole.ADMIN ? 'Admin' : row.role === UserRole.DIRETORA ? 'Diretora' : 'Líder'}
                                                 </span>
                                             </td>
                                             <td className="px-5 py-4 text-xs text-slate-500">
@@ -813,8 +821,8 @@ export default function AdminPanel() {
                                             <p className="text-sm font-bold text-slate-900 truncate">{row.nome}</p>
                                             <p className="text-xs text-slate-500 font-medium truncate">{row.email}</p>
                                         </div>
-                                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${getRoleBadgeClass(row.role)}`}>
-                                            {row.role === UserRole.ADMIN ? 'Admin' : row.role === UserRole.DIRETORA ? 'Diretora' : 'Líder'}
+                                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${isBernardinoRow(row) ? getRoleBadgeClass(UserRole.DIRETORA) : getRoleBadgeClass(row.role)}`}>
+                                            {isBernardinoRow(row) ? 'Diretoria' : row.role === UserRole.ADMIN ? 'Admin' : row.role === UserRole.DIRETORA ? 'Diretora' : 'Líder'}
                                         </span>
                                     </div>
                                     <div className="space-y-1.5 border-t border-slate-100 pt-3 text-xs">
