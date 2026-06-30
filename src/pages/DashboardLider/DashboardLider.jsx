@@ -563,7 +563,7 @@ export default function DashboardLider() {
                                 </p>
                             </div>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="space-y-3 max-h-[35rem] overflow-y-auto pr-1">
                                 {urgentes.map((os) => {
                                     const atrasoRef = getApplicableDeadlineDate(os);
                                     const dias = atrasoRef ? differenceInDays(atrasoRef, new Date()) : null;
