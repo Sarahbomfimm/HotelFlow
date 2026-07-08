@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, ArrowRight } from 'lucide-react';
 import { StatusLabel } from '../../models/OrdemDeServico';
 
@@ -48,11 +48,13 @@ export default function StatusObservacaoModal({ isOpen, os, novoStatus, onConfir
                 </div>
 
                 <div className="px-6 pb-5">
-                    <label className="label mt-3">
+                    <label className="label mt-3" htmlFor="status-observacao">
                         <MessageSquare size={13} className="inline mr-1.5" />
                         Observação <span className="text-hotel-gray-md font-normal">(opcional)</span>
                     </label>
                     <textarea
+                        id="status-observacao"
+                        name="status-observacao"
                         ref={textRef}
                         rows={3}
                         className="input resize-none"

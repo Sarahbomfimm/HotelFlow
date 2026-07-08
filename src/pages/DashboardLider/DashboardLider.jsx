@@ -268,6 +268,8 @@ export default function DashboardLider() {
                                 <span className="capitalize">{format(selectedMonthDate, "MMMM 'de' yyyy", { locale: ptBR })}</span>
                             </div>
                             <input
+                                id="dashboard-mes"
+                                name="dashboard-mes"
                                 type="month"
                                 value={selectedMonth}
                                 onChange={(event) => setSelectedMonth(event.target.value)}
@@ -420,6 +422,8 @@ export default function DashboardLider() {
                         {/* Filtros */}
                         <div className="flex flex-wrap gap-3 mb-4">
                             <select
+                                id="dashboard-lider-filtro"
+                                name="dashboard-lider-filtro"
                                 value={filterLider}
                                 onChange={(e) => setFilterLider(e.target.value)}
                                 className="input py-1.5 text-xs w-auto flex-1 min-w-[140px]"
@@ -430,6 +434,8 @@ export default function DashboardLider() {
                                 ))}
                             </select>
                             <select
+                                id="dashboard-status-filtro"
+                                name="dashboard-status-filtro"
                                 value={filterStatus}
                                 onChange={(e) => setFilterStatus(e.target.value)}
                                 className="input py-1.5 text-xs w-auto flex-1 min-w-[130px]"

@@ -203,6 +203,8 @@ export default function DashboardDiretora() {
                             <span className="capitalize">{format(selectedMonthDate, "MMMM 'de' yyyy", { locale: ptBR })}</span>
                         </div>
                         <input
+                            id="diretora-mes"
+                            name="diretora-mes"
                             type="month"
                             value={selectedMonth}
                             onChange={(event) => setSelectedMonth(event.target.value)}
@@ -392,6 +394,8 @@ export default function DashboardDiretora() {
                     <div className="flex flex-wrap gap-3 mb-4">
                         {tab === 'todas' && (
                             <select
+                                id="diretora-lider-filtro"
+                                name="diretora-lider-filtro"
                                 value={filterLider}
                                 onChange={(e) => setFilterLider(e.target.value)}
                                 className="input py-1.5 text-xs w-auto flex-1 min-w-[140px]"
@@ -403,6 +407,8 @@ export default function DashboardDiretora() {
                             </select>
                         )}
                         <select
+                            id="diretora-status-filtro"
+                            name="diretora-status-filtro"
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value)}
                             className="input py-1.5 text-xs w-auto flex-1 min-w-[130px]"

@@ -176,10 +176,12 @@ export default function EditarAnexoHistoricoModal({ isOpen, os, historicoItem, o
 
                     {/* Motivo do Ajuste */}
                     <div className="space-y-1">
-                        <label className="text-xs font-bold text-hotel-blue uppercase tracking-wide block">
+                        <label className="text-xs font-bold text-hotel-blue uppercase tracking-wide block" htmlFor="motivo-ajuste">
                             Motivo/Observação do Ajuste <span className="text-red-500">*</span>
                         </label>
                         <textarea
+                            id="motivo-ajuste"
+                            name="motivo-ajuste"
                             ref={textRef}
                             rows={3}
                             placeholder="Ex: Documento incorreto anexado por engano. / Substituído pelo PDF final assinado."

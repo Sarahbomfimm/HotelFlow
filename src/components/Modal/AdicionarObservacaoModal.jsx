@@ -261,10 +261,12 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
                         <p className="mt-1 text-[11px] text-red-500 font-body">{anexoErro}</p>
                     )}
 
-                    <label className="label mt-3">
+                    <label className="label mt-3" htmlFor="observacao-progresso">
                         O que foi feito / progresso atual
                     </label>
                     <textarea
+                        id="observacao-progresso"
+                        name="observacao-progresso"
                         ref={textRef}
                         rows={3}
                         className="input resize-none"

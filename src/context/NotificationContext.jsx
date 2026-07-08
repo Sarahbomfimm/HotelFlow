@@ -127,10 +127,15 @@ export function NotificationProvider({ children }) {
                     scheduleToastDismiss(notificationDoc.id);
                 }
 
+                const notifAgeMs = Date.now() - new Date(createdAt).getTime();
+                const isRecent = notifAgeMs < 15000; // 15 segundos
+
                 if (!playedChimesRef.current[notificationDoc.id] && data.type === 'new_os') {
-                    playChime();
+                    if (isRecent) {
+                        playChime();
+                        showSystemNotification('Nova Solicitacao Interna', data.message, notificationDoc.id);
+                    }
                     playedChimesRef.current[notificationDoc.id] = true;
-                    showSystemNotification('Nova Solicitacao Interna', data.message, notificationDoc.id);
                 }
 
                 merged.set(notificationDoc.id, {

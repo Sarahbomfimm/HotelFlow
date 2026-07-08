@@ -169,20 +169,26 @@ function MultiSelectFilter({
                         )}
                     </div>
                     <div className="space-y-1">
-                        {options.map((option) => (
-                            <label
-                                key={option.value}
-                                className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-body text-hotel-blue hover:bg-hotel-light"
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={selectedValues.includes(option.value)}
-                                    onChange={() => onToggle(option.value)}
-                                    className="h-3.5 w-3.5 rounded border-hotel-gray"
-                                />
-                                <span>{option.label}</span>
-                            </label>
-                        ))}
+                        {options.map((option) => {
+                            const filterId = `filter-${String(title || '').replace(/\s+/g, '-').toLowerCase()}-${option.value}`;
+                            return (
+                                <label
+                                    key={option.value}
+                                    htmlFor={filterId}
+                                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-body text-hotel-blue hover:bg-hotel-light"
+                                >
+                                    <input
+                                        id={filterId}
+                                        name={filterId}
+                                        type="checkbox"
+                                        checked={selectedValues.includes(option.value)}
+                                        onChange={() => onToggle(option.value)}
+                                        className="h-3.5 w-3.5 rounded border-hotel-gray"
+                                    />
+                                    <span>{option.label}</span>
+                                </label>
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -1318,6 +1324,8 @@ export default function ListaOS() {
                                             {editingChecklist.osId === os.id && editingChecklist.itemId === item.id ? (
                                                 <div className="flex flex-1 items-center gap-2">
                                                     <input
+                                                        id={`edit-checklist-${item.id}`}
+                                                        name={`edit-checklist-${item.id}`}
                                                         type="text"
                                                         value={editingChecklist.text}
                                                         onChange={(e) => setEditingChecklist({ ...editingChecklist, text: e.target.value })}
@@ -1363,6 +1371,8 @@ export default function ListaOS() {
                                     {podeEditarChecklist && (
                                         <div className="flex items-center gap-2 mt-4 pt-4 border-t border-hotel-gray/10">
                                             <input
+                                                id={`add-checklist-${os.id}`}
+                                                name={`add-checklist-${os.id}`}
                                                 type="text"
                                                 value={novoItemChecklist}
                                                 onChange={(e) => setNovoItemChecklist(e.target.value)}
@@ -1572,6 +1582,8 @@ export default function ListaOS() {
                     <div className="relative min-w-0 flex-1 sm:max-w-xs">
                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-hotel-gray-md" />
                         <input
+                            id="buscar-si"
+                            name="buscar-si"
                             type="search"
                             className="input pl-9 py-2 text-sm w-full"
                             placeholder="Buscar SI..."
