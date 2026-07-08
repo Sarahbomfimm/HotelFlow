@@ -523,28 +523,35 @@ export default function ListaOS() {
         }
 
         const targetOs = ordens.find(o => o.id === locState.expandOsId);
-        if (targetOs && targetOs.prazo) {
-            try {
-                const parsed = parseISO(targetOs.prazo);
-                setSelectedDate(formatDateString(parsed));
-                setViewMode('diario');
-            } catch (err) {
-                console.error("Erro ao definir data do redirect:", err);
+        if (targetOs) {
+            if (targetOs.prazo) {
+                try {
+                    const parsed = parseISO(targetOs.prazo);
+                    setSelectedDate(formatDateString(parsed));
+                    setViewMode('diario');
+                } catch (err) {
+                    console.error("Erro ao definir data do redirect:", err);
+                }
             }
-        }
 
-        // Ao abrir uma SI específica vinda de cards, limpa filtros antigos
-        // para garantir que o item clicado fique visível e expandido.
-        setSearch('');
-        setFilterStatus([]);
-        setFilterPdca([]);
-        setFilterLider([]);
-        setFilterDept([]);
-        setPrazoRange([null, null]);
-        setExpanded(locState.expandOsId);
-        setNovoItemChecklist('');
-        setEditingChecklist({ osId: null, itemId: null, text: '' });
-    }, [locState.expandOsId, ordens]);
+            // Ao abrir uma SI específica vinda de cards, limpa filtros antigos
+            // para garantir que o item clicado fique visível e expandido.
+            setSearch('');
+            setFilterStatus([]);
+            setFilterPdca([]);
+            setFilterLider([]);
+            setFilterDept([]);
+            setPrazoRange([null, null]);
+            setExpanded(locState.expandOsId);
+            setNovoItemChecklist('');
+            setEditingChecklist({ osId: null, itemId: null, text: '' });
+
+            // Consome o expandOsId do estado de navegação para evitar loops de re-execução quando as ordens forem atualizadas
+            const newState = { ...location.state };
+            delete newState.expandOsId;
+            navigate(location.pathname, { replace: true, state: newState });
+        }
+    }, [locState.expandOsId, ordens, location, navigate]);
 
     const base = useMemo(() =>
         isDiretora ? ordens : getOSPorLider(actorDepartments, actor),
