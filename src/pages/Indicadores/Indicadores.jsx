@@ -29,14 +29,16 @@ import {
     Target,
     ChevronLeft,
     ChevronRight,
-    ChevronDown
+    ChevronDown,
+    Trash2
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
+import ConfirmModal from '../../components/Modal/ConfirmModal';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
-import { subscribeIndicadores, saveIndicador } from '../../services/indicadoresStorage';
+import { subscribeIndicadores, saveIndicador, deleteIndicador } from '../../services/indicadoresStorage';
 import { hasPermission, PERMISSIONS } from '../../services/permissions';
 
 // Lista padrão de setores para garantir que a tela nunca fique vazia
@@ -152,6 +154,7 @@ export default function Indicadores() {
         linkPlanilha: ''
     });
     const [saving, setSaving] = useState(false);
+    const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
     // Subscrever Firestore em tempo real
     useEffect(() => {
@@ -300,6 +303,35 @@ export default function Indicadores() {
             setShowModal(false);
         } catch (error) {
             addNotification(`Erro ao salvar indicador: ${error.message}`, 'error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Excluir Lançamento
+    const handleDeleteClick = () => {
+        if (!canEditSector(modalData.departamento)) {
+            addNotification('Você não tem permissão para excluir notas deste setor.', 'error');
+            return;
+        }
+        setShowConfirmDelete(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        setShowConfirmDelete(false);
+        const record = currentMonthMap[modalData.departamento];
+        if (!record) {
+            addNotification('Nenhum lançamento encontrado para excluir.', 'error');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            await deleteIndicador(record.id);
+            addNotification(`Lançamento do setor ${modalData.departamento} excluído com sucesso!`, 'success');
+            setShowModal(false);
+        } catch (error) {
+            addNotification(`Erro ao excluir lançamento: ${error.message}`, 'error');
         } finally {
             setSaving(false);
         }
@@ -952,26 +984,47 @@ export default function Indicadores() {
                             </div>
 
                             {/* Rodapé do Formulário */}
-                            <div className="flex gap-3 pt-4 border-t border-slate-100">
-                                <button
-                                    type="submit"
-                                    disabled={saving}
-                                    className="flex-1 rounded-xl bg-hotel-blue py-2.5 text-xs font-bold text-white transition-all hover:bg-hotel-blue-md disabled:opacity-60 shadow-sm"
-                                >
-                                    {saving ? 'Gravando...' : 'Salvar Resultado'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowModal(false)}
-                                    className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 transition-all hover:bg-slate-50"
-                                >
-                                    Cancelar
-                                </button>
+                            <div className="flex flex-col gap-2.5 pt-4 border-t border-slate-100">
+                                <div className="flex gap-3">
+                                    <button
+                                        type="submit"
+                                        disabled={saving}
+                                        className="flex-1 rounded-xl bg-hotel-blue py-2.5 text-xs font-bold text-white transition-all hover:bg-hotel-blue-md disabled:opacity-60 shadow-sm"
+                                    >
+                                        {saving ? 'Gravando...' : 'Salvar Resultado'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowModal(false)}
+                                        className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 transition-all hover:bg-slate-50"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                                {currentMonthMap[modalData.departamento] && (
+                                    <button
+                                        type="button"
+                                        disabled={saving}
+                                        onClick={handleDeleteClick}
+                                        className="w-full rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-50 text-rose-600 py-2.5 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                        <Trash2 size={14} /> Excluir Lançamento Existente
+                                    </button>
+                                )}
                             </div>
                         </form>
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={showConfirmDelete}
+                title="Excluir Lançamento"
+                message={`Tem certeza de que deseja excluir permanentemente o lançamento de meta para o setor ${modalData.departamento} no período de ${modalData.mes}?`}
+                onConfirm={handleDeleteConfirm}
+                onCancel={() => setShowConfirmDelete(false)}
+                danger={true}
+            />
         </AppLayout>
     );
 }

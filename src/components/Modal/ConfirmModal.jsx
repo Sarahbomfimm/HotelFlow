@@ -13,7 +13,7 @@ export default function ConfirmModal({ isOpen, title, message, onConfirm, onCanc
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fadeIn">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fadeIn">
             <div className="bg-white rounded-2xl shadow-card-hover w-full max-w-md mx-4 overflow-hidden">
                 <div className={`px-6 py-4 flex items-center gap-3 ${danger ? 'bg-red-50' : 'bg-hotel-light'}`}>
                     <AlertTriangle size={22} className={danger ? 'text-red-500' : 'text-hotel-gold'} />
