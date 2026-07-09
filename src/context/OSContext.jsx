@@ -1,4 +1,4 @@
-﻿﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
     collection,
     deleteDoc,
@@ -8,8 +8,9 @@ import {
     query,
     setDoc,
     updateDoc,
+    getDocs,
 } from 'firebase/firestore';
-import { INITIAL_OS } from '../data/mockData';
+import { INITIAL_OS, USERS } from '../data/mockData';
 import { StatusOS, StatusLabel, PDCAStep, ApprovalStage } from '../models/OrdemDeServico';
 import { UserRole } from '../models/User';
 import { db, isFirebaseConfigured } from '../services/firebase';
@@ -779,6 +780,82 @@ export function OSProvider({ children }) {
         // Atualiza o campo prazo_estimado na OS se informado
         if (prazoEstimado) {
             payload.prazo_estimado = prazoEstimado;
+        }
+
+        // Disparar notificações para os envolvidos na SI
+        const currentUserId = usuario.firebaseUid || usuario.uid || usuario.id;
+        const currentUserEmail = usuario.email?.toLowerCase();
+
+        const isSameUser = (u) => {
+            if (!u) return false;
+            const uid = u.uid || u.firebaseUid || u.id;
+            const email = u.email?.toLowerCase();
+            if (uid && currentUserId && String(uid) === String(currentUserId)) return true;
+            if (email && currentUserEmail && email === currentUserEmail) return true;
+            return false;
+        };
+
+        // Buscar todos os usuários para mapeamento correto de emails e uids
+        let dbUsers = [];
+        if (isFirebaseConfigured && db) {
+            try {
+                const usersSnap = await getDocs(collection(db, 'users'));
+                dbUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            } catch (err) {
+                console.error('Erro ao buscar usuários para notificações:', err);
+            }
+        }
+
+        const findUserByIdOrEmail = (id, email) => {
+            const normalizedEmail = email?.toLowerCase().trim();
+            // Busca no Firestore
+            let found = dbUsers.find(u => 
+                (id && (u.id === id || u.firebaseUid === id)) || 
+                (normalizedEmail && u.email?.toLowerCase().trim() === normalizedEmail)
+            );
+            if (found) return found;
+
+            // Busca no mockData (USERS)
+            found = USERS.find(u => 
+                (id && (u.id === id || u.firebaseUid === id)) || 
+                (normalizedEmail && u.email?.toLowerCase().trim() === normalizedEmail)
+            );
+            return found || null;
+        };
+
+        const creatorProfile = findUserByIdOrEmail(os.criado_por_uid || os.criado_por_id, os.criado_por_email);
+        const responsibleProfile = findUserByIdOrEmail(os.responsavel_uid || os.responsavel_id, os.responsavel_email);
+
+        const recipients = [
+            creatorProfile ? { uid: creatorProfile.firebaseUid || creatorProfile.id, email: creatorProfile.email } : null,
+            responsibleProfile ? { uid: responsibleProfile.firebaseUid || responsibleProfile.id, email: responsibleProfile.email } : null,
+            ...(Array.isArray(os.co_responsaveis) ? os.co_responsaveis.map((c) => {
+                const p = findUserByIdOrEmail(c.uid || c.id, c.email);
+                return p ? { uid: p.firebaseUid || p.id, email: p.email } : null;
+            }) : []),
+        ]
+        .filter(Boolean)
+        .filter((val, index, self) => 
+            self.findIndex(t => 
+                (t.uid && t.uid === val.uid) || 
+                (t.email && t.email.toLowerCase() === val.email.toLowerCase())
+            ) === index
+        )
+        .filter(r => !isSameUser(r));
+
+        for (const recipient of recipients) {
+            try {
+                await createUserNotification({
+                    recipientUid: recipient.uid,
+                    recipientEmail: recipient.email,
+                }, {
+                    message: `${usuario.nome} atualizou o progresso da SI "${os.titulo}": "${texto.slice(0, 60)}${texto.length > 60 ? '...' : ''}"`,
+                    type: 'progresso_os',
+                    relatedOrderId: os.id,
+                });
+            } catch (err) {
+                console.error('Erro ao enviar notificação de progresso:', err);
+            }
         }
 
         if (!isFirebaseConfigured || !db) {

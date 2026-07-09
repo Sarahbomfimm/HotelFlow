@@ -757,7 +757,52 @@ export default function ListaOS() {
 
     useEffect(() => {
         setNovoItemChecklist('');
-    }, [expanded]);
+        if (expanded && actor) {
+            const readLogsKey = `hotelflow:os_last_viewed:${actor.id || actor.uid || actor.firebaseUid || 'guest'}`;
+            try {
+                const raw = localStorage.getItem(readLogsKey);
+                const data = raw ? JSON.parse(raw) : {};
+                data[expanded] = new Date().toISOString();
+                localStorage.setItem(readLogsKey, JSON.stringify(data));
+            } catch (e) {
+                console.error('Error updating read status:', e);
+            }
+        }
+    }, [expanded, actor]);
+
+    const hasUnreadProgress = (os) => {
+        if (!actor) return false;
+
+        const historico = os.historico || [];
+        if (historico.length === 0) return false;
+
+        const ultimoProgresso = historico[historico.length - 1];
+        const ultimoNome = String(ultimoProgresso.usuario_nome || '').trim().toLowerCase();
+        const actorNome = String(actor.nome || '').trim().toLowerCase();
+        if (ultimoNome === actorNome) {
+            return false;
+        }
+
+        const isCriador = matchesOrderActor(os, actor, 'criado_por');
+        const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
+        if (!isCriador && !isResponsavel) {
+            return false;
+        }
+
+        const ultimoProgressoData = new Date(ultimoProgresso.data);
+        const readLogsKey = `hotelflow:os_last_viewed:${actor.id || actor.uid || actor.firebaseUid || 'guest'}`;
+        try {
+            const raw = localStorage.getItem(readLogsKey);
+            if (!raw) return true;
+            const data = JSON.parse(raw);
+            const ultimaVisualizacao = data[os.id];
+            if (!ultimaVisualizacao) return true;
+
+            return ultimoProgressoData > new Date(ultimaVisualizacao);
+        } catch {
+            return true;
+        }
+    };
 
     const handleAdicionarItemChecklist = async (os) => {
         if (!novoItemChecklist.trim()) return;
@@ -923,6 +968,11 @@ export default function ListaOS() {
                             {atrasada && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[9px] font-black text-red-600 border border-red-200 uppercase tracking-wider">
                                     ⚠ Atrasada
+                                </span>
+                            )}
+                            {hasUnreadProgress(os) && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-hotel-gold/10 px-2 py-0.5 text-[9px] font-extrabold text-hotel-gold border border-hotel-gold/20 uppercase tracking-wider animate-pulse">
+                                    Atualizado
                                 </span>
                             )}
                             <PDCABadge etapa={os.etapa_pdca} status={os.status} compact />
