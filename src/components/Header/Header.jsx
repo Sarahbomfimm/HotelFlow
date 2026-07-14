@@ -1,10 +1,7 @@
 import { Menu } from 'lucide-react';
 import NotificationBell from '../NotificationBell/NotificationBell';
-import { useAuth } from '../../context/AuthContext';
 
 export default function Header({ pageTitle = '', onMenuClick }) {
-    const { user } = useAuth();
-
     return (
         <header className="flex h-16 flex-shrink-0 items-center gap-3 border-b border-white/10 bg-hotel-blue px-4 sm:px-6">
             <button
@@ -18,7 +15,21 @@ export default function Header({ pageTitle = '', onMenuClick }) {
 
             {/* Título da página */}
             <div className="flex min-w-0 flex-1 items-center gap-3">
-                <h2 className="truncate font-heading text-sm font-semibold text-white sm:text-base">{pageTitle}</h2>
+                <h2 className="truncate font-heading">
+                    {pageTitle.includes(' — ') ? (
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-white text-sm sm:text-base">
+                                {pageTitle.split(' — ')[0]}
+                            </span>
+                            <span className="text-white/30 font-light text-sm">/</span>
+                            <span className="text-[11px] font-medium text-white/60 bg-white/5 px-2 py-0.5 rounded-md border border-white/5 tracking-wide">
+                                {pageTitle.split(' — ')[1]}
+                            </span>
+                        </div>
+                    ) : (
+                        <span className="font-semibold text-white text-sm sm:text-base">{pageTitle}</span>
+                    )}
+                </h2>
             </div>
 
             {/* Ações */}
@@ -30,15 +41,6 @@ export default function Header({ pageTitle = '', onMenuClick }) {
                         alt="Pajucara Hotel"
                         className="h-full w-full scale-110 rounded-lg object-contain"
                     />
-                </div>
-
-                {/* Avatar */}
-                <div className="flex items-center gap-2 border-l border-white/20 pl-2 sm:pl-3">
-                    <div className="w-8 h-8 rounded-full bg-hotel-gold flex items-center justify-center
-                          font-heading font-bold text-white text-sm">
-                        {user?.nome?.[0]?.toUpperCase()}
-                    </div>
-                    <span className="hidden max-w-32 truncate font-body text-sm text-white/80 sm:block">{user?.nome}</span>
                 </div>
             </div>
         </header>

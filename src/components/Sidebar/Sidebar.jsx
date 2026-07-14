@@ -186,21 +186,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
                 </button>
             </div>
 
-            {/* Perfil do usuário */}
-            {showLabels && (
-                <div className="border-b border-white/10 px-4 py-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-hotel-gold flex items-center justify-center
-                            font-heading font-bold text-white text-sm flex-shrink-0">
-                            {displayUser?.nome?.[0]?.toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-semibold font-heading truncate">{displayUser?.nome}</p>
-                            <p className="text-xs text-white/60 font-body capitalize">{profileSubtitle}</p>
-                        </div>
-                    </div>
-                </div>
-            )}
+
 
             {/* Navegação */}
             <nav
@@ -388,16 +374,40 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
                 })}
             </nav>
 
-            {/* Logout */}
-            <div className="border-t border-white/10 px-2 pb-4 pt-3">
-                <button
-                    onClick={handleLogout}
-                    className={`sidebar-link w-full ${collapsed ? 'lg:justify-center lg:px-2' : ''}`}
-                    title={!showLabels ? 'Sair' : undefined}
-                >
-                    <LogOut size={19} className="flex-shrink-0 text-red-300" />
-                    {showLabels && <span className="text-red-300">Sair</span>}
-                </button>
+            {/* Perfil & Logout */}
+            <div className="border-t border-white/10 px-3 py-4">
+                <div className={`flex ${collapsed ? 'flex-col items-center gap-3 p-1' : 'items-center justify-between gap-3 p-2 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all duration-200'}`}>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-hotel-gold to-hotel-gold-dk flex items-center justify-center
+                            font-heading font-bold text-white text-xs flex-shrink-0 shadow-sm ring-1 ring-white/10">
+                            {displayUser?.nome?.[0]?.toUpperCase()}
+                        </div>
+                        {showLabels && (
+                            <div className="min-w-0">
+                                <p className="text-xs font-semibold font-heading text-white truncate">{displayUser?.nome}</p>
+                                <p className="text-[10px] text-white/50 font-body capitalize mt-0.5 tracking-wide">{profileSubtitle}</p>
+                            </div>
+                        )}
+                    </div>
+                    {showLabels && (
+                        <button
+                            onClick={handleLogout}
+                            className="p-1.5 rounded-lg text-white/40 hover:bg-white/10 hover:text-red-300 transition-all flex-shrink-0"
+                            title="Sair"
+                        >
+                            <LogOut size={16} />
+                        </button>
+                    )}
+                </div>
+                {!showLabels && (
+                    <button
+                        onClick={handleLogout}
+                        className="mt-3 flex w-full justify-center p-1.5 rounded-lg text-white/40 hover:bg-white/10 hover:text-red-300 transition-all"
+                        title="Sair"
+                    >
+                        <LogOut size={16} />
+                    </button>
+                )}
             </div>
         </aside>
     );

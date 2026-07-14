@@ -1,8 +1,8 @@
-
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ClipboardList, CheckCircle2, Clock, AlertCircle, Send, PlusCircle, Play, Check, ArrowRight, CalendarDays,
+    Sparkles, Filter, ChevronDown, ChevronRight, Activity, TrendingUp
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
@@ -23,44 +23,192 @@ import { isOrderInSelectedDashboardMonth } from '../../utils/osMonthRules';
 const DEPARTAMENTO_TESTE = 'Teste';
 const TELEGRAM_PROMO_EVENT = 'hotelflow:open-telegram-banner';
 
-function StatCard({ icon: Icon, label, value, colorClass, onClick }) {
+function CustomSelect({ value, onChange, options, placeholder }) {
+    const [open, setOpen] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        if (!open) return;
+        function handleClickOutside(e) {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [open]);
+
+    const selectedOption = options.find(o => o.value === value);
+
+    return (
+        <div ref={containerRef} className="relative w-full sm:w-auto">
+            <button
+                type="button"
+                onClick={() => setOpen(!open)}
+                className="flex items-center justify-between gap-2 rounded-xl border border-hotel-gray/50 bg-white px-3 py-1.5 text-xs font-semibold text-hotel-blue hover:border-hotel-gold/60 hover:bg-slate-50 transition-all cursor-pointer shadow-sm w-full sm:w-auto min-w-[170px]"
+            >
+                <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
+                <ChevronDown size={14} className={`text-hotel-blue/60 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+            </button>
+            {open && (
+                <div className="absolute left-0 z-50 mt-1 max-h-60 w-full min-w-[190px] overflow-y-auto rounded-xl border border-hotel-gray/40 bg-white p-1.5 shadow-lg animate-fadeIn">
+                    {placeholder && (
+                        <button
+                            type="button"
+                            onClick={() => { onChange(''); setOpen(false); }}
+                            className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-xs text-hotel-gray-md hover:bg-slate-50 transition-colors"
+                        >
+                            {placeholder}
+                        </button>
+                    )}
+                    {options.map((option) => {
+                        const isSelected = option.value === value;
+                        return (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => { onChange(option.value); setOpen(false); }}
+                                className={`flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors
+                                            ${isSelected
+                                                ? 'bg-hotel-light text-hotel-gold font-bold'
+                                                : 'text-hotel-blue hover:bg-slate-50'}`}
+                            >
+                                {option.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function StatCard({ icon: Icon, label, value, type, onClick }) {
+    const theme = {
+        total: {
+            iconBg: 'bg-slate-50 text-hotel-blue border border-slate-200/50',
+            cardHover: 'hover:border-hotel-blue/30',
+            accentBar: 'bg-hotel-blue'
+        },
+        abertas: {
+            iconBg: 'bg-blue-50 text-blue-600 border border-blue-100/50',
+            cardHover: 'hover:border-blue-400/30',
+            accentBar: 'bg-blue-500'
+        },
+        em_andamento: {
+            iconBg: 'bg-amber-50 text-amber-600 border border-amber-100/50',
+            cardHover: 'hover:border-amber-400/30',
+            accentBar: 'bg-amber-500'
+        },
+        concluidas: {
+            iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-100/50',
+            cardHover: 'hover:border-emerald-400/30',
+            accentBar: 'bg-emerald-500'
+        },
+        atrasadas: {
+            iconBg: 'bg-red-50 text-red-600 border border-red-100/50',
+            cardHover: 'hover:border-red-400/30',
+            accentBar: 'bg-red-500 animate-pulse'
+        }
+    }[type || 'total'];
+
     return (
         <button
             onClick={onClick}
-            className={`card flex items-center gap-3 text-left transition-shadow sm:gap-4
-                        ${onClick ? 'hover:shadow-card-hover cursor-pointer' : 'cursor-default'}`}
+            className={`group relative overflow-hidden bg-white/95 border border-hotel-gray/40 p-5 rounded-2xl text-left transition-all duration-300 shadow-sm flex flex-col justify-between h-[115px]
+                  ${onClick ? 'cursor-pointer hover:-translate-y-1 hover:shadow-card-hover ' + theme.cardHover : 'cursor-default'}`}
         >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
-                <Icon size={22} className="text-white" />
+            {/* Top row */}
+            <div className="flex items-start justify-between w-full">
+                <span className="text-[10px] font-bold tracking-wider text-hotel-gray-md uppercase font-heading">
+                    {label}
+                </span>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${theme.iconBg}`}>
+                    <Icon size={16} />
+                </div>
             </div>
-            <div>
-                <p className="text-2xl font-heading font-bold text-hotel-blue">{value}</p>
-                <p className="text-xs text-hotel-gray-md font-body">{label}</p>
+
+            {/* Value & subtle indicator */}
+            <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-3xl font-extrabold text-hotel-blue tracking-tight font-heading group-hover:text-hotel-blue-md transition-colors">
+                    {value}
+                </span>
             </div>
+
+            {/* Top Accent Bar */}
+            <div className={`absolute top-0 left-0 w-full h-[3px] ${theme.accentBar}`} />
         </button>
     );
 }
 
-function PDCAStatCard({ etapa, total, onClick }) {
+function PDCAStatCard({ etapa, total, totalBase, onClick }) {
     const config = {
-        [PDCAStep.PLAN]: { label: 'Planejar', colorClass: 'bg-red-500' },
-        [PDCAStep.DO]: { label: 'Executar', colorClass: 'bg-blue-500' },
-        [PDCAStep.CHECK]: { label: 'Checar', colorClass: 'bg-amber-500' },
-        [PDCAStep.ACT]: { label: 'Agir', colorClass: 'bg-emerald-500' },
+        [PDCAStep.PLAN]: { 
+            label: 'Planejar', 
+            color: 'text-red-500', 
+            bg: 'bg-red-50/50', 
+            border: 'border-red-100', 
+            letterBg: 'bg-red-500',
+            barColor: 'bg-red-500',
+            hoverBorder: 'hover:border-red-300'
+        },
+        [PDCAStep.DO]: { 
+            label: 'Executar', 
+            color: 'text-blue-500', 
+            bg: 'bg-blue-50/50', 
+            border: 'border-blue-100', 
+            letterBg: 'bg-blue-500',
+            barColor: 'bg-blue-500',
+            hoverBorder: 'hover:border-blue-300'
+        },
+        [PDCAStep.CHECK]: { 
+            label: 'Checar', 
+            color: 'text-amber-500', 
+            bg: 'bg-amber-50/50', 
+            border: 'border-amber-100', 
+            letterBg: 'bg-amber-500',
+            barColor: 'bg-amber-500',
+            hoverBorder: 'hover:border-amber-300'
+        },
+        [PDCAStep.ACT]: { 
+            label: 'Agir', 
+            color: 'text-emerald-500', 
+            bg: 'bg-emerald-50/50', 
+            border: 'border-emerald-100', 
+            letterBg: 'bg-emerald-500',
+            barColor: 'bg-emerald-500',
+            hoverBorder: 'hover:border-emerald-300'
+        },
     };
-    const { label, colorClass } = config[etapa];
+    const { label, letterBg, barColor, hoverBorder } = config[etapa];
+    const pct = totalBase > 0 ? Math.round((total / totalBase) * 100) : 0;
 
     return (
         <button
             onClick={onClick}
-            className="card flex items-center gap-3 text-left transition-shadow hover:shadow-card-hover sm:gap-4"
+            className={`group bg-white/95 border border-hotel-gray/40 p-4 rounded-2xl text-left transition-all duration-300 shadow-sm flex flex-col justify-between h-[120px] hover:-translate-y-0.5 hover:shadow-card-hover ${hoverBorder} w-full`}
         >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
-                <span className="font-heading text-2xl font-bold text-white">{etapa}</span>
+            <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${letterBg} shadow-sm group-hover:scale-105 transition-transform`}>
+                        <span className="font-heading text-sm font-black text-white">{etapa}</span>
+                    </div>
+                    <span className="text-xs font-bold text-hotel-blue/80 font-heading">{label}</span>
+                </div>
+                <span className="text-[10px] font-bold text-hotel-gray-md font-body">{pct}%</span>
             </div>
-            <div>
-                <p className="text-2xl font-heading font-bold text-hotel-blue">{total}</p>
-                <p className="text-xs text-hotel-gray-md font-body">{label}</p>
+
+            <div className="mt-3">
+                <p className="text-2xl font-extrabold text-hotel-blue tracking-tight font-heading leading-none">{total}</p>
+                <p className="text-[10px] text-hotel-gray-md mt-1 font-body">Solicitações</p>
+            </div>
+
+            {/* Micro progress bar */}
+            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-2">
+                <div 
+                    className={`h-full rounded-full transition-all duration-500 ${barColor}`} 
+                    style={{ width: `${pct}%` }}
+                />
             </div>
         </button>
     );
@@ -148,6 +296,7 @@ export default function DashboardLider() {
         abertas: minhasSIs.filter((o) => o.status === StatusOS.ABERTO).length,
         em_andamento: minhasSIs.filter((o) => o.status === StatusOS.EM_ANDAMENTO).length,
         concluidas: minhasSIs.filter((o) => o.status === StatusOS.CONCLUIDO).length,
+        atrasadas: minhasSIs.filter(isSIOverdue).length,
     }), [minhasSIs]);
 
     const pdcaStats = useMemo(() => ({
@@ -157,12 +306,49 @@ export default function DashboardLider() {
         [PDCAStep.ACT]: minhasSIs.filter((o) => o.etapa_pdca === PDCAStep.ACT).length,
     }), [minhasSIs]);
 
+    const totalPdca = useMemo(() => {
+        return Object.values(pdcaStats).reduce((sum, val) => sum + val, 0);
+    }, [pdcaStats]);
+
     // OS urgentes (prazo em até 2 dias, não concluídas)
     const urgentes = useMemo(() =>
         minhasSIs
             .filter((o) => o.status !== StatusOS.CONCLUIDO)
-            .filter((o) => differenceInDays(parseISO(o.prazo), new Date()) <= 2)
-            .sort((a, b) => new Date(a.prazo) - new Date(b.prazo)),
+            .filter((o) => {
+                const deadline = getApplicableDeadlineDate(o);
+                const officialDeadline = o.prazo ? parseISO(o.prazo) : null;
+
+                // Se o prazo aplicável está vencido ou vence em até 2 dias, é urgente
+                if (deadline) {
+                    if (isSIOverdue(o)) return true;
+                    if (differenceInDays(deadline, new Date()) <= 2) return true;
+                }
+
+                // Se o prazo oficial está vencido ou vence em até 2 dias, também inclui
+                if (officialDeadline) {
+                    if (differenceInDays(officialDeadline, new Date()) <= 2) return true;
+                }
+
+                return false;
+            })
+            .sort((a, b) => {
+                const aAtrasada = isSIOverdue(a);
+                const bAtrasada = isSIOverdue(b);
+
+                // 1. As atrasadas sempre devem ficar em primeiro
+                if (aAtrasada && !bAtrasada) return -1;
+                if (!aAtrasada && bAtrasada) return 1;
+
+                // 2. Ordena pela data do prazo aplicável (da mais próxima de vencer para a mais longe)
+                const dateA = getApplicableDeadlineDate(a);
+                const dateB = getApplicableDeadlineDate(b);
+
+                if (!dateA && dateB) return 1;
+                if (dateA && !dateB) return -1;
+                if (!dateA && !dateB) return 0;
+
+                return new Date(dateA) - new Date(dateB);
+            }),
         [minhasSIs],
     );
 
@@ -235,366 +421,341 @@ export default function DashboardLider() {
 
     return (
         <>
-            <AppLayout pageTitle={`Dashboard — ${user?.nome}`}>
-                {ordensError && (
-                    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-body text-red-700">
-                        {ordensError}
-                    </div>
-                )}
-                {/* Saudação */}
-                <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h1 className="font-heading text-xl font-bold text-hotel-blue sm:text-2xl">Olá, {displayName}! 👋</h1>
-                        <p className="text-hotel-gray-md font-body text-sm mt-1">
-                            {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                            {' · '}
-                            <span className="font-semibold">{user?.departamentos?.join(', ')}</span>
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => navigate('/nova-os')}
-                        className="btn-gold inline-flex items-center justify-center gap-2 px-4 py-2 text-sm"
-                    >
-                        <PlusCircle size={16} /> Nova SI
-                    </button>
-                </div>
+            <AppLayout pageTitle="Dashboard">
+                <div className="relative overflow-visible">
+                    {/* Ambient background glows */}
+                    <div className="pointer-events-none absolute -top-40 right-10 h-72 w-72 rounded-full bg-hotel-gold/10 blur-3xl" />
+                    <div className="pointer-events-none absolute -left-20 top-60 h-80 w-80 rounded-full bg-hotel-blue/5 blur-3xl" />
 
-                <div className="mb-6 rounded-2xl border border-hotel-gray/20 bg-white/40 px-4 py-3.5 backdrop-blur-md shadow-sm">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-xs font-bold uppercase tracking-[0.08em] text-hotel-blue font-heading">Resumo por mês</p>
-                        <div className="relative inline-flex items-center justify-between gap-2 rounded-xl border border-hotel-gray/30 bg-white px-3 py-2 text-xs font-semibold text-hotel-blue hover:border-hotel-blue/30 transition-all shadow-sm cursor-pointer w-full sm:w-[220px]">
+                    {ordensError && (
+                        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-body text-red-700">
+                            {ordensError}
+                        </div>
+                    )}
+
+                    {/* Saudação */}
+                    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between relative z-10">
+                        <div>
                             <div className="flex items-center gap-2">
-                                <CalendarDays size={14} className="text-hotel-blue/70" />
-                                <span className="capitalize">{format(selectedMonthDate, "MMMM 'de' yyyy", { locale: ptBR })}</span>
+                                <h1 className="font-heading text-2xl text-hotel-blue">
+                                    <span className="font-light">Olá, </span>
+                                    <span className="font-extrabold">{displayName}</span>
+                                </h1>
+                                <Sparkles size={20} className="text-hotel-gold animate-pulse shrink-0" />
                             </div>
-                            <input
-                                id="dashboard-mes"
-                                name="dashboard-mes"
-                                type="month"
-                                value={selectedMonth}
-                                onChange={(event) => setSelectedMonth(event.target.value)}
-                                onClick={(event) => event.currentTarget.showPicker?.()}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            <p className="text-hotel-gray-md font-body text-xs mt-1 capitalize">
+                                {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                            </p>
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                            {/* Filtro por mês */}
+                            <div className="relative h-9 w-9 flex items-center justify-center rounded-xl border border-hotel-gray/50 bg-white shadow-sm hover:border-hotel-gold/60 hover:bg-slate-50 transition-all cursor-pointer" title="Filtrar por Mês">
+                                <Filter size={14} className="text-hotel-blue" />
+                                <input
+                                    id="dashboard-mes"
+                                    name="dashboard-mes"
+                                    type="month"
+                                    value={selectedMonth}
+                                    onChange={(event) => setSelectedMonth(event.target.value)}
+                                    onClick={(event) => event.currentTarget.showPicker?.()}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                />
+                            </div>
+                            
+                            <button
+                                onClick={() => navigate('/nova-os')}
+                                className="btn-gold inline-flex items-center justify-center gap-2 px-4 py-2 text-sm"
+                            >
+                                <PlusCircle size={16} /> Nova SI
+                            </button>
+                        </div>
+                    </div>
+
+
+                    {currentUserProfile?.telegram_chat_id && (
+                        <div className="mb-6 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 relative z-10 animate-fadeIn">
+                            <Send size={16} className="text-emerald-500" />
+                            <p className="text-emerald-700 font-body text-xs font-semibold">
+                                Telegram conectado — você receberá notificações de novas SIs ✓
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Cards de estatísticas */}
+                    <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 relative z-10">
+                        <StatCard
+                            icon={ClipboardList}
+                            label="Total de SIs"
+                            value={stats.total}
+                            type="total"
+                            onClick={() => navigateToOrders({ onlyMine: true })}
+                        />
+                        <StatCard
+                            icon={AlertCircle}
+                            label="Abertas"
+                            value={stats.abertas}
+                            type="abertas"
+                            onClick={() => navigateToOrders({ filterStatus: StatusOS.ABERTO, onlyMine: true })}
+                        />
+                        <StatCard
+                            icon={Clock}
+                            label="Em Andamento"
+                            value={stats.em_andamento}
+                            type="em_andamento"
+                            onClick={() => navigateToOrders({ filterStatus: StatusOS.EM_ANDAMENTO, onlyMine: true })}
+                        />
+                        <StatCard
+                            icon={CheckCircle2}
+                            label="Concluídas"
+                            value={stats.concluidas}
+                            type="concluidas"
+                            onClick={() => navigateToOrders({ filterStatus: StatusOS.CONCLUIDO, onlyMine: true })}
+                        />
+                        <StatCard
+                            icon={TrendingUp}
+                            label="Atrasadas"
+                            value={stats.atrasadas}
+                            type="atrasadas"
+                            onClick={() => navigateToOrders({ onlyOverdue: true, onlyMine: true })}
+                        />
+                    </div>
+
+                    {/* Ciclo PDCA */}
+                    <div className="mb-8 space-y-3 relative z-10 animate-fadeIn">
+                        <div className="flex items-center gap-2">
+                            <Activity size={16} className="text-hotel-blue/70" />
+                            <h3 className="font-heading font-bold text-sm tracking-tight text-hotel-blue/90">
+                                Ciclo de Melhoria Contínua (PDCA)
+                            </h3>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                            <PDCAStatCard
+                                etapa={PDCAStep.PLAN}
+                                total={pdcaStats[PDCAStep.PLAN]}
+                                totalBase={totalPdca}
+                                onClick={() => navigateToOrders({ filterPdca: PDCAStep.PLAN, pdcaOnly: true, onlyMine: true })}
+                            />
+                            <PDCAStatCard
+                                etapa={PDCAStep.DO}
+                                total={pdcaStats[PDCAStep.DO]}
+                                totalBase={totalPdca}
+                                onClick={() => navigateToOrders({ filterPdca: PDCAStep.DO, pdcaOnly: true, onlyMine: true })}
+                            />
+                            <PDCAStatCard
+                                etapa={PDCAStep.CHECK}
+                                total={pdcaStats[PDCAStep.CHECK]}
+                                totalBase={totalPdca}
+                                onClick={() => navigateToOrders({ filterPdca: PDCAStep.CHECK, pdcaOnly: true, onlyMine: true })}
+                            />
+                            <PDCAStatCard
+                                etapa={PDCAStep.ACT}
+                                total={pdcaStats[PDCAStep.ACT]}
+                                totalBase={totalPdca}
+                                onClick={() => navigateToOrders({ filterPdca: PDCAStep.ACT, pdcaOnly: true, onlyMine: true })}
                             />
                         </div>
                     </div>
-                </div>
 
-                {/* Banner Conectar Telegram */}
-                {!currentUserProfile?.telegram_chat_id && (
-                    <div ref={telegramBannerRef} className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-start gap-3">
-                                <Send size={20} className="text-blue-500 flex-shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-semibold font-body text-blue-800 text-sm">Receba notificações pelo Telegram</p>
-                                    <p className="text-blue-600 font-body text-xs mt-0.5">
-                                        Conecte seu Telegram para receber alertas de novas SIs instantaneamente.
-                                    </p>
-                                </div>
+                    {/* Grid de Conteúdo Principal */}
+                    <div className="grid gap-6 lg:grid-cols-3 relative z-10">
+                        {/* Todas as OS */}
+                        <div className="flex flex-col rounded-3xl border border-hotel-gray/30 bg-white p-6 shadow-sm lg:col-span-2 h-[560px] animate-fadeIn">
+                            <div className="mb-4">
+                                <h3 className="font-heading font-semibold text-hotel-blue text-base">
+                                    Solicitações Internas
+                                </h3>
                             </div>
-                            <button
-                                onClick={() => setShowTelegramForm((v) => !v)}
-                                className="flex-shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold font-body text-white hover:bg-blue-700 transition-colors"
-                            >
-                                {showTelegramForm ? 'Cancelar' : 'Conectar Telegram'}
-                            </button>
-                        </div>
-                        {showTelegramForm && (
-                            <div className="mt-4 border-t border-blue-200 pt-4 space-y-3">
-                                <p className="text-blue-700 font-body text-xs font-semibold">Siga os passos:</p>
-                                <ol className="list-decimal list-inside text-blue-700 font-body text-xs space-y-1">
-                                    <li>
-                                        Abra o bot:{' '}
-                                        <a
-                                            href={telegramBotLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="underline font-semibold"
-                                        >
-                                            @{telegramBotUsername}
-                                        </a>
-                                    </li>
-                                    <li>Envie <strong>/start</strong> para o bot</li>
-                                    <li>Copie o número que ele responder</li>
-                                    <li>Cole abaixo e clique em Salvar</li>
-                                </ol>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={telegramInput}
-                                        onChange={(e) => setTelegramInput(e.target.value.replace(/\D/g, ''))}
-                                        placeholder="Cole seu ID aqui (ex: 123456789)"
-                                        className="input flex-1 py-2 text-xs"
-                                    />
-                                    <button
-                                        onClick={handleSaveTelegram}
-                                        disabled={telegramSaving || !telegramInput}
-                                        className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold font-body text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                                    >
-                                        {telegramSaving ? 'Salvando...' : 'Salvar'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-                {currentUserProfile?.telegram_chat_id && (
-                    <div className="mb-6 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                        <Send size={16} className="text-emerald-500" />
-                        <p className="text-emerald-700 font-body text-xs font-semibold">
-                            Telegram conectado — você receberá notificações de novas SIs ✓
-                        </p>
-                    </div>
-                )}
 
-                {/* Stats */}
-                <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <StatCard
-                        icon={ClipboardList}
-                        label="Total este mês"
-                        value={stats.total}
-                        colorClass="bg-hotel-blue"
-                        onClick={() => navigateToOrders({ onlyMine: true })}
-                    />
-                    <StatCard
-                        icon={AlertCircle}
-                        label="Abertas este mês"
-                        value={stats.abertas}
-                        colorClass="bg-blue-500"
-                        onClick={() => navigateToOrders({ filterStatus: StatusOS.ABERTO, onlyMine: true })}
-                    />
-                    <StatCard
-                        icon={Clock}
-                        label="Em Andamento"
-                        value={stats.em_andamento}
-                        colorClass="bg-amber-500"
-                        onClick={() => navigateToOrders({ filterStatus: StatusOS.EM_ANDAMENTO, onlyMine: true })}
-                    />
-                    <StatCard
-                        icon={CheckCircle2}
-                        label="Concluídas este mês"
-                        value={stats.concluidas}
-                        colorClass="bg-emerald-500"
-                        onClick={() => navigateToOrders({ filterStatus: StatusOS.CONCLUIDO, onlyMine: true })}
-                    />
-                </div>
-
-                <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <PDCAStatCard etapa={PDCAStep.PLAN} total={pdcaStats[PDCAStep.PLAN]} onClick={() => navigateToOrders({ filterPdca: PDCAStep.PLAN, pdcaOnly: true, onlyMine: true })} />
-                    <PDCAStatCard etapa={PDCAStep.DO} total={pdcaStats[PDCAStep.DO]} onClick={() => navigateToOrders({ filterPdca: PDCAStep.DO, pdcaOnly: true, onlyMine: true })} />
-                    <PDCAStatCard etapa={PDCAStep.CHECK} total={pdcaStats[PDCAStep.CHECK]} onClick={() => navigateToOrders({ filterPdca: PDCAStep.CHECK, pdcaOnly: true, onlyMine: true })} />
-                    <PDCAStatCard etapa={PDCAStep.ACT} total={pdcaStats[PDCAStep.ACT]} onClick={() => navigateToOrders({ filterPdca: PDCAStep.ACT, pdcaOnly: true, onlyMine: true })} />
-                </div>
-
-                <div className="grid gap-6 lg:grid-cols-3">
-                    {/* Todas as OS */}
-                    <div className="lg:col-span-2 card animate-fadeIn">
-                        <div className="mb-4">
-                            <h3 className="font-heading font-semibold text-hotel-blue text-base">
-                                Solicitações Internas
-                            </h3>
-                        </div>
-                        {/* Abas */}
-                        <div className="mb-4 flex gap-2 border-b border-hotel-gray">
-                            <button
-                                onClick={() => setTab('minhas')}
-                                className={`pb-2 px-2 text-sm font-semibold font-body transition-colors ${
-                                    tab === 'minhas'
-                                        ? 'text-hotel-blue border-b-2 border-hotel-blue'
-                                        : 'text-hotel-gray-md hover:text-hotel-blue'
-                                }`}
-                            >
-                                Minhas SIs ({minhasSIs.length})
-                            </button>
-                            <button
-                                onClick={() => setTab('abertas')}
-                                className={`pb-2 px-2 text-sm font-semibold font-body transition-colors ${
-                                    tab === 'abertas'
-                                        ? 'text-hotel-blue border-b-2 border-hotel-blue'
-                                        : 'text-hotel-gray-md hover:text-hotel-blue'
-                                }`}
-                            >
-                                SIs abertas por mim ({abertosPorMim.length})
-                            </button>
-                        </div>
-
-                        {/* Filtros */}
-                        <div className="flex flex-wrap gap-3 mb-4">
-                            <select
-                                id="dashboard-lider-filtro"
-                                name="dashboard-lider-filtro"
-                                value={filterLider}
-                                onChange={(e) => setFilterLider(e.target.value)}
-                                className="input py-1.5 text-xs w-auto flex-1 min-w-[140px]"
-                            >
-                                <option value="">Todos os líderes</option>
-                                {lideres.map((l) => (
-                                    <option key={l.id} value={l.id}>{l.nome}</option>
-                                ))}
-                            </select>
-                            <select
-                                id="dashboard-status-filtro"
-                                name="dashboard-status-filtro"
-                                value={filterStatus}
-                                onChange={(e) => setFilterStatus(e.target.value)}
-                                className="input py-1.5 text-xs w-auto flex-1 min-w-[130px]"
-                            >
-                                <option value="">Todos os status</option>
-                                {Object.entries(StatusLabel).map(([k, v]) => (
-                                    <option key={k} value={k}>{v}</option>
-                                ))}
-                            </select>
-                            {(filterLider || filterStatus) && (
+                            {/* Alternador de Abas (Modo Cápsula) */}
+                            <div className="mb-4 flex items-center gap-1 bg-hotel-light p-1 rounded-xl w-fit border border-hotel-gray/30 shadow-sm">
                                 <button
-                                    onClick={() => { setFilterLider(''); setFilterStatus(''); }}
-                                    className="text-xs text-hotel-gray-md hover:text-red-500 transition-colors px-2"
+                                    type="button"
+                                    onClick={() => setTab('minhas')}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                                        tab === 'minhas'
+                                            ? 'bg-white text-hotel-blue shadow-sm'
+                                            : 'text-hotel-gray-md hover:text-hotel-blue'
+                                    }`}
                                 >
-                                    Limpar
+                                    Minhas SIs ({minhasSIs.length})
                                 </button>
-                            )}
-                        </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setTab('abertas')}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                                        tab === 'abertas'
+                                            ? 'bg-white text-hotel-blue shadow-sm'
+                                            : 'text-hotel-gray-md hover:text-hotel-blue'
+                                    }`}
+                                >
+                                    SIs abertas por mim ({abertosPorMim.length})
+                                </button>
+                            </div>
 
-                        {/* Lista da aba ativa */}
-                        {(() => {
-                            const lista = tab === 'minhas' ? minhasSIs : abertosPorMim;
-                            const msgVazia = tab === 'minhas'
-                                ? 'Nenhuma SI atribuída a você no momento.'
-                                : 'Você não abriu nenhuma SI.';
-                            return (
-                                <div className="space-y-2.5 max-h-[30rem] overflow-y-auto pr-1">
-                                    {filteredList.length === 0 ? (
-                                        <p className="text-center text-hotel-gray-md text-sm py-10">Nenhuma SI encontrada com os filtros selecionados.</p>
-                                    ) : (
-                                        filteredList.map((os) => {
-                                            const atrasada = isSIOverdue(os);
-                                            const prazoEstimadoCard = getLeaderEstimatedDeadlineValue(os);
-                                            const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
-                                            const isCriador = matchesOrderActor(os, actor, 'criado_por');
-                                            const isInDept = actorDepartments && actorDepartments.includes(os.departamento);
-                                            const isActStage = os.etapa_pdca === PDCAStep.ACT;
-                                            const isManagement = actor?.role === 'diretora' || actor?.role === 'admin';
-                                            const canReopen = (os.status === StatusOS.CONCLUIDO || (isActStage && os.status !== StatusOS.EM_ANDAMENTO)) && (isManagement || isCriador || isResponsavel);
+                            {/* Filtros */}
+                            <div className="flex flex-wrap gap-3 mb-4 items-center">
+                                <CustomSelect
+                                    value={filterLider}
+                                    onChange={setFilterLider}
+                                    options={lideres.map((l) => ({ value: l.id, label: l.nome }))}
+                                    placeholder="Todos os líderes"
+                                />
+                                <CustomSelect
+                                    value={filterStatus}
+                                    onChange={setFilterStatus}
+                                    options={Object.entries(StatusLabel).map(([k, v]) => ({ value: k, label: v }))}
+                                    placeholder="Todos os status"
+                                />
+                                {(filterLider || filterStatus) && (
+                                    <button
+                                        onClick={() => { setFilterLider(''); setFilterStatus(''); }}
+                                        className="text-xs font-semibold text-hotel-gray-md hover:text-red-500 transition-colors px-2"
+                                    >
+                                        Limpar
+                                    </button>
+                                )}
+                            </div>
 
-                                            const canConclude = isCriador || (canFinalizeSI && hasPermission(actor, PERMISSIONS.SI_APPROVALS_MOVE));
-                                            const canStart = os.status === StatusOS.ABERTO && (isResponsavel || isCriador || isInDept);
-                                            const canConcludeLider = os.status === StatusOS.EM_ANDAMENTO && (isCriador || (isResponsavel && canConclude));
-                                            const podeAtualizar = !canReopen && (canStart || canConcludeLider);
+                            {/* Lista da aba ativa com scroll independente */}
+                            <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-2.5">
+                                {filteredList.length === 0 ? (
+                                    <p className="text-center text-hotel-gray-md text-sm py-10">Nenhuma SI encontrada com os filtros selecionados.</p>
+                                ) : (
+                                    filteredList.map((os) => {
+                                        const atrasada = isSIOverdue(os);
+                                        const prazoEstimadoCard = getLeaderEstimatedDeadlineValue(os);
+                                        const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
+                                        const isCriador = matchesOrderActor(os, actor, 'criado_por');
+                                        const isInDept = actorDepartments && actorDepartments.includes(os.departamento);
+                                        const isActStage = os.etapa_pdca === PDCAStep.ACT;
+                                        const isManagement = actor?.role === 'diretora' || actor?.role === 'admin';
+                                        const canReopen = (os.status === StatusOS.CONCLUIDO || (isActStage && os.status !== StatusOS.EM_ANDAMENTO)) && (isManagement || isCriador || isResponsavel);
 
-                                            return (
-                                                <div
-                                                    key={os.id}
-                                                    onClick={() => navigate(
-                                                        tab === 'minhas' ? '/ordens' : '/ordens/abertas-por-mim',
-                                                        { state: { expandOsId: os.id, onlyMine: tab === 'minhas', onlyCreatedByMe: tab === 'abertas' } },
-                                                    )}
-                                                    className={`p-4 rounded-xl border transition-colors cursor-pointer
-                                        ${atrasada ? 'border-red-200 bg-red-50/40 hover:bg-red-100/50' : 'border-hotel-gray/50 hover:bg-hotel-light'}`}
-                                                >
-                                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-2 flex-wrap mb-1">
-                                                                <StatusBadge status={os.status} />
-                                                                <PDCABadge etapa={os.etapa_pdca} status={os.status} compact />
-                                                                <span className="text-xs text-hotel-gray-md font-body bg-hotel-gray px-2 py-0.5 rounded-full">
-                                                                    {os.departamento}
-                                                                </span>
-                                                                {atrasada && (
-                                                                    <span className="text-xs text-red-600 font-semibold">⚠ Atrasada</span>
-                                                                )}
-                                                            </div>
-                                                            <p className="font-semibold font-body text-hotel-blue text-sm mt-1">{os.titulo}</p>
-                                                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-body">
-                                                                <span className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/60 bg-hotel-light px-2 py-0.5 text-hotel-gray-md">
-                                                                    Prazo oficial:
-                                                                    <strong className={atrasada ? 'text-red-500' : 'text-hotel-blue'}>
-                                                                        {format(parseISO(os.prazo), 'dd/MM/yyyy')}
-                                                                    </strong>
-                                                                </span>
-                                                                {prazoEstimadoCard && (
-                                                                    <span className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/60 bg-hotel-light px-2 py-0.5 text-hotel-gray-md">
-                                                                        Prazo do líder:
-                                                                        <strong className="text-hotel-gold">{format(parseISO(prazoEstimadoCard), 'dd/MM/yyyy')}</strong>
-                                                                    </span>
-                                                                )}
-                                                            </div>
+                                        const canConclude = isCriador || (canFinalizeSI && hasPermission(actor, PERMISSIONS.SI_FINALIZE));
+                                        const canStart = os.status === StatusOS.ABERTO && (isResponsavel || isCriador || isInDept);
+                                        const canConcludeLider = os.status === StatusOS.EM_ANDAMENTO && (isCriador || (isResponsavel && canConclude));
+                                        const podeAtualizar = !canReopen && (canStart || canConcludeLider);
+
+                                        return (
+                                            <div
+                                                key={os.id}
+                                                onClick={() => navigate(
+                                                    tab === 'minhas' ? '/ordens' : '/ordens/abertas-por-mim',
+                                                    { state: { expandOsId: os.id, onlyMine: tab === 'minhas', onlyCreatedByMe: tab === 'abertas' } },
+                                                )}
+                                                className={`group relative flex flex-col justify-between rounded-xl border border-hotel-gray/40 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer border-l-4
+                                                    ${atrasada ? 'border-l-red-500' : os.status === StatusOS.CONCLUIDO ? 'border-l-emerald-500' : os.status === StatusOS.EM_ANDAMENTO ? 'border-l-amber-500' : 'border-l-blue-500'}`}
+                                            >
+                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start w-full">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                                                            <StatusBadge status={os.status} />
+                                                            <PDCABadge etapa={os.etapa_pdca} status={os.status} compact />
+                                                            <span className="text-xs text-hotel-gray-md font-body bg-hotel-gray px-2 py-0.5 rounded-full">
+                                                                {os.departamento}
+                                                            </span>
+                                                            {atrasada && (
+                                                                <span className="text-xs text-red-600 font-semibold">⚠ Atrasada</span>
+                                                            )}
                                                         </div>
+                                                        <p className="font-semibold font-body text-hotel-blue text-sm mt-1">{os.titulo}</p>
+                                                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-body">
+                                                            <span className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/60 bg-hotel-light px-2 py-0.5 text-hotel-gray-md">
+                                                                Prazo oficial:
+                                                                <strong className={atrasada ? 'text-red-500' : 'text-hotel-blue'}>
+                                                                    {format(parseISO(os.prazo), 'dd/MM/yyyy')}
+                                                                </strong>
+                                                            </span>
+                                                            {prazoEstimadoCard && (
+                                                                <span className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/60 bg-hotel-light px-2 py-0.5 text-hotel-gray-md">
+                                                                    Prazo do líder:
+                                                                    <strong className="text-hotel-gold">{format(parseISO(prazoEstimadoCard), 'dd/MM/yyyy')}</strong>
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-3 self-stretch sm:self-center shrink-0">
                                                         {podeAtualizar && (
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); solicitarStatus(os, nextStatus[os.status]); }}
-                                                                className="btn-gold w-full flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-center text-xs sm:w-24 flex items-center justify-center"
+                                                                className="btn-gold flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-center text-xs w-24 flex items-center justify-center"
                                                                 title={nextStatusLabel[os.status]}
                                                             >
-                                                                {os.status === StatusOS.ABERTO ? <Play size={16} /> : <Check size={16} />}
+                                                                {os.status === StatusOS.ABERTO ? <Play size={14} className="mr-1" /> : <Check size={14} className="mr-1" />}
+                                                                {nextStatusLabel[os.status]}
                                                             </button>
                                                         )}
                                                         {canReopen && (
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); solicitarStatus(os, StatusOS.EM_ANDAMENTO); }}
-                                                                className="w-full flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-center text-xs sm:w-24 flex items-center justify-center gap-1 rounded-lg border border-hotel-blue/60 bg-hotel-blue/10 text-hotel-blue hover:bg-hotel-blue hover:text-white transition-colors"
+                                                                className="flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-center text-xs w-24 flex items-center justify-center gap-1 rounded-lg border border-hotel-blue/60 bg-hotel-blue/10 text-hotel-blue hover:bg-hotel-blue hover:text-white transition-colors"
                                                                 title="Reativar SI"
                                                             >
                                                                 <Play size={14} /> Reativar
                                                             </button>
                                                         )}
+                                                        <ChevronRight size={16} className="text-hotel-blue/30 group-hover:text-hotel-gold transition-colors shrink-0" />
                                                     </div>
                                                 </div>
-                                            );
-                                        })
-                                    )}
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+
+                            {filteredList.length > 8 && (
+                                <button
+                                    onClick={() => navigate('/ordens', { state: { viewMode: 'todos' } })}
+                                    className="mt-4 flex w-full items-center justify-center gap-1 rounded-xl border border-hotel-gold/30 bg-gradient-to-r from-hotel-gold/10 via-white to-hotel-blue/5 px-4 py-2.5 text-sm font-semibold text-hotel-blue shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-hotel-gold/60 hover:text-hotel-gold hover:shadow-md shrink-0"
+                                >
+                                    Ver todas <ArrowRight size={14} />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Urgentes */}
+                        <div className="flex flex-col rounded-3xl border border-hotel-gray/30 bg-white p-6 shadow-sm h-[560px] animate-fadeIn">
+                            <h3 className="font-heading font-semibold text-hotel-blue text-base mb-4 flex items-center gap-2">
+                                <AlertCircle size={18} className="text-amber-500" /> Urgentes / Próximas
+                            </h3>
+                            
+                            {urgentes.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-8 gap-3 flex-1">
+                                    <CheckCircle2 size={36} className="text-emerald-400 font-bold" />
+                                    <p className="text-sm text-hotel-gray-md font-body text-center">
+                                        Nenhuma SI urgente. Ótimo trabalho!
+                                    </p>
                                 </div>
-                            );
-                        })()}
-
-                        {filteredList.length > 8 && (
-                            <button
-                                onClick={() => navigate('/ordens', { state: { viewMode: 'todos' } })}
-                                className="mt-7 flex w-full items-center justify-center gap-1 rounded-xl border border-hotel-gold/30 bg-gradient-to-r from-hotel-gold/10 via-white to-hotel-blue/5 px-4 py-2.5 text-sm font-semibold text-hotel-blue shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-hotel-gold/60 hover:text-hotel-gold hover:shadow-md"
-                            >
-                                Ver todas <ArrowRight size={14} />
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Urgentes */}
-                    <div className="card animate-fadeIn">
-                        <h3 className="font-heading font-semibold text-hotel-blue text-base mb-4 flex items-center gap-2">
-                            <AlertCircle size={18} className="text-amber-500" /> Urgentes / Próximas
-                        </h3>
-                        {urgentes.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-8 gap-3">
-                                <CheckCircle2 size={36} className="text-emerald-400" />
-                                <p className="text-sm text-hotel-gray-md font-body text-center">
-                                    Nenhuma SI urgente. Ótimo trabalho!
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3 max-h-[35rem] overflow-y-auto pr-1">
-                                {urgentes.map((os) => {
-                                    const atrasoRef = getApplicableDeadlineDate(os);
-                                    const dias = atrasoRef ? differenceInDays(atrasoRef, new Date()) : null;
-                                    const atrasada = isSIOverdue(os);
-                                    return (
-                                        <button
-                                            key={os.id}
-                                            onClick={() => navigate('/ordens', { state: { expandOsId: os.id, onlyMine: true } })}
-                                            className={`w-full text-left p-3 rounded-lg border-l-4 transition-all hover:shadow-card cursor-pointer
-                                                    ${atrasada ? 'border-red-400 bg-red-50 hover:bg-red-100' : 'border-amber-400 bg-amber-50 hover:bg-amber-100'}`}
-                                        >
-                                            <p className="text-sm font-semibold font-body text-hotel-blue leading-snug">{os.titulo}</p>
-                                            <p className="text-xs mt-1 font-body font-semibold">
-                                                {atrasada
-                                                    ? <span className="text-red-500">Atrasada {Math.abs(dias || 0)}d — clique para ver</span>
-                                                    : atrasoRef
-                                                        ? <span className="text-amber-600">Vence em {dias === 0 ? 'hoje' : `${dias}d`} — clique para ver</span>
-                                                        : <span className="text-amber-600">Em andamento sem prazo do líder — clique para ver</span>
-                                                }
-                                            </p>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
+                            ) : (
+                                <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-3">
+                                    {urgentes.map((os) => {
+                                        const atrasoRef = getApplicableDeadlineDate(os);
+                                        const dias = atrasoRef ? differenceInDays(atrasoRef, new Date()) : null;
+                                        const atrasada = isSIOverdue(os);
+                                        return (
+                                            <button
+                                                key={os.id}
+                                                onClick={() => navigate('/ordens', { state: { expandOsId: os.id, onlyMine: true } })}
+                                                className={`w-full text-left p-3 rounded-lg border-l-4 transition-all hover:shadow-card cursor-pointer
+                                                        ${atrasada ? 'border-red-400 bg-red-50 hover:bg-red-100' : 'border-amber-400 bg-amber-50 hover:bg-amber-100'}`}
+                                            >
+                                                <p className="text-sm font-semibold font-body text-hotel-blue leading-snug">{os.titulo}</p>
+                                                <p className="text-xs mt-1 font-body font-semibold">
+                                                    {atrasada
+                                                        ? <span className="text-red-500 font-bold">Atrasada {Math.abs(dias || 0)}d — clique para ver</span>
+                                                        : atrasoRef
+                                                            ? <span className="text-amber-600">Vence em {dias === 0 ? 'hoje' : `${dias}d`} — clique para ver</span>
+                                                            : <span className="text-amber-600">Em andamento sem prazo do líder — clique para ver</span>
+                                                    }
+                                                </p>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </AppLayout>

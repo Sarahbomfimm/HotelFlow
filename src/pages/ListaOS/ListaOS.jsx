@@ -348,6 +348,21 @@ export default function ListaOS() {
     const { lideres, availableDepartments, currentUserProfile, users } = useUsers();
     const navigate = useNavigate();
 
+    useEffect(() => {
+        function handleKeyDown(e) {
+            if (
+                e.key === '/' &&
+                document.activeElement.tagName !== 'INPUT' &&
+                document.activeElement.tagName !== 'TEXTAREA'
+            ) {
+                e.preventDefault();
+                document.getElementById('buscar-si')?.focus();
+            }
+        }
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
+ 
     const sofiaIds = useMemo(() => {
         if (!users) return [];
         return users
@@ -1556,9 +1571,10 @@ export default function ListaOS() {
                 <div className="mb-4 flex items-center gap-3">
                     <button
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-2 rounded-xl bg-hotel-blue px-4 py-2 text-sm font-semibold font-body text-white shadow-sm transition-all hover:bg-hotel-blue/90"
+                        className="group flex items-center gap-1.5 rounded-xl border border-hotel-gray/50 bg-white px-3.5 py-1.5 text-xs font-semibold text-hotel-blue shadow-sm hover:border-hotel-gold/60 hover:bg-slate-50 transition-all duration-200"
                     >
-                        <ArrowLeft size={16} /> Voltar
+                        <ArrowLeft size={14} className="text-hotel-blue/70 group-hover:text-hotel-gold group-hover:-translate-x-0.5 transition-transform" />
+                        <span className="group-hover:text-hotel-gold transition-colors">Voltar</span>
                     </button>
                 </div>
 
@@ -1629,13 +1645,13 @@ export default function ListaOS() {
                 {/* Controles de Data e Busca para o Modo Agenda / Todas */}
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     {/* Busca */}
-                    <div className="relative min-w-0 flex-1 sm:max-w-xs">
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-hotel-gray-md" />
+                    <div className="relative min-w-0 flex-1 sm:max-w-xs group">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-hotel-blue/50 group-focus-within:text-hotel-gold transition-colors duration-200" />
                         <input
                             id="buscar-si"
                             name="buscar-si"
                             type="search"
-                            className="input pl-9 py-2 text-sm w-full"
+                            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm text-hotel-blue placeholder-hotel-gray-md/60 shadow-sm outline-none hover:border-hotel-gold/60 focus:border-hotel-gold focus:ring-2 focus:ring-hotel-gold/10 transition-all duration-200"
                             placeholder="Buscar SI..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
@@ -1736,7 +1752,7 @@ export default function ListaOS() {
                 {/* Filtros Avançados - Apenas no modo 'todos' */}
                 {viewMode === 'todos' && (
                     <>
-                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                        <div className="relative z-40 mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                             <MultiSelectFilter
                                 title="Status"
                                 selectedValues={filterStatus}
@@ -1783,7 +1799,7 @@ export default function ListaOS() {
                         </div>
 
                         {/* Filtro por período de prazo */}
-                        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-hotel-gray/20 bg-white/40 p-4 shadow-sm backdrop-blur-md sm:flex-row sm:items-center sm:justify-between animate-fadeIn">
+                        <div className="relative z-30 mb-4 flex flex-col gap-3 rounded-2xl border border-hotel-gray/20 bg-white/40 p-4 shadow-sm backdrop-blur-md sm:flex-row sm:items-center sm:justify-between animate-fadeIn">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 flex-1">
                                 <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-hotel-blue font-heading">
                                     <CalendarRange size={15} className="text-hotel-blue/70" />

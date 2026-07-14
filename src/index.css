@@ -87,20 +87,21 @@
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
+    height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #F5F7FA;
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #C49A6C;
-    border-radius: 3px;
+    background: rgba(10, 61, 98, 0.15);
+    border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #a07c50;
+    background: rgba(10, 61, 98, 0.3);
 }
 
 /* Animations */
@@ -552,5 +553,10 @@ input[type='tel'].input {
 
 .animate-bounce-subtle {
     animation: bounceSubtle 1.8s ease-in-out infinite;
+}
+
+/* Fix react-datepicker calendar popover z-index overlapping issues */
+.react-datepicker-popper {
+    z-index: 9999 !important;
 }
 

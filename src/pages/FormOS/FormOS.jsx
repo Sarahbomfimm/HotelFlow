@@ -1,4 +1,4 @@
-﻿import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Send, ArrowLeft, CalendarDays, User, Building2, FileText, Upload, X, Loader } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
@@ -218,10 +218,11 @@ export default function FormOS() {
                 <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
                     <button
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-2 rounded-xl bg-hotel-blue px-4 py-2 text-sm font-semibold font-body text-white shadow-sm transition-all hover:bg-hotel-blue/90"
+                        className="group flex items-center gap-1.5 rounded-xl border border-hotel-gray/50 bg-white px-3.5 py-1.5 text-xs font-semibold text-hotel-blue shadow-sm hover:border-hotel-gold/60 hover:bg-slate-50 transition-all duration-200"
                         aria-label="Voltar"
                     >
-                        <ArrowLeft size={18} /> Voltar
+                        <ArrowLeft size={14} className="text-hotel-blue/70 group-hover:text-hotel-gold group-hover:-translate-x-0.5 transition-transform" />
+                        <span className="group-hover:text-hotel-gold transition-colors">Voltar</span>
                     </button>
                     <div>
                         <h1 className="font-heading font-bold text-hotel-blue text-xl">Nova SI</h1>

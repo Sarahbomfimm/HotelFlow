@@ -242,9 +242,10 @@ export default function Aprovacoes() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-2 rounded-xl bg-hotel-blue px-4 py-2 text-sm font-semibold font-body text-white shadow-sm transition-all hover:bg-hotel-blue/90"
+                        className="group flex items-center gap-1.5 rounded-xl border border-hotel-gray/50 bg-white px-3.5 py-1.5 text-xs font-semibold text-hotel-blue shadow-sm hover:border-hotel-gold/60 hover:bg-slate-50 transition-all duration-200"
                     >
-                        <ArrowLeft size={16} /> Voltar
+                        <ArrowLeft size={14} className="text-hotel-blue/70 group-hover:text-hotel-gold group-hover:-translate-x-0.5 transition-transform" />
+                        <span className="group-hover:text-hotel-gold transition-colors">Voltar</span>
                     </button>
                     <div>
                         <h1 className="font-heading text-xl font-bold text-hotel-blue">Aprovações</h1>

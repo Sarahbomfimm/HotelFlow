@@ -126,7 +126,7 @@ export default function PDCAVisualPage() {
     return (
         <AppLayout pageTitle="PDCA Visual">
             <div className="space-y-4 animate-fadeIn">
-                <div className="relative overflow-visible rounded-3xl border border-hotel-gray/40 bg-white p-6 shadow-card sm:p-8">
+                <div className="relative z-20 overflow-visible rounded-3xl border border-hotel-gray/40 bg-white p-6 shadow-card sm:p-8">
                     <div className="absolute -top-20 right-0 h-60 w-60 rounded-full bg-hotel-gold/15 blur-3xl" />
                     <div className="absolute -bottom-20 left-2 h-60 w-60 rounded-full bg-hotel-blue/10 blur-3xl" />
 
