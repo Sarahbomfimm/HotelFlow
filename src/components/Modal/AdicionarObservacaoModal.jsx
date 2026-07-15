@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ArrowRight, Paperclip, User, Camera, Image as ImageIcon } from 'lucide-react';
+import { X, ArrowRight, Paperclip, User, Camera, Image as ImageIcon, ChevronDown } from 'lucide-react';
 import PDCABadge from '../Badge/PDCABadge';
 import { PDCALabel, PDCAStep } from '../../models/OrdemDeServico';
 import { UserRole } from '../../models/User';
@@ -195,16 +195,21 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
                     <label className="label mt-3" htmlFor="progresso-etapa-pdca">
                         Etapa PDCA atual
                     </label>
-                    <select
-                        id="progresso-etapa-pdca"
-                        className="input"
-                        value={etapaPdca}
-                        onChange={(e) => setEtapaPdca(e.target.value)}
-                    >
-                        {[PDCAStep.PLAN, PDCAStep.DO, PDCAStep.CHECK].map((etapa) => (
-                            <option key={etapa} value={etapa}>{etapa} - {PDCALabel[etapa]}</option>
-                        ))}
-                    </select>
+                    <div className="relative">
+                        <select
+                            id="progresso-etapa-pdca"
+                            className="input cursor-pointer pr-10 appearance-none bg-white"
+                            value={etapaPdca}
+                            onChange={(e) => setEtapaPdca(e.target.value)}
+                        >
+                            {[PDCAStep.PLAN, PDCAStep.DO, PDCAStep.CHECK].map((etapa) => (
+                                <option key={etapa} value={etapa}>{etapa} - {PDCALabel[etapa]}</option>
+                            ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-hotel-blue">
+                            <ChevronDown size={16} />
+                        </div>
+                    </div>
 
                     <div className="mt-3 space-y-2">
                         <label className="label">

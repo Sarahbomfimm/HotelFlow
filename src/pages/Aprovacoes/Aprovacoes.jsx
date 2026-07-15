@@ -1,13 +1,18 @@
 import { useMemo, useState, useCallback } from 'react';
-import { ArrowLeft, MoveRight, ClipboardCheck, Clock3, UserRound, Building2, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import {
+    ArrowLeft, MoveRight, ClipboardCheck, Clock3, UserRound, Building2, X,
+    Eye, AlertTriangle, MessageSquare, RefreshCw, GitBranch, Paperclip, Download
+} from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import { format, parseISO } from 'date-fns';
 import AppLayout from '../../components/Layout/AppLayout';
 import StatusBadge from '../../components/Badge/StatusBadge';
 import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
-import { ApprovalStage, ApprovalStageLabel, StatusOS } from '../../models/OrdemDeServico';
+import { ApprovalStage, ApprovalStageLabel, StatusOS, PDCALabel, PDCAStep } from '../../models/OrdemDeServico';
 import { hasPermission, PERMISSIONS } from '../../services/permissions';
 
 const COLUMNS = [ApprovalStage.SOLICITADA, ApprovalStage.EM_ANALISE, ApprovalStage.FINALIZADA];
@@ -26,6 +31,263 @@ const COLUMN_STYLE = {
         header: 'bg-emerald-50 text-emerald-700',
     },
 };
+
+const parseTimelineDescription = (descricao, isEtapa, isStatus) => {
+    if (!descricao) return { contentElement: null, adjustments: [] };
+
+    // 1. Separate adjustments
+    const parts = descricao.split('\n\n[Ajuste em ');
+    const mainDesc = parts[0];
+    const adjustments = parts.slice(1).map(part => {
+        const closingBraceIndex = part.indexOf(']:');
+        if (closingBraceIndex === -1) return { meta: '', detail: part };
+        const meta = part.substring(0, closingBraceIndex); // "15/07/2026 às 14:13 por Sarah"
+        const detail = part.substring(closingBraceIndex + 2).trim(); // "Foto removida. Motivo: teste de remoção"
+        return { meta, detail };
+    });
+
+    // 2. Format the main description
+    let contentElement = null;
+
+    if (isEtapa) {
+        const regexEtapa = /Etapa PDCA alterada de \[(.*?)\] para \[(.*?)\]/i;
+        const match = mainDesc.replace(/🔄/g, '').match(regexEtapa);
+        if (match) {
+            const deStage = match[1];
+            const paraStage = match[2];
+            
+            // Extract optional observação
+            let obsText = '';
+            const obsIdx = mainDesc.indexOf('Observação:');
+            if (obsIdx !== -1) {
+                obsText = mainDesc.substring(obsIdx + 11).trim();
+            }
+
+            contentElement = (
+                <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700">
+                        <span className="text-hotel-gray-md font-normal font-body">Etapa PDCA:</span>
+                        <span className="px-2 py-0.5 rounded-full bg-hotel-light text-hotel-blue border border-hotel-gray/30 text-[11px]">
+                            {deStage}
+                        </span>
+                        <span className="text-hotel-gray-md">→</span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-300 font-bold text-[11px] shadow-sm animate-pulse-slow">
+                            {paraStage}
+                        </span>
+                    </div>
+                    {obsText && (
+                        <p className="mt-1 text-sm text-slate-800 leading-6 border-l-2 border-amber-300 pl-3 italic font-body">
+                            "{obsText}"
+                        </p>
+                    )}
+                </div>
+            );
+        }
+    } else if (isStatus) {
+        const regexStatus = /Status alterado de \[(.*?)\] para \[(.*?)\]/i;
+        const match = mainDesc.replace(/🚀/g, '').match(regexStatus);
+        if (match) {
+            const deStatus = match[1];
+            const paraStatus = match[2];
+            
+            // Extract optional observação
+            let obsText = '';
+            const obsIdx = mainDesc.indexOf('Observação:');
+            if (obsIdx !== -1) {
+                obsText = mainDesc.substring(obsIdx + 11).trim();
+            }
+
+            contentElement = (
+                <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700">
+                        <span className="text-hotel-gray-md font-normal font-body">Status da SI:</span>
+                        <span className="px-2 py-0.5 rounded-full bg-hotel-light text-hotel-blue border border-hotel-gray/30 text-[11px]">
+                            {deStatus}
+                        </span>
+                        <span className="text-hotel-gray-md">→</span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-hotel-blue/5 text-hotel-blue border border-hotel-blue/30 font-bold text-[11px] shadow-sm">
+                            {paraStatus}
+                        </span>
+                    </div>
+                    {obsText && (
+                        <p className="mt-1 text-sm text-slate-800 leading-6 border-l-2 border-hotel-blue pl-3 italic font-body">
+                            "{obsText}"
+                        </p>
+                    )}
+                </div>
+            );
+        }
+    }
+
+    if (!contentElement) {
+        const stageMatch = mainDesc.match(/^Progresso\s*\[([PDCAD])\]:(.*)/is);
+        if (stageMatch) {
+            const stepChar = stageMatch[1];
+            const cleanText = stageMatch[2].trim();
+            contentElement = (
+                <div className="space-y-1.5">
+                    <div>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border ${
+                            stepChar === 'P' ? 'bg-sky-50 text-sky-700 border-sky-200' :
+                            stepChar === 'D' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            stepChar === 'C' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            'bg-rose-50 text-rose-700 border-rose-200'
+                        }`}>
+                            Etapa {stepChar} - {PDCALabel[stepChar]}
+                        </span>
+                    </div>
+                    <p className="text-sm text-slate-700 leading-6 font-body whitespace-pre-line">{cleanText}</p>
+                </div>
+            );
+        } else {
+            contentElement = (
+                <p className="text-sm text-slate-700 leading-6 font-body whitespace-pre-line">{mainDesc}</p>
+            );
+        }
+    }
+
+    return { contentElement, adjustments };
+};
+
+function HistoricoOSModal({ isOpen, onClose, os }) {
+    if (!isOpen || !os) return null;
+
+    const historico = (os.historico || []).filter((h) => {
+        const desc = h.descricao || '';
+        return (
+            desc.includes('Fluxo de aprovação') || 
+            desc.includes('finalização recusada') || 
+            desc.includes('finalização enviada')
+        );
+    });
+
+    return createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fadeIn">
+            <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-white shadow-2xl flex flex-col max-h-[85vh]">
+                <div className="flex items-center justify-between border-b border-hotel-gray/20 px-5 py-4 sm:px-6 shrink-0">
+                    <div className="min-w-0">
+                        <span className="text-[10px] font-bold text-hotel-gold uppercase tracking-wider">Histórico de Alterações</span>
+                        <h3 className="font-heading text-base font-bold text-hotel-blue truncate mt-0.5">{os.titulo}</h3>
+                    </div>
+                    <button onClick={onClose} className="text-hotel-gray-md transition-colors hover:text-hotel-blue p-1.5 rounded-xl hover:bg-hotel-light">
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-3 min-h-0">
+                    {historico.length === 0 ? (
+                        <p className="text-sm text-hotel-gray-md text-center py-6">Nenhum log de movimentação de aprovação registrado para esta SI.</p>
+                    ) : (
+                        [...historico].reverse().map((h, index) => {
+                            const isEtapa = h.tipo === 'etapa' || h.descricao.includes('Etapa PDCA alterada') || h.descricao.includes('alteração de etapa');
+                            const isStatus = h.tipo === 'status' || h.descricao.includes('Status alterado');
+                            
+                            let cardClass = 'border-hotel-gray/30 bg-hotel-light/20';
+                            let iconClass = 'bg-hotel-blue/10 text-hotel-blue';
+                            let IconComponent = MessageSquare;
+                            
+                            if (isEtapa) {
+                                cardClass = 'border-amber-300 bg-amber-50/30';
+                                iconClass = 'bg-amber-100 text-amber-600 border border-amber-200';
+                                IconComponent = RefreshCw;
+                            } else if (isStatus) {
+                                cardClass = 'border-hotel-blue/20 bg-hotel-blue/5';
+                                iconClass = 'bg-hotel-blue/15 text-hotel-blue border border-hotel-blue/10';
+                                IconComponent = GitBranch;
+                            }
+
+                            const { contentElement, adjustments } = parseTimelineDescription(h.descricao, isEtapa, isStatus);
+
+                            return (
+                                <div key={`${h.data}-${index}`} className={`flex gap-3 rounded-2xl border px-4 py-4 transition-all ${cardClass} animate-fadeIn`}>
+                                    <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconClass}`}>
+                                        <IconComponent size={14} className={isEtapa ? "animate-spin-slow" : ""} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-semibold text-hotel-blue flex flex-wrap items-center gap-1.5 font-heading">
+                                            <span>{h.usuario_nome}</span>
+                                            <span className="text-[11px] font-normal text-hotel-gray-md font-sans">
+                                                • {format(parseISO(h.data), "dd/MM/yyyy 'às' HH:mm")}
+                                            </span>
+                                            {h.prazo_estimado && (
+                                                <span className="text-[11px] font-normal text-hotel-gold font-sans">
+                                                    · Prazo: {format(parseISO(h.prazo_estimado), 'dd/MM/yyyy')}
+                                                </span>
+                                            )}
+                                        </p>
+                                        <div className="mt-2">
+                                            {contentElement}
+                                        </div>
+                                        {h.anexo_pdf_url && (
+                                            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-semibold text-hotel-blue font-body">
+                                                    <Paperclip size={11} /> PDF anexado
+                                                </span>
+                                                <a
+                                                    href={h.anexo_pdf_url}
+                                                    download={h.anexo_pdf_nome || 'anexo.pdf'}
+                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-blue hover:text-hotel-gold mr-3 font-body"
+                                                    target="_blank" rel="noreferrer"
+                                                >
+                                                    <Download size={11} /> {h.anexo_pdf_nome || 'Abrir anexo'}
+                                                </a>
+                                            </div>
+                                        )}
+                                        {h.anexo_foto_url && (
+                                            <div className="mt-3">
+                                                <a
+                                                    href={h.anexo_foto_url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-block relative group rounded-xl overflow-hidden border border-hotel-gray/30 hover:border-hotel-gold transition-all"
+                                                >
+                                                    <img
+                                                        src={h.anexo_foto_url}
+                                                        alt={h.anexo_foto_nome || 'Foto do progresso'}
+                                                        className="max-h-40 object-cover rounded-xl group-hover:scale-[1.03] transition-transform duration-200"
+                                                    />
+                                                    <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
+                                                        Ver Foto Ampliada
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        )}
+                                        {adjustments.length > 0 && (
+                                            <div className="mt-3 space-y-2 border-t border-dashed border-hotel-gray/30 pt-3">
+                                                {adjustments.map((adj, i) => (
+                                                    <div key={i} className="rounded-xl border border-rose-100 bg-rose-50/10 p-3 text-xs font-body text-slate-600 shadow-sm animate-fadeIn">
+                                                        <div className="flex items-center gap-1.5 text-rose-700 font-bold">
+                                                            <AlertTriangle size={13} className="shrink-0" />
+                                                            <span>Ajuste de Registro</span>
+                                                            <span className="text-[10px] text-hotel-gray-md font-normal font-sans">({adj.meta})</span>
+                                                        </div>
+                                                        <p className="mt-1 text-hotel-gray-dark leading-relaxed">
+                                                            {adj.detail}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                <div className="flex justify-end border-t border-hotel-gray/20 px-5 py-4 sm:px-6 shrink-0">
+                    <button
+                        onClick={onClose}
+                        className="rounded-xl border border-hotel-gray/50 bg-white px-5 py-2.5 text-sm font-semibold text-hotel-gray-md hover:bg-hotel-light transition-colors"
+                    >
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+}
 
 function normalizeIdentityValue(value) {
     return String(value || '').trim().toLowerCase();
@@ -145,6 +407,7 @@ export default function Aprovacoes() {
     const [draggingId, setDraggingId] = useState(null);
     const [modalRecusaAberto, setModalRecusaAberto] = useState(false);
     const [osParaRecusar, setOsParaRecusar] = useState(null);
+    const [osParaHistorico, setOsParaHistorico] = useState(null);
 
     const podeMoverCard = useCallback((order) => {
         if (!order || !actor) return false;
@@ -340,38 +603,53 @@ export default function Aprovacoes() {
                                                     </p>
                                                 </div>
 
-                                                {cardPodeMover && (order.aprovacao_finalizacao_status === ApprovalStage.SOLICITADA || order.aprovacao_finalizacao_status === ApprovalStage.EM_ANALISE) && (
-                                                    <div className="mt-3">
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleAbrirRecusa(order);
-                                                            }}
-                                                            className="inline-flex items-center gap-1 rounded-full border border-red-400 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700 transition-colors hover:border-red-500 hover:bg-red-100"
-                                                        >
-                                                            Recusar Finalização
-                                                        </button>
-                                                    </div>
-                                                )}
+                                                <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t border-hotel-gray/10 pt-2.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOsParaHistorico(order);
+                                                        }}
+                                                        className="inline-flex items-center gap-1.5 rounded-xl border border-hotel-gray/30 bg-white text-hotel-blue font-semibold text-[11px] px-2.5 py-1 hover:bg-hotel-light transition-all shadow-sm"
+                                                        title="Visualizar histórico de alterações"
+                                                    >
+                                                        <Eye size={13} />
+                                                        <span>Ver logs</span>
+                                                    </button>
 
-                                                {cardPodeMover && nextStages.length > 0 && order.status !== StatusOS.CONCLUIDO && (
-                                                    <div className="mt-3 flex flex-wrap gap-2">
-                                                        {nextStages.map((stage) => (
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        {cardPodeMover && (order.aprovacao_finalizacao_status === ApprovalStage.SOLICITADA || order.aprovacao_finalizacao_status === ApprovalStage.EM_ANALISE) && (
                                                             <button
-                                                                key={stage}
                                                                 type="button"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    moveWithButton(order, stage);
+                                                                    handleAbrirRecusa(order);
                                                                 }}
-                                                                className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/70 bg-hotel-light px-2.5 py-1 text-[11px] font-semibold text-hotel-blue transition-colors hover:border-hotel-blue/40 hover:bg-white"
+                                                                className="inline-flex items-center gap-1 rounded-full border border-red-400 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700 transition-colors hover:border-red-500 hover:bg-red-100"
                                                             >
-                                                                <MoveRight size={11} /> {ApprovalStageLabel[stage]}
+                                                                Recusar
                                                             </button>
-                                                        ))}
+                                                        )}
+
+                                                        {cardPodeMover && nextStages.length > 0 && order.status !== StatusOS.CONCLUIDO && (
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {nextStages.map((stage) => (
+                                                                    <button
+                                                                        key={stage}
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            moveWithButton(order, stage);
+                                                                        }}
+                                                                        className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/70 bg-hotel-light px-2.5 py-1 text-[11px] font-semibold text-hotel-blue transition-colors hover:border-hotel-blue/40 hover:bg-white"
+                                                                    >
+                                                                        <MoveRight size={11} /> {ApprovalStageLabel[stage]}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                )}
+                                                </div>
                                             </article>
                                         );
                                     })}
@@ -386,6 +664,12 @@ export default function Aprovacoes() {
                 isOpen={modalRecusaAberto}
                 onClose={() => { setModalRecusaAberto(false); setOsParaRecusar(null); }}
                 onConfirm={handleConfirmarRecusa}
+            />
+
+            <HistoricoOSModal
+                isOpen={!!osParaHistorico}
+                onClose={() => setOsParaHistorico(null)}
+                os={osParaHistorico}
             />
         </AppLayout>
     );
