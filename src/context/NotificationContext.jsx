@@ -27,9 +27,14 @@ export function NotificationProvider({ children }) {
     const timeoutsRef = useRef({});
     const playedChimesRef = useRef({});
     const toastSeenAtRef = useRef({});
+    const sessionStartRef = useRef(Date.now());
 
     const currentUserId = user?.firebaseUid || user?.id || null;
     const currentUserEmail = user?.email?.toLowerCase() || null;
+
+    useEffect(() => {
+        sessionStartRef.current = Date.now();
+    }, [currentUserId, currentUserEmail]);
 
     const showSystemNotification = useCallback(async (title, body, tag) => {
         if (typeof window !== 'undefined' && window.electronAPI?.notify) {
@@ -122,18 +127,17 @@ export function NotificationProvider({ children }) {
                 const data = notificationDoc.data();
                 const createdAt = data.createdAt || new Date().toISOString();
                 const isRead = Boolean(data.lida);
+                const isFromBeforeSession = new Date(createdAt).getTime() < sessionStartRef.current - 5000;
 
-                if (!isRead) {
+                if (!isRead && !isFromBeforeSession) {
                     scheduleToastDismiss(notificationDoc.id);
                 }
 
-                const notifAgeMs = Date.now() - new Date(createdAt).getTime();
-                const isRecent = notifAgeMs < 15000; // 15 segundos
-
-                if (!playedChimesRef.current[notificationDoc.id] && data.type === 'new_os') {
-                    if (isRecent) {
+                if (!playedChimesRef.current[notificationDoc.id]) {
+                    if (!isRead && !isFromBeforeSession) {
                         playChime();
-                        showSystemNotification('Nova Solicitacao Interna', data.message, notificationDoc.id);
+                        const title = data.type === 'new_os' ? 'Nova Solicitação Interna' : 'Atualização de SI';
+                        showSystemNotification(title, data.message, notificationDoc.id);
                     }
                     playedChimesRef.current[notificationDoc.id] = true;
                 }
@@ -144,7 +148,7 @@ export function NotificationProvider({ children }) {
                     message: data.message,
                     type: data.type || 'info',
                     lida: isRead,
-                    toastDismissed: isRead || Boolean(dismissedToastIds[notificationDoc.id]),
+                    toastDismissed: isRead || isFromBeforeSession || Boolean(dismissedToastIds[notificationDoc.id]),
                     criadoEm: createdAt,
                     relatedOrderId: data.relatedOrderId || null,
                 });

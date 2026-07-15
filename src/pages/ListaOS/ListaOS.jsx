@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, forwardRef } from 'react';
+import { useEffect, useMemo, useRef, useState, forwardRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, ChevronDown, ChevronUp, Trash2, X,
@@ -579,6 +579,62 @@ export default function ListaOS() {
         [isDiretora, ordens, getOSPorLider, actorDepartments, actor],
     );
 
+    const [lastViewedTimes, setLastViewedTimes] = useState(() => {
+        if (!actor) return {};
+        const readLogsKey = `hotelflow:os_last_viewed:${actor.id || actor.uid || actor.firebaseUid || 'guest'}`;
+        try {
+            const raw = localStorage.getItem(readLogsKey);
+            return raw ? JSON.parse(raw) : {};
+        } catch {
+            return {};
+        }
+    });
+
+    const markAsRead = useCallback((osId) => {
+        if (!actor) return;
+        const readLogsKey = `hotelflow:os_last_viewed:${actor.id || actor.uid || actor.firebaseUid || 'guest'}`;
+        try {
+            const nowIso = new Date().toISOString();
+            const raw = localStorage.getItem(readLogsKey);
+            const data = raw ? JSON.parse(raw) : {};
+            data[osId] = nowIso;
+            localStorage.setItem(readLogsKey, JSON.stringify(data));
+            setLastViewedTimes(data);
+        } catch (e) {
+            console.error('Error marking as read:', e);
+        }
+    }, [actor]);
+
+    const hasUnreadProgress = useCallback((os) => {
+        if (!actor) return false;
+
+        const historico = os.historico || [];
+        if (historico.length === 0) return false;
+
+        const ultimoProgresso = historico[historico.length - 1];
+        const ultimoNome = String(ultimoProgresso.usuario_nome || '').trim().toLowerCase();
+        const actorNome = String(actor.nome || '').trim().toLowerCase();
+        if (ultimoNome === actorNome) {
+            return false;
+        }
+
+        const isCriador = matchesOrderActor(os, actor, 'criado_por');
+        const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
+        if (!isCriador && !isResponsavel) {
+            return false;
+        }
+
+        const ultimoProgressoData = new Date(ultimoProgresso.data);
+        const ultimaVisualizacao = lastViewedTimes[os.id];
+        if (!ultimaVisualizacao) return true;
+
+        return ultimoProgressoData > new Date(ultimaVisualizacao);
+    }, [actor, lastViewedTimes]);
+
+    const unreadCount = useMemo(() => {
+        return base.filter((o) => hasUnreadProgress(o)).length;
+    }, [base, hasUnreadProgress]);
+
         const filtered = useMemo(() => {
         return base
             .filter((o) => {
@@ -592,6 +648,9 @@ export default function ListaOS() {
                         return false;
                     }
                 }
+                if (viewMode === 'recentes') {
+                    return hasUnreadProgress(o);
+                }
                 if (isPdcaOnlyNavigation) return true;
                 if (filterStatus.length === 0) return true;
                 if (filterStatus.includes(o.status)) return true;
@@ -599,11 +658,11 @@ export default function ListaOS() {
                 return false;
             })
             .filter((o) => {
-                if (viewMode === 'diario') return true;
+                if (viewMode === 'diario' || viewMode === 'recentes') return true;
                 return filterPdca.length === 0 || filterPdca.includes(o.etapa_pdca);
             })
             .filter((o) => {
-                if (viewMode === 'diario') return true;
+                if (viewMode === 'diario' || viewMode === 'recentes') return true;
                 if (filterLider.length === 0) return true;
 
                 return filterLider.some((leaderId) => {
@@ -625,7 +684,7 @@ export default function ListaOS() {
                 });
             })
             .filter((o) => {
-                if (viewMode === 'diario') return true;
+                if (viewMode === 'diario' || viewMode === 'recentes') return true;
                 return filterDept.length === 0 || filterDept.includes(o.departamento);
             })
             .filter((o) => {
@@ -637,22 +696,22 @@ export default function ListaOS() {
                 return matchesOrderActor(o, actor, 'criado_por');
             })
             .filter((o) => {
-                if (viewMode === 'diario') return true;
+                if (viewMode === 'diario' || viewMode === 'recentes') return true;
                 if (!shouldFilterByNavigationMonth) return true;
                 return isOrderInSelectedDashboardMonth(o, navigationMonthDate);
             })
             .filter((o) => {
-                if (viewMode === 'diario') return true;
+                if (viewMode === 'diario' || viewMode === 'recentes') return true;
                 if (!shouldShowOnlyOverdue) return true;
                 return isSIOverdue(o);
             })
             .filter((o) => {
-                if (viewMode === 'diario') return true;
+                if (viewMode === 'diario' || viewMode === 'recentes') return true;
                 if (!prazoInicio) return true;
                 return new Date(o.prazo) >= prazoInicio;
             })
             .filter((o) => {
-                if (viewMode === 'diario') return true;
+                if (viewMode === 'diario' || viewMode === 'recentes') return true;
                 if (!prazoFim) return true;
                 const fim = new Date(prazoFim);
                 fim.setHours(23, 59, 59, 999);
@@ -690,6 +749,7 @@ export default function ListaOS() {
         lideres,
         actor,
         sofiaIds,
+        hasUnreadProgress,
     ]);
 
     const activeOrders = useMemo(
@@ -773,51 +833,9 @@ export default function ListaOS() {
     useEffect(() => {
         setNovoItemChecklist('');
         if (expanded && actor) {
-            const readLogsKey = `hotelflow:os_last_viewed:${actor.id || actor.uid || actor.firebaseUid || 'guest'}`;
-            try {
-                const raw = localStorage.getItem(readLogsKey);
-                const data = raw ? JSON.parse(raw) : {};
-                data[expanded] = new Date().toISOString();
-                localStorage.setItem(readLogsKey, JSON.stringify(data));
-            } catch (e) {
-                console.error('Error updating read status:', e);
-            }
+            markAsRead(expanded);
         }
-    }, [expanded, actor]);
-
-    const hasUnreadProgress = (os) => {
-        if (!actor) return false;
-
-        const historico = os.historico || [];
-        if (historico.length === 0) return false;
-
-        const ultimoProgresso = historico[historico.length - 1];
-        const ultimoNome = String(ultimoProgresso.usuario_nome || '').trim().toLowerCase();
-        const actorNome = String(actor.nome || '').trim().toLowerCase();
-        if (ultimoNome === actorNome) {
-            return false;
-        }
-
-        const isCriador = matchesOrderActor(os, actor, 'criado_por');
-        const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
-        if (!isCriador && !isResponsavel) {
-            return false;
-        }
-
-        const ultimoProgressoData = new Date(ultimoProgresso.data);
-        const readLogsKey = `hotelflow:os_last_viewed:${actor.id || actor.uid || actor.firebaseUid || 'guest'}`;
-        try {
-            const raw = localStorage.getItem(readLogsKey);
-            if (!raw) return true;
-            const data = JSON.parse(raw);
-            const ultimaVisualizacao = data[os.id];
-            if (!ultimaVisualizacao) return true;
-
-            return ultimoProgressoData > new Date(ultimaVisualizacao);
-        } catch {
-            return true;
-        }
-    };
+    }, [expanded, actor, markAsRead]);
 
     const handleAdicionarItemChecklist = async (os) => {
         if (!novoItemChecklist.trim()) return;
@@ -1089,6 +1107,20 @@ export default function ListaOS() {
                                 >
                                     <FileCheck size={10} />
                                     <span>Solicitar Finalização</span>
+                                </button>
+                            )}
+                            {hasUnreadProgress(os) && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        markAsRead(os.id);
+                                        addNotification(`SI "${os.titulo}" marcada como lida.`, 'info');
+                                    }}
+                                    className="inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-500 bg-emerald-50 text-emerald-700 font-extrabold text-[10px] px-2.5 py-1 hover:bg-emerald-500 hover:text-white transition-all shadow-sm cursor-pointer"
+                                    title="Marcar progresso como visto"
+                                >
+                                    <Check size={10} />
+                                    <span>Visto</span>
                                 </button>
                             )}
                         </div>
@@ -1639,6 +1671,26 @@ export default function ListaOS() {
                                 </div>
                             )}
                         </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setViewMode('recentes');
+                                handleDismissAlert();
+                            }}
+                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
+                                viewMode === 'recentes'
+                                    ? 'bg-hotel-blue text-white shadow-sm'
+                                    : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
+                            }`}
+                        >
+                            <Activity size={14} />
+                            Acompanhamento
+                            {unreadCount > 0 && (
+                                <span className="flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-hotel-gold text-[9px] font-black text-hotel-blue px-1 shadow-sm">
+                                    {unreadCount}
+                                </span>
+                            )}
+                        </button>
                     </div>
                 </div>
 
@@ -1849,11 +1901,27 @@ export default function ListaOS() {
                 {/* Lista */}
                 <div className="space-y-3">
                     {filtered.length === 0 ? (
-                        <div className="card flex flex-col items-center justify-center py-16 gap-3">
-                            <Filter size={32} className="text-hotel-gray-md" />
-                            <p className="text-hotel-gray-md font-body text-sm">
-                                Nenhuma SI encontrada. Tente ajustar os filtros.
-                            </p>
+                        <div className="card flex flex-col items-center justify-center py-16 gap-3 bg-white border border-hotel-gray/40 rounded-3xl p-6 shadow-sm">
+                            {viewMode === 'recentes' ? (
+                                <>
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-500 shadow-sm">
+                                        <CheckCircle2 size={24} />
+                                    </div>
+                                    <p className="text-hotel-blue font-extrabold font-body text-sm mt-1">
+                                        Nenhum progresso recente para acompanhar.
+                                    </p>
+                                    <p className="text-hotel-gray-md font-body text-xs text-center px-4 max-w-xs leading-relaxed">
+                                        Você está em dia com todas as suas Solicitações Internas!
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <Filter size={32} className="text-hotel-gray-md" />
+                                    <p className="text-hotel-gray-md font-body text-sm">
+                                        Nenhuma SI encontrada. Tente ajustar os filtros.
+                                    </p>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <>
