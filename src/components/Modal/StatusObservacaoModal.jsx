@@ -61,9 +61,9 @@ export default function StatusObservacaoModal({ isOpen, os, novoStatus, onConfir
                         placeholder="Descreva o que foi feito, pendencias, detalhes relevantes..."
                         value={obs}
                         onChange={(e) => setObs(e.target.value)}
-                        maxLength={500}
+                        maxLength={1000}
                     />
-                    <p className="text-[11px] text-hotel-gray-md font-body text-right mt-1">{obs.length}/500</p>
+                    <p className="text-[11px] text-hotel-gray-md font-body text-right mt-1">{obs.length}/1000</p>
                 </div>
 
                 <div className="px-6 pb-5 flex justify-end gap-3">

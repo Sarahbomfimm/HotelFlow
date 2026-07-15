@@ -354,9 +354,9 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
                         placeholder={etapaPdca !== os?.etapa_pdca ? "Opcional: Descreva o que foi feito nesta mudança de etapa..." : "Ex.: Trocando a lampada... / Material pendente de cotacao..."}
                         value={obs}
                         onChange={(e) => setObs(e.target.value)}
-                        maxLength={500}
+                        maxLength={1000}
                     />
-                    <p className="text-[11px] text-hotel-gray-md font-body text-right mt-1">{obs.length}/500</p>
+                    <p className="text-[11px] text-hotel-gray-md font-body text-right mt-1">{obs.length}/1000</p>
                     </div>
                 </div>
 
