@@ -189,8 +189,8 @@ export default function PDCAVisualPage() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                            <div className="rounded-2xl border border-hotel-gray/40 bg-hotel-light p-4">
-                                <p className="text-xs font-semibold text-hotel-gray-md">Total no ciclo</p>
+                            <div className="rounded-2xl border border-hotel-blue/20 bg-hotel-blue/5 p-4 shadow-sm">
+                                <p className="text-xs font-semibold text-hotel-blue/80">Total no ciclo</p>
                                 <p className="mt-1 text-2xl font-bold text-hotel-blue">{stats.total}</p>
                             </div>
                             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">

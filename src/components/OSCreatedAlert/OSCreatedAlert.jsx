@@ -1,4 +1,5 @@
-﻿import { useEffect } from 'react';
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckCircle2, X, ArrowRight } from 'lucide-react';
 import Logo from '../Logo/Logo';
 
@@ -21,7 +22,7 @@ export default function OSCreatedAlert({ isOpen, os, onClose, onVerOS }) {
 
     if (!isOpen || !os) return null;
 
-    return (
+    return createPortal(
         <div
             className="fixed inset-0 z-[100] flex items-center justify-center bg-hotel-blue/95 backdrop-blur-sm animate-fadeIn"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
@@ -116,6 +117,7 @@ export default function OSCreatedAlert({ isOpen, os, onClose, onVerOS }) {
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

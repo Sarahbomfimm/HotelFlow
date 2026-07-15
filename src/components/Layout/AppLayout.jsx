@@ -15,7 +15,7 @@ export default function AppLayout({ children, pageTitle }) {
     }, [location.pathname]);
 
     return (
-        <div className="flex min-h-screen bg-hotel-light">
+        <div className="relative flex min-h-screen overflow-hidden bg-hotel-light">
             {mobileMenuOpen && (
                 <button
                     type="button"
@@ -27,15 +27,24 @@ export default function AppLayout({ children, pageTitle }) {
 
             <Sidebar mobileMenuOpen={mobileMenuOpen} onCloseMobile={() => setMobileMenuOpen(false)} />
 
-            <div className="flex min-h-screen min-w-0 flex-1 flex-col overflow-hidden lg:h-screen">
+            <div className="relative flex min-h-screen min-w-0 flex-1 flex-col overflow-hidden lg:h-screen bg-gradient-to-tr from-[#E6ECF3] via-[#F5F7FA] to-[#EBEFF5]">
+                {/* Decorative blurred bg blobs for a modern mesh gradient effect in the content area */}
+                <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-hotel-blue/10 blur-[120px] z-0" />
+                <div className="pointer-events-none absolute -left-24 bottom-12 h-96 w-96 rounded-full bg-hotel-gold/8 blur-[120px] z-0" />
+                <div className="pointer-events-none absolute left-1/3 top-1/4 h-[400px] w-[400px] rounded-full bg-hotel-blue/6 blur-[140px] z-0" />
+
                 <Header pageTitle={pageTitle} onMenuClick={() => setMobileMenuOpen(true)} />
-                <main id="app-main-content" className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+                <main key={location.pathname} id="app-main-content" className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 relative z-10">
                     <div className="flex min-h-full flex-col">
                         <div className="flex-1">
                             {children}
                         </div>
-                        <footer className="mt-8 border-t border-hotel-gray-md/20 pt-4 text-center text-xs font-body text-hotel-gray-md sm:text-sm">
-                            &copy; {new Date().getFullYear()} Sarah Bomfim
+                        <footer className="mt-12 py-6 text-center text-[10px] font-medium tracking-widest text-hotel-gray-md/50 uppercase select-none">
+                            <div className="flex items-center justify-center gap-2.5">
+                                <span className="h-[1px] w-6 bg-hotel-gray-md/15" />
+                                <span>Sarah Bomfim &copy; {new Date().getFullYear()}</span>
+                                <span className="h-[1px] w-6 bg-hotel-gray-md/15" />
+                            </div>
                         </footer>
                     </div>
                 </main>

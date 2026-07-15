@@ -1003,7 +1003,7 @@ export default function ListaOS() {
                                     ⚠ Atrasada
                                 </span>
                             )}
-                            {hasUnreadProgress(os) && (
+                            {viewMode === 'recentes' && hasUnreadProgress(os) && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-hotel-gold/10 px-2 py-0.5 text-[9px] font-extrabold text-hotel-gold border border-hotel-gold/20 uppercase tracking-wider animate-pulse">
                                     Atualizado
                                 </span>
@@ -1109,7 +1109,7 @@ export default function ListaOS() {
                                     <span>Solicitar Finalização</span>
                                 </button>
                             )}
-                            {hasUnreadProgress(os) && (
+                            {viewMode === 'recentes' && hasUnreadProgress(os) && (
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();

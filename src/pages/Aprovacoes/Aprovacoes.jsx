@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { ArrowLeft, MoveRight, ClipboardCheck, Clock3, UserRound, Building2, X } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import AppLayout from '../../components/Layout/AppLayout';
@@ -146,6 +146,12 @@ export default function Aprovacoes() {
     const [modalRecusaAberto, setModalRecusaAberto] = useState(false);
     const [osParaRecusar, setOsParaRecusar] = useState(null);
 
+    const podeMoverCard = useCallback((order) => {
+        if (!order || !actor) return false;
+        if (canMove) return true;
+        return matchesOrderActor(order, actor, 'criado_por');
+    }, [actor, canMove]);
+
     const visibleOrders = useMemo(() => {
         if (canViewAll) {
             return ordens;
@@ -179,7 +185,12 @@ export default function Aprovacoes() {
         const orderId = event.dataTransfer.getData('text/plain') || draggingId;
         setDraggingId(null);
 
-        if (!orderId || !canMove) {
+        if (!orderId) {
+            return;
+        }
+
+        const order = ordens.find((o) => o.id === orderId);
+        if (!order || !podeMoverCard(order)) {
             return;
         }
 
@@ -192,7 +203,7 @@ export default function Aprovacoes() {
     };
 
     const moveWithButton = async (order, destination) => {
-        if (!canMove) {
+        if (!podeMoverCard(order)) {
             return;
         }
 
@@ -210,7 +221,7 @@ export default function Aprovacoes() {
     };
 
     const handleConfirmarRecusa = async (motivo) => {
-        if (!osParaRecusar || !canMove) return;
+        if (!osParaRecusar || !podeMoverCard(osParaRecusar)) return;
         
         try {
             await recusarFinalizacao(osParaRecusar.id, actor, motivo);
@@ -253,11 +264,6 @@ export default function Aprovacoes() {
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-hotel-gray/50 bg-white p-4 text-xs text-hotel-gray-md">
-                    {canMove
-                        ? 'Arraste os cards entre as colunas para conduzir a aprovação. Ao mover para "Finalizadas", a SI será concluída automaticamente.'
-                        : 'Você possui acesso de visualização. Somente usuários autorizados no Gerenciamento podem mover os cards.'}
-                </div>
 
                 <div className="grid gap-4 lg:grid-cols-3">
                     {COLUMNS.map((column) => {
@@ -294,13 +300,14 @@ export default function Aprovacoes() {
 
                                     {items.map((order) => {
                                         const nextStages = getNextStages(order.aprovacao_finalizacao_status);
+                                        const cardPodeMover = podeMoverCard(order);
 
                                         return (
                                             <article
                                                 key={order.id}
-                                                draggable={canMove}
+                                                draggable={cardPodeMover}
                                                 onDragStart={(event) => {
-                                                    if (!canMove) return;
+                                                    if (!cardPodeMover) return;
                                                     setDraggingId(order.id);
                                                     event.dataTransfer.setData('text/plain', order.id);
                                                 }}
@@ -309,7 +316,7 @@ export default function Aprovacoes() {
                                                     // Optionally, if the drag was successful, you might want to clear the state here
                                                 }}
                                                 onClick={() => navigate('/ordens', { state: { expandOsId: order.id } })}
-                                                className={`rounded-xl border border-hotel-gray/60 bg-white p-3 shadow-sm transition-all hover:border-hotel-blue/50 hover:shadow-md cursor-pointer ${canMove ? 'cursor-grab active:cursor-grabbing hover:bg-hotel-light/40' : ''}`}
+                                                className={`rounded-xl border border-hotel-gray/60 bg-white p-3 shadow-sm transition-all hover:border-hotel-blue/50 hover:shadow-md cursor-pointer ${cardPodeMover ? 'cursor-grab active:cursor-grabbing hover:bg-hotel-light/40' : ''}`}
                                             >
                                                 <div className="mb-2 flex items-center justify-between gap-2">
                                                     <StatusBadge status={order.status} />
@@ -333,7 +340,7 @@ export default function Aprovacoes() {
                                                     </p>
                                                 </div>
 
-                                                {canMove && (order.aprovacao_finalizacao_status === ApprovalStage.SOLICITADA || order.aprovacao_finalizacao_status === ApprovalStage.EM_ANALISE) && (
+                                                {cardPodeMover && (order.aprovacao_finalizacao_status === ApprovalStage.SOLICITADA || order.aprovacao_finalizacao_status === ApprovalStage.EM_ANALISE) && (
                                                     <div className="mt-3">
                                                         <button
                                                             type="button"
@@ -348,7 +355,7 @@ export default function Aprovacoes() {
                                                     </div>
                                                 )}
 
-                                                {canMove && nextStages.length > 0 && order.status !== StatusOS.CONCLUIDO && (
+                                                {cardPodeMover && nextStages.length > 0 && order.status !== StatusOS.CONCLUIDO && (
                                                     <div className="mt-3 flex flex-wrap gap-2">
                                                         {nextStages.map((stage) => (
                                                             <button

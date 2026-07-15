@@ -550,7 +550,8 @@ export function OSProvider({ children }) {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
-        if (!hasPermission(usuario, PERMISSIONS.SI_APPROVALS_MOVE)) {
+        const isCriador = matchesOrderActor(os, usuario, 'criado_por');
+        if (!hasPermission(usuario, PERMISSIONS.SI_APPROVALS_MOVE) && !isCriador) {
             throw new Error('Você não tem permissão para mover cards no kanban de aprovações.');
         }
 
@@ -625,7 +626,8 @@ export function OSProvider({ children }) {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
-        if (!hasPermission(usuario, PERMISSIONS.SI_APPROVALS_MOVE)) {
+        const isCriador = matchesOrderActor(os, usuario, 'criado_por');
+        if (!hasPermission(usuario, PERMISSIONS.SI_APPROVALS_MOVE) && !isCriador) {
             throw new Error('Você não tem permissão para recusar solicitações de finalização.');
         }
 
