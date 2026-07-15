@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { X, ArrowRight, Paperclip, User } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, ArrowRight, Paperclip, User, Camera, Image as ImageIcon } from 'lucide-react';
 import PDCABadge from '../Badge/PDCABadge';
 import { PDCALabel, PDCAStep } from '../../models/OrdemDeServico';
 import { UserRole } from '../../models/User';
@@ -24,6 +25,8 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
     const [prazoEstimado, setPrazoEstimado] = useState('');
     const [anexoPdf, setAnexoPdf] = useState(null);
     const [anexoErro, setAnexoErro] = useState('');
+    const [anexoFoto, setAnexoFoto] = useState(null);
+    const [anexoFotoErro, setAnexoFotoErro] = useState('');
     const [coResponsaveisSelecionados, setCoResponsaveisSelecionados] = useState(new Set());
     const textRef = useRef(null);
     const prazoInputRef = useRef(null);
@@ -69,6 +72,8 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
         setPrazoEstimado('');
         setAnexoPdf(null);
         setAnexoErro('');
+        setAnexoFoto(null);
+        setAnexoFotoErro('');
         setCoResponsaveisSelecionados(new Set((os?.co_responsaveis || []).map((item) => item.id).filter(Boolean)));
 
         const handler = (e) => { if (e.key === 'Escape') onCancel(); };
@@ -79,7 +84,8 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
     if (!isOpen || !os) return null;
 
     const handleConfirm = () => {
-        if (!obs.trim()) return;
+        const stageChanged = etapaPdca !== os?.etapa_pdca;
+        if (!obs.trim() && !stageChanged) return;
         const coResponsaveis = assignableUsers
             .filter((item) => coResponsaveisSelecionados.has(item.id))
             .map((item) => ({
@@ -91,11 +97,13 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
                 telegram_chat_id: item.telegram_chat_id || null,
             }));
 
-        onConfirm(obs.trim(), etapaPdca, prazoEstimado, anexoPdf, coResponsaveis);
+        onConfirm(obs.trim(), etapaPdca, prazoEstimado, anexoPdf, coResponsaveis, anexoFoto);
         setObs('');
         setPrazoEstimado('');
         setAnexoPdf(null);
         setAnexoErro('');
+        setAnexoFoto(null);
+        setAnexoFotoErro('');
         setCoResponsaveisSelecionados(new Set());
     };
 
@@ -124,7 +132,32 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
         setAnexoErro('');
     };
 
-    return (
+    const handleFotoChange = (event) => {
+        const file = event.target.files?.[0] || null;
+        if (!file) {
+            setAnexoFoto(null);
+            setAnexoFotoErro('');
+            return;
+        }
+
+        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name);
+        if (!isImage) {
+            setAnexoFoto(null);
+            setAnexoFotoErro('Anexe somente arquivos de imagem (JPG, PNG, WEBP, GIF).');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            setAnexoFoto(null);
+            setAnexoFotoErro('A imagem deve ter no máximo 5MB.');
+            return;
+        }
+
+        setAnexoFoto(file);
+        setAnexoFotoErro('');
+    };
+
+    return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fadeIn">
             <div className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-card-hover mx-4 animate-fadeIn">
                 <div className="bg-hotel-blue px-6 py-4 flex items-center gap-3">
@@ -249,7 +282,7 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
                     />
                     {!progressPdfUploadsEnabled && (
                         <p className="mt-1 text-[11px] text-amber-700 font-body">
-                            Anexo em PDF indisponivel. Configure VITE_CLOUDINARY_CLOUD_NAME e VITE_CLOUDINARY_RAW_UPLOAD_PRESET no .env.
+                            Anexos indisponíveis. Configure VITE_CLOUDINARY_CLOUD_NAME e VITE_CLOUDINARY_RAW_UPLOAD_PRESET no .env.
                         </p>
                     )}
                     {anexoPdf && (
@@ -261,8 +294,51 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
                         <p className="mt-1 text-[11px] text-red-500 font-body">{anexoErro}</p>
                     )}
 
+                    {/* Anexar Foto */}
+                    <label className="label mt-3" htmlFor="progresso-foto">
+                        Anexar Foto do progresso <span className="text-hotel-gray-md font-normal">(opcional)</span>
+                    </label>
+                    <label
+                        htmlFor="progresso-foto"
+                        className={`mt-1 block rounded-xl border-2 border-dashed px-4 py-3 transition-colors ${
+                            progressPdfUploadsEnabled
+                                ? 'cursor-pointer border-hotel-blue/25 bg-hotel-light/30 hover:border-hotel-blue/45 hover:bg-hotel-light/60'
+                                : 'cursor-not-allowed border-amber-300 bg-amber-50/70'
+                        }`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <span className="rounded-lg bg-hotel-blue/10 p-2 text-hotel-blue">
+                                <Camera size={14} />
+                            </span>
+                            <div className="min-w-0">
+                                <p className="text-xs font-semibold text-hotel-blue">
+                                    {anexoFoto ? 'Foto selecionada' : 'Clique para tirar ou anexar uma foto'}
+                                </p>
+                                <p className="mt-0.5 text-[11px] text-hotel-gray-md">
+                                    {anexoFoto ? anexoFoto.name : 'Formatos: JPG, PNG, WEBP, GIF, até 5MB'}
+                                </p>
+                            </div>
+                        </div>
+                    </label>
+                    <input
+                        id="progresso-foto"
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        disabled={!progressPdfUploadsEnabled}
+                        onChange={handleFotoChange}
+                    />
+                    {anexoFoto && (
+                        <p className="mt-1 text-[11px] text-hotel-blue font-body">
+                            Foto selecionada: <span className="font-semibold">{anexoFoto.name}</span>
+                        </p>
+                    )}
+                    {anexoFotoErro && (
+                        <p className="mt-1 text-[11px] text-red-500 font-body">{anexoFotoErro}</p>
+                    )}
+
                     <label className="label mt-3" htmlFor="observacao-progresso">
-                        O que foi feito / progresso atual
+                        O que foi feito / progresso atual {etapaPdca !== os?.etapa_pdca && <span className="text-hotel-gray-md font-normal">(opcional)</span>}
                     </label>
                     <textarea
                         id="observacao-progresso"
@@ -270,7 +346,7 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
                         ref={textRef}
                         rows={3}
                         className="input resize-none"
-                        placeholder="Ex.: Trocando a lampada... / Material pendente de cotacao..."
+                        placeholder={etapaPdca !== os?.etapa_pdca ? "Opcional: Descreva o que foi feito nesta mudança de etapa..." : "Ex.: Trocando a lampada... / Material pendente de cotacao..."}
                         value={obs}
                         onChange={(e) => setObs(e.target.value)}
                         maxLength={500}
@@ -284,7 +360,7 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
                     <button onClick={onCancel} className="btn-secondary w-full text-sm sm:w-auto">Cancelar</button>
                     <button
                         onClick={handleConfirm}
-                        disabled={!obs.trim() || Boolean(anexoErro)}
+                        disabled={(!obs.trim() && etapaPdca === os?.etapa_pdca) || Boolean(anexoErro) || Boolean(anexoFotoErro)}
                         className="btn-primary flex w-full items-center justify-center gap-2 text-sm sm:w-auto"
                     >
                         Registrar <ArrowRight size={14} />
@@ -292,6 +368,7 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

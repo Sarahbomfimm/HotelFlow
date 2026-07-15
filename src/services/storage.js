@@ -80,6 +80,48 @@ export async function uploadProgressPdf(file, orderId) {
     };
 }
 
+export async function uploadProgressImage(file, orderId) {
+    if (!progressPdfUploadsEnabled) {
+        throw new Error('Upload de imagem indisponível. Configure Cloudinary.');
+    }
+
+    if (!file || !orderId) {
+        return null;
+    }
+
+    const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name);
+    if (!isImage) {
+        throw new Error('Anexe apenas imagens (JPG, PNG, WEBP, GIF).');
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+        throw new Error('A imagem deve ter no máximo 5MB.');
+    }
+
+    const safeName = String(file.name || 'foto.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', cloudinaryImageUploadPreset || cloudinaryRawUploadPreset);
+    formData.append('folder', `service-orders/${orderId}/progress`);
+
+    const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`,
+        { method: 'POST', body: formData },
+    );
+
+    const data = await response.json();
+    if (!response.ok) {
+        const cloudinaryMessage = data?.error?.message || 'Erro ao enviar imagem para Cloudinary.';
+        throw new Error(cloudinaryMessage);
+    }
+
+    return {
+        url: data.secure_url,
+        publicId: data.public_id,
+        fileName: safeName,
+    };
+}
+
 export async function uploadPopPdf(file, sectorName) {
     if (!progressPdfUploadsEnabled) {
         throw new Error('Anexo em PDF indisponível. Configure Cloudinary para anexos e tente novamente.');

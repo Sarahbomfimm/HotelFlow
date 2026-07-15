@@ -11,13 +11,13 @@ import {
     getDocs,
 } from 'firebase/firestore';
 import { INITIAL_OS, USERS } from '../data/mockData';
-import { StatusOS, StatusLabel, PDCAStep, ApprovalStage } from '../models/OrdemDeServico';
+import { StatusOS, StatusLabel, PDCAStep, PDCALabel, ApprovalStage } from '../models/OrdemDeServico';
 import { UserRole } from '../models/User';
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { hasPermission, PERMISSIONS } from '../services/permissions';
 import { createUserNotification } from '../services/notifications';
 import { enviarNotificacaoTelegram } from '../services/telegramService';
-import { deleteFileByUrl, uploadProgressPdf, uploadServiceOrderImage } from '../services/storage';
+import { deleteFileByUrl, uploadProgressPdf, uploadProgressImage, uploadServiceOrderImage } from '../services/storage';
 import { useAuth } from './AuthContext';
 
 const OSContext = createContext(null);
@@ -433,7 +433,8 @@ export function OSProvider({ children }) {
         const entrada = {
             data: concluidoEm || new Date().toISOString(),
             usuario_nome: usuario.nome,
-            descricao: observacao ? `${base} Observação: ${observacao}` : base,
+            descricao: observacao ? `🔄 ${base}\n\nObservação: ${observacao}` : `🔄 ${base}`,
+            tipo: 'status',
         };
 
         const historico = [...os.historico, entrada];
@@ -738,7 +739,7 @@ export function OSProvider({ children }) {
     }, [ordens]);
 
     /** Adiciona observação de progresso sem alterar status */
-    const adicionarObservacao = useCallback(async (osId, texto, usuario, etapaPdca, prazoEstimado, anexoPdfFile, coResponsaveis) => {
+    const adicionarObservacao = useCallback(async (osId, texto, usuario, etapaPdca, prazoEstimado, anexoPdfFile, coResponsaveis, anexoFotoFile) => {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
@@ -755,6 +756,19 @@ export function OSProvider({ children }) {
             }
         }
 
+        let anexoFotoUrl = null;
+        let anexoFotoNome = null;
+        let fotoErro = '';
+        if (anexoFotoFile) {
+            try {
+                const uploadResult = await uploadProgressImage(anexoFotoFile, osId);
+                anexoFotoUrl = uploadResult?.url || null;
+                anexoFotoNome = uploadResult?.fileName || anexoFotoFile.name || 'foto.jpg';
+            } catch (error) {
+                fotoErro = error?.message || 'Não foi possível enviar a imagem do progresso.';
+            }
+        }
+
         const normalizedCurrentCoResponsaveis = Array.isArray(os.co_responsaveis) ? os.co_responsaveis : [];
         const normalizedNextCoResponsaveis = Array.isArray(coResponsaveis) ? coResponsaveis : normalizedCurrentCoResponsaveis;
         const currentNames = normalizedCurrentCoResponsaveis.map((item) => item.nome).filter(Boolean).join(', ');
@@ -763,14 +777,35 @@ export function OSProvider({ children }) {
             ? ` Co-responsáveis atualizados: ${nextNames || 'nenhum'}.`
             : '';
 
+        const stageChanged = etapaPdca && etapaPdca !== os.etapa_pdca;
+        let finalDesc = '';
+        if (stageChanged) {
+            const prevLabel = os.etapa_pdca ? `${os.etapa_pdca} - ${PDCALabel[os.etapa_pdca]}` : 'Nenhuma';
+            const nextLabel = `${etapaPdca} - ${PDCALabel[etapaPdca]}`;
+            finalDesc = `🔄 Etapa PDCA alterada de [${prevLabel}] para [${nextLabel}].`;
+            if (texto) {
+                finalDesc += `\n\nObservação: ${texto}`;
+            }
+        } else {
+            finalDesc = `Progresso${etapaPdca ? ` [${etapaPdca}]` : ''}: ${texto}`;
+        }
+
+        if (coResponsaveisDescription) {
+            finalDesc += `\n${coResponsaveisDescription.trim()}`;
+        }
+
         const entrada = {
             data: new Date().toISOString(),
             usuario_nome: usuario.nome,
-            descricao: `Progresso${etapaPdca ? ` [${etapaPdca}]` : ''}: ${texto}${coResponsaveisDescription}`,
+            descricao: finalDesc,
+            tipo: stageChanged ? 'etapa' : 'progresso',
             prazo_estimado: prazoEstimado || null,
             anexo_pdf_url: anexoPdfUrl,
             anexo_pdf_nome: anexoPdfNome,
             anexo_pdf_erro: anexoErro || null,
+            anexo_foto_url: anexoFotoUrl,
+            anexo_foto_nome: anexoFotoNome,
+            anexo_foto_erro: fotoErro || null,
         };
 
         const historico = [...os.historico, entrada];
@@ -879,38 +914,53 @@ export function OSProvider({ children }) {
     }, [ordens]);
 
     /** Edita ou remove o anexo de um item do histórico */
-    const editarAnexoHistorico = useCallback(async (osId, dataItem, novoPdfFile, removerAnexo, motivo, usuario) => {
+    const editarAnexoHistorico = useCallback(async (osId, dataItem, novoArquivoFile, removerAnexo, motivo, usuario) => {
         const os = ordens.find((item) => item.id === osId);
         if (!os) return;
 
+        const hItem = os.historico.find(h => h.data === dataItem);
+        if (!hItem) return;
+
+        const isFoto = Boolean(hItem.anexo_foto_url);
         let anexoPdfUrl = null;
         let anexoPdfNome = null;
+        let anexoFotoUrl = null;
+        let anexoFotoNome = null;
         let anexoErro = '';
 
-        if (removerAnexo && os.historico.find(h => h.data === dataItem)?.anexo_pdf_url) {
-            try {
-                await deleteFileByUrl(os.historico.find(h => h.data === dataItem).anexo_pdf_url);
-            } catch (err) {
-                console.warn('Erro ao deletar anexo anterior:', err.message);
+        if (removerAnexo) {
+            const urlToDelete = isFoto ? hItem.anexo_foto_url : hItem.anexo_pdf_url;
+            if (urlToDelete) {
+                try {
+                    await deleteFileByUrl(urlToDelete);
+                } catch (err) {
+                    console.warn('Erro ao deletar anexo anterior:', err.message);
+                }
             }
         }
 
-        if (novoPdfFile) {
-            try {
-                const anteriorUrl = os.historico.find(h => h.data === dataItem)?.anexo_pdf_url;
-                if (anteriorUrl) {
-                    try {
-                        await deleteFileByUrl(anteriorUrl);
-                    } catch (err) {
-                        console.warn('Erro ao deletar anexo anterior:', err.message);
-                    }
+        if (novoArquivoFile) {
+            const anteriorUrl = isFoto ? hItem.anexo_foto_url : hItem.anexo_pdf_url;
+            if (anteriorUrl) {
+                try {
+                    await deleteFileByUrl(anteriorUrl);
+                } catch (err) {
+                    console.warn('Erro ao deletar anexo anterior:', err.message);
                 }
+            }
 
-                const uploadResult = await uploadProgressPdf(novoPdfFile, osId);
-                anexoPdfUrl = uploadResult?.url || null;
-                anexoPdfNome = uploadResult?.fileName || novoPdfFile.name || 'anexo.pdf';
+            try {
+                if (isFoto) {
+                    const uploadResult = await uploadProgressImage(novoArquivoFile, osId);
+                    anexoFotoUrl = uploadResult?.url || null;
+                    anexoFotoNome = uploadResult?.fileName || novoArquivoFile.name || 'foto.jpg';
+                } else {
+                    const uploadResult = await uploadProgressPdf(novoArquivoFile, osId);
+                    anexoPdfUrl = uploadResult?.url || null;
+                    anexoPdfNome = uploadResult?.fileName || novoArquivoFile.name || 'anexo.pdf';
+                }
             } catch (error) {
-                anexoErro = error?.message || 'Não foi possível enviar o novo PDF.';
+                anexoErro = error?.message || 'Não foi possível enviar o novo arquivo.';
                 throw new Error(anexoErro);
             }
         }
@@ -921,7 +971,8 @@ export function OSProvider({ children }) {
                 const dataAjuste = new Date().toLocaleDateString('pt-BR');
                 const horaAjuste = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 
-                let acaoTxt = removerAnexo ? 'Anexo removido' : (novoPdfFile ? 'Anexo substituído' : 'Anexo ajustado');
+                let tipoNome = isFoto ? 'Foto' : 'Anexo PDF';
+                let acaoTxt = removerAnexo ? `${tipoNome} removida` : (novoArquivoFile ? `${tipoNome} substituída` : `${tipoNome} ajustada`);
                 let novaDesc = descOriginal + `\n\n[Ajuste em ${dataAjuste} às ${horaAjuste} por ${usuario.nome}]: ${acaoTxt}. Motivo: ${motivo}`;
 
                 const updatedItem = {
@@ -930,11 +981,21 @@ export function OSProvider({ children }) {
                 };
 
                 if (removerAnexo) {
-                    updatedItem.anexo_pdf_url = null;
-                    updatedItem.anexo_pdf_nome = null;
-                } else if (novoPdfFile && anexoPdfUrl) {
-                    updatedItem.anexo_pdf_url = anexoPdfUrl;
-                    updatedItem.anexo_pdf_nome = anexoPdfNome;
+                    if (isFoto) {
+                        updatedItem.anexo_foto_url = null;
+                        updatedItem.anexo_foto_nome = null;
+                    } else {
+                        updatedItem.anexo_pdf_url = null;
+                        updatedItem.anexo_pdf_nome = null;
+                    }
+                } else if (novoArquivoFile) {
+                    if (isFoto && anexoFotoUrl) {
+                        updatedItem.anexo_foto_url = anexoFotoUrl;
+                        updatedItem.anexo_foto_nome = anexoFotoNome;
+                    } else if (!isFoto && anexoPdfUrl) {
+                        updatedItem.anexo_pdf_url = anexoPdfUrl;
+                        updatedItem.anexo_pdf_nome = anexoPdfNome;
+                    }
                 }
                 return updatedItem;
             }
@@ -946,12 +1007,19 @@ export function OSProvider({ children }) {
         if (!isFirebaseConfigured || !db) {
             setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));
             setError('');
-            return;
+            return {
+                anexoSalvo: Boolean(isFoto ? anexoFotoUrl : anexoPdfUrl),
+                anexoErro,
+            };
         }
 
         await updateDoc(doc(db, 'serviceOrders', osId), payload);
         setOrdens((prev) => prev.map((item) => item.id === osId ? { ...item, ...payload } : item));
         setError('');
+        return {
+            anexoSalvo: Boolean(isFoto ? anexoFotoUrl : anexoPdfUrl),
+            anexoErro,
+        };
     }, [ordens]);
 
     /** Remove uma OS (apenas pela diretora) */

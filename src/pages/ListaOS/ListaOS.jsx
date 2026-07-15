@@ -5,6 +5,7 @@ import {
     Edit3, Clock3, ArrowLeft, CalendarRange, Image as ImageIcon,
     Download, Paperclip, Play, Check, FileCheck, Eye, ListTodo, Plus, Trash, CheckSquare, Square,
     CalendarDays, ChevronLeft, ChevronRight, Calendar, Tag, User, Hash, Activity, CheckCircle2, Sparkles,
+    MessageSquare, RefreshCw, GitBranch, AlertTriangle,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
@@ -205,6 +206,123 @@ const nextLabel = {
     [StatusOS.EM_ANDAMENTO]: 'Concluir',
 };
 
+const parseTimelineDescription = (descricao, isEtapa, isStatus) => {
+    if (!descricao) return { contentElement: null, adjustments: [] };
+
+    // 1. Separate adjustments
+    const parts = descricao.split('\n\n[Ajuste em ');
+    const mainDesc = parts[0];
+    const adjustments = parts.slice(1).map(part => {
+        const closingBraceIndex = part.indexOf(']:');
+        if (closingBraceIndex === -1) return { meta: '', detail: part };
+        const meta = part.substring(0, closingBraceIndex); // "15/07/2026 às 14:13 por Sarah"
+        const detail = part.substring(closingBraceIndex + 2).trim(); // "Foto removida. Motivo: teste de remoção"
+        return { meta, detail };
+    });
+
+    // 2. Format the main description
+    let contentElement = null;
+
+    if (isEtapa) {
+        const regexEtapa = /Etapa PDCA alterada de \[(.*?)\] para \[(.*?)\]/i;
+        const match = mainDesc.replace(/🔄/g, '').match(regexEtapa);
+        if (match) {
+            const deStage = match[1];
+            const paraStage = match[2];
+            
+            // Extract optional observação
+            let obsText = '';
+            const obsIdx = mainDesc.indexOf('Observação:');
+            if (obsIdx !== -1) {
+                obsText = mainDesc.substring(obsIdx + 11).trim();
+            }
+
+            contentElement = (
+                <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700">
+                        <span className="text-hotel-gray-md font-normal font-body">Etapa PDCA:</span>
+                        <span className="px-2 py-0.5 rounded-full bg-hotel-light text-hotel-blue border border-hotel-gray/30 text-[11px]">
+                            {deStage}
+                        </span>
+                        <span className="text-hotel-gray-md">→</span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-300 font-bold text-[11px] shadow-sm animate-pulse-slow">
+                            {paraStage}
+                        </span>
+                    </div>
+                    {obsText && (
+                        <p className="mt-1 text-sm text-slate-800 leading-6 border-l-2 border-amber-300 pl-3 italic font-body">
+                            "{obsText}"
+                        </p>
+                    )}
+                </div>
+            );
+        }
+    } else if (isStatus) {
+        const regexStatus = /Status alterado de \[(.*?)\] para \[(.*?)\]/i;
+        const match = mainDesc.replace(/🚀/g, '').match(regexStatus);
+        if (match) {
+            const deStatus = match[1];
+            const paraStatus = match[2];
+            
+            // Extract optional observação
+            let obsText = '';
+            const obsIdx = mainDesc.indexOf('Observação:');
+            if (obsIdx !== -1) {
+                obsText = mainDesc.substring(obsIdx + 11).trim();
+            }
+
+            contentElement = (
+                <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700">
+                        <span className="text-hotel-gray-md font-normal font-body">Status da SI:</span>
+                        <span className="px-2 py-0.5 rounded-full bg-hotel-light text-hotel-blue border border-hotel-gray/30 text-[11px]">
+                            {deStatus}
+                        </span>
+                        <span className="text-hotel-gray-md">→</span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-hotel-blue/5 text-hotel-blue border border-hotel-blue/30 font-bold text-[11px] shadow-sm">
+                            {paraStatus}
+                        </span>
+                    </div>
+                    {obsText && (
+                        <p className="mt-1 text-sm text-slate-800 leading-6 border-l-2 border-hotel-blue pl-3 italic font-body">
+                            "{obsText}"
+                        </p>
+                    )}
+                </div>
+            );
+        }
+    }
+
+    if (!contentElement) {
+        const stageMatch = mainDesc.match(/^Progresso\s*\[([PDCAD])\]:(.*)/is);
+        if (stageMatch) {
+            const stepChar = stageMatch[1];
+            const cleanText = stageMatch[2].trim();
+            contentElement = (
+                <div className="space-y-1.5">
+                    <div>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border ${
+                            stepChar === 'P' ? 'bg-sky-50 text-sky-700 border-sky-200' :
+                            stepChar === 'D' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            stepChar === 'C' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            'bg-rose-50 text-rose-700 border-rose-200'
+                        }`}>
+                            Etapa {stepChar} - {PDCALabel[stepChar]}
+                        </span>
+                    </div>
+                    <p className="text-sm text-slate-700 leading-6 font-body whitespace-pre-line">{cleanText}</p>
+                </div>
+            );
+        } else {
+            contentElement = (
+                <p className="text-sm text-slate-700 leading-6 font-body whitespace-pre-line">{mainDesc}</p>
+            );
+        }
+    }
+
+    return { contentElement, adjustments };
+};
+
 function compareOrdersByCompletion(left, right) {
     const leftCompleted = left.status === StatusOS.CONCLUIDO;
     const rightCompleted = right.status === StatusOS.CONCLUIDO;
@@ -247,52 +365,107 @@ function HistoricoOSModal({ isOpen, onClose, os, actor, isDiretora, onEditarAnex
                     {historico.length === 0 ? (
                         <p className="text-sm text-hotel-gray-md">Nenhum histórico registrado.</p>
                     ) : (
-                        [...historico].reverse().map((h, index) => (
-                            <div key={`${h.data}-${index}`} className="flex gap-3 rounded-2xl border border-hotel-gray/40 bg-hotel-light/20 px-4 py-4">
-                                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hotel-blue/10 text-hotel-blue">
-                                    <Clock3 size={14} />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-semibold text-hotel-blue">
-                                        {h.usuario_nome}
-                                        {h.prazo_estimado && (
-                                            <span className="ml-2 text-xs font-normal text-hotel-gold">
-                                                {' · '}Prazo estimado: {format(parseISO(h.prazo_estimado), 'dd/MM/yyyy')}
+                        [...historico].reverse().map((h, index) => {
+                            const isEtapa = h.tipo === 'etapa' || h.descricao.includes('Etapa PDCA alterada') || h.descricao.includes('alteração de etapa');
+                            const isStatus = h.tipo === 'status' || h.descricao.includes('Status alterado');
+                            const { contentElement, adjustments } = parseTimelineDescription(h.descricao, isEtapa, isStatus);
+
+                            return (
+                                <div key={`${h.data}-${index}`} className="flex gap-3 rounded-2xl border border-hotel-gray/40 bg-hotel-light/20 px-4 py-4 animate-fadeIn">
+                                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hotel-blue/10 text-hotel-blue">
+                                        <Clock3 size={14} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-semibold text-hotel-blue flex flex-wrap items-center gap-1.5 font-heading">
+                                            <span>{h.usuario_nome}</span>
+                                            <span className="text-[11px] font-normal text-hotel-gray-md font-sans">
+                                                • {format(parseISO(h.data), "dd/MM/yyyy 'às' HH:mm")}
                                             </span>
-                                        )}
-                                    </p>
-                                    <p className="mt-0.5 text-xs text-hotel-gray-md">
-                                        {format(parseISO(h.data), "dd/MM/yyyy 'às' HH:mm")}
-                                    </p>
-                                    <p className="mt-1.5 text-sm leading-6 text-hotel-gray-md whitespace-pre-line">{h.descricao}</p>
-                                    {h.anexo_pdf_url && (
-                                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-semibold text-hotel-blue">
-                                                <Paperclip size={11} /> PDF anexado
-                                            </span>
-                                            <a
-                                                href={h.anexo_pdf_url}
-                                                download={h.anexo_pdf_nome || 'anexo.pdf'}
-                                                className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-blue hover:text-hotel-gold mr-3"
-                                                target="_blank" rel="noreferrer"
-                                            >
-                                                <Download size={11} /> {h.anexo_pdf_nome || 'Abrir anexo'}
-                                            </a>
-                                            {(isDiretora || h.usuario_nome === actor?.nome) && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => onEditarAnexo(h)}
-                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-gray-md hover:text-hotel-blue transition-colors border-l border-hotel-gray-md/30 pl-3"
-                                                    title="Editar ou remover documento anexado"
-                                                >
-                                                    <Edit3 size={11} /> Editar anexo
-                                                </button>
+                                            {h.prazo_estimado && (
+                                                <span className="text-[11px] font-normal text-hotel-gold font-sans">
+                                                    · Prazo: {format(parseISO(h.prazo_estimado), 'dd/MM/yyyy')}
+                                                </span>
                                             )}
+                                        </p>
+                                        <div className="mt-2">
+                                            {contentElement}
                                         </div>
-                                    )}
+                                        {h.anexo_pdf_url && (
+                                            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-semibold text-hotel-blue font-body">
+                                                    <Paperclip size={11} /> PDF anexado
+                                                </span>
+                                                <a
+                                                    href={h.anexo_pdf_url}
+                                                    download={h.anexo_pdf_nome || 'anexo.pdf'}
+                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-blue hover:text-hotel-gold mr-3 font-body"
+                                                    target="_blank" rel="noreferrer"
+                                                >
+                                                    <Download size={11} /> {h.anexo_pdf_nome || 'Abrir anexo'}
+                                                </a>
+                                                {(isDiretora || h.usuario_nome === actor?.nome) && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onEditarAnexo(h)}
+                                                        className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-gray-md hover:text-hotel-blue transition-colors border-l border-hotel-gray-md/30 pl-3 font-body"
+                                                        title="Editar ou remover documento anexado"
+                                                    >
+                                                        <Edit3 size={11} /> Editar anexo
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                        {h.anexo_foto_url && (
+                                            <div className="mt-3">
+                                                <a
+                                                    href={h.anexo_foto_url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-block relative group rounded-xl overflow-hidden border border-hotel-gray/30 hover:border-hotel-gold transition-all"
+                                                >
+                                                    <img
+                                                        src={h.anexo_foto_url}
+                                                        alt={h.anexo_foto_nome || 'Foto do progresso'}
+                                                        className="max-h-40 object-cover rounded-xl group-hover:scale-[1.03] transition-transform duration-200"
+                                                    />
+                                                    <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
+                                                        Ver Foto Ampliada
+                                                    </div>
+                                                </a>
+                                                {(isDiretora || h.usuario_nome === actor?.nome) && (
+                                                    <div className="mt-1">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => onEditarAnexo(h)}
+                                                            className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-gray-md hover:text-hotel-blue transition-colors font-body"
+                                                            title="Editar ou remover foto anexada"
+                                                        >
+                                                            <Edit3 size={11} /> Editar foto
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        {adjustments.length > 0 && (
+                                            <div className="mt-3 space-y-2 border-t border-dashed border-hotel-gray/30 pt-3">
+                                                {adjustments.map((adj, i) => (
+                                                    <div key={i} className="rounded-xl border border-rose-100 bg-rose-50/10 p-3 text-xs font-body text-slate-600 shadow-sm animate-fadeIn">
+                                                        <div className="flex items-center gap-1.5 text-rose-700 font-bold">
+                                                            <AlertTriangle size={13} className="shrink-0" />
+                                                            <span>Ajuste de Registro</span>
+                                                            <span className="text-[10px] text-hotel-gray-md font-normal font-sans">({adj.meta})</span>
+                                                        </div>
+                                                        <p className="mt-1 text-hotel-gray-dark leading-relaxed">
+                                                            {adj.detail}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
 
@@ -902,10 +1075,10 @@ export default function ListaOS() {
         );
     };
 
-    const handleAdicionarObs = async (texto, etapaPdca, prazoEstimado, anexoPdfFile, coResponsaveis) => {
+    const handleAdicionarObs = async (texto, etapaPdca, prazoEstimado, anexoPdfFile, coResponsaveis, anexoFotoFile) => {
         const { os } = adicionarObsModal;
         try {
-            const result = await adicionarObservacao(os.id, texto, actor, etapaPdca, prazoEstimado, anexoPdfFile, coResponsaveis);
+            const result = await adicionarObservacao(os.id, texto, actor, etapaPdca, prazoEstimado, anexoPdfFile, coResponsaveis, anexoFotoFile);
             addNotification(`Progresso registrado na SI “${os.titulo}”.`, 'info');
             if (result?.anexoErro) {
                 addNotification(result.anexoErro, 'warning');
@@ -1497,59 +1670,134 @@ export default function ListaOS() {
                                     <Clock3 size={14} /> Log de Alterações / Progresso
                                 </p>
                                 
-                                <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
+                                <div className="space-y-3 pr-1">
                                     {historico.length === 0 ? (
                                         <p className="text-sm text-hotel-gray-md">Nenhum progresso registrado.</p>
                                     ) : (
-                                        [...historico].reverse().map((h, index) => (
-                                            <div key={`${h.data}-${index}`} className="flex gap-3 rounded-2xl border border-hotel-gray/30 bg-hotel-light/20 px-4 py-4">
-                                                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hotel-blue/10 text-hotel-blue">
-                                                    <Clock3 size={14} />
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-semibold text-hotel-blue">
-                                                        {h.usuario_nome}
-                                                        {h.prazo_estimado && (
-                                                            <span className="ml-2 text-xs font-normal text-hotel-gold">
-                                                                {' · '}Prazo estimado: {format(parseISO(h.prazo_estimado), 'dd/MM/yyyy')}
+                                        [...historico].reverse().map((h, index) => {
+                                            const isEtapa = h.tipo === 'etapa' || h.descricao.includes('Etapa PDCA alterada') || h.descricao.includes('alteração de etapa');
+                                            const isStatus = h.tipo === 'status' || h.descricao.includes('Status alterado');
+                                            
+                                            let cardClass = 'border-hotel-gray/30 bg-hotel-light/20';
+                                            let iconClass = 'bg-hotel-blue/10 text-hotel-blue';
+                                            let IconComponent = MessageSquare;
+                                            let textClass = 'text-hotel-gray-md';
+                                            
+                                            if (isEtapa) {
+                                                cardClass = 'border-amber-300 bg-amber-50/30 shadow-sm shadow-amber-50';
+                                                iconClass = 'bg-amber-100 text-amber-600 border border-amber-200';
+                                                IconComponent = RefreshCw;
+                                                textClass = 'text-slate-800 font-semibold';
+                                            } else if (isStatus) {
+                                                cardClass = 'border-hotel-blue/20 bg-hotel-blue/5 shadow-sm shadow-blue-50';
+                                                iconClass = 'bg-hotel-blue/15 text-hotel-blue border border-hotel-blue/10';
+                                                IconComponent = GitBranch;
+                                                textClass = 'text-hotel-blue font-semibold';
+                                            }
+
+                                            const { contentElement, adjustments } = parseTimelineDescription(h.descricao, isEtapa, isStatus);
+
+                                            return (
+                                                <div key={`${h.data}-${index}`} className={`flex gap-3 rounded-2xl border px-4 py-4 transition-all ${cardClass}`}>
+                                                    <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconClass}`}>
+                                                        <IconComponent size={14} className={isEtapa ? "animate-spin-slow" : ""} />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-semibold text-hotel-blue flex flex-wrap items-center gap-1.5 font-heading">
+                                                            <span>{h.usuario_nome}</span>
+                                                            <span className="text-[11px] font-normal text-hotel-gray-md font-sans">
+                                                                • {format(parseISO(h.data), "dd/MM/yyyy 'às' HH:mm")}
                                                             </span>
-                                                        )}
-                                                    </p>
-                                                    <p className="mt-0.5 text-xs text-hotel-gray-md">
-                                                        {format(parseISO(h.data), "dd/MM/yyyy 'às' HH:mm")}
-                                                    </p>
-                                                    <p className="mt-1.5 text-sm leading-6 text-hotel-gray-md whitespace-pre-line">{h.descricao}</p>
-                                                    {h.anexo_pdf_url && (
-                                                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-semibold text-hotel-blue">
-                                                                <Paperclip size={11} /> PDF anexado
-                                                            </span>
-                                                            <a
-                                                                href={h.anexo_pdf_url}
-                                                                download={h.anexo_pdf_nome || 'anexo.pdf'}
-                                                                className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-blue hover:text-hotel-gold mr-3"
-                                                                target="_blank" rel="noreferrer"
-                                                            >
-                                                                <Download size={11} /> {h.anexo_pdf_nome || 'Abrir anexo'}
-                                                            </a>
-                                                            {(isDiretora || h.usuario_nome === actor?.nome) && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setEditarAnexoModalState({ open: true, os: os, item: h });
-                                                                    }}
-                                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-gray-md hover:text-hotel-blue transition-colors border-l border-hotel-gray-md/30 pl-3"
-                                                                    title="Editar ou remover documento anexado"
-                                                                >
-                                                                    <Edit3 size={11} /> Editar anexo
-                                                                </button>
+                                                            {h.prazo_estimado && (
+                                                                <span className="text-[11px] font-normal text-hotel-gold font-sans">
+                                                                    · Prazo: {format(parseISO(h.prazo_estimado), 'dd/MM/yyyy')}
+                                                                </span>
                                                             )}
+                                                        </p>
+                                                        <div className="mt-2">
+                                                            {contentElement}
                                                         </div>
-                                                    )}
+                                                        {h.anexo_pdf_url && (
+                                                            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                                                                <span className="inline-flex items-center gap-1 rounded-full bg-hotel-blue/10 px-2.5 py-1 text-[11px] font-semibold text-hotel-blue font-body">
+                                                                    <Paperclip size={11} /> PDF anexado
+                                                                </span>
+                                                                <a
+                                                                    href={h.anexo_pdf_url}
+                                                                    download={h.anexo_pdf_nome || 'anexo.pdf'}
+                                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-blue hover:text-hotel-gold mr-3 font-body"
+                                                                    target="_blank" rel="noreferrer"
+                                                                >
+                                                                    <Download size={11} /> {h.anexo_pdf_nome || 'Abrir anexo'}
+                                                                </a>
+                                                                {(isDiretora || h.usuario_nome === actor?.nome) && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setEditarAnexoModalState({ open: true, os: os, item: h });
+                                                                        }}
+                                                                        className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-gray-md hover:text-hotel-blue transition-colors border-l border-hotel-gray-md/30 pl-3 font-body"
+                                                                        title="Editar ou remover documento anexado"
+                                                                    >
+                                                                        <Edit3 size={11} /> Editar anexo
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {h.anexo_foto_url && (
+                                                            <div className="mt-3">
+                                                                <a
+                                                                    href={h.anexo_foto_url}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="inline-block relative group rounded-xl overflow-hidden border border-hotel-gray/30 hover:border-hotel-gold transition-all"
+                                                                >
+                                                                    <img
+                                                                        src={h.anexo_foto_url}
+                                                                        alt={h.anexo_foto_nome || 'Foto do progresso'}
+                                                                        className="max-h-40 object-cover rounded-xl group-hover:scale-[1.03] transition-transform duration-200"
+                                                                    />
+                                                                    <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
+                                                                        Ver Foto Ampliada
+                                                                    </div>
+                                                                </a>
+                                                                {(isDiretora || h.usuario_nome === actor?.nome) && (
+                                                                    <div className="mt-1">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setEditarAnexoModalState({ open: true, os: os, item: h });
+                                                                            }}
+                                                                            className="inline-flex items-center gap-1 text-xs font-semibold text-hotel-gray-md hover:text-hotel-blue transition-colors font-body"
+                                                                            title="Editar ou remover foto anexada"
+                                                                        >
+                                                                            <Edit3 size={11} /> Editar foto
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {adjustments.length > 0 && (
+                                                            <div className="mt-3 space-y-2 border-t border-dashed border-hotel-gray/30 pt-3">
+                                                                {adjustments.map((adj, i) => (
+                                                                    <div key={i} className="rounded-xl border border-rose-100 bg-rose-50/10 p-3 text-xs font-body text-slate-600 shadow-sm animate-fadeIn">
+                                                                        <div className="flex items-center gap-1.5 text-rose-700 font-bold">
+                                                                            <AlertTriangle size={13} className="shrink-0" />
+                                                                            <span>Ajuste de Registro</span>
+                                                                            <span className="text-[10px] text-hotel-gray-md font-normal font-sans">({adj.meta})</span>
+                                                                        </div>
+                                                                        <p className="mt-1 text-hotel-gray-dark leading-relaxed">
+                                                                            {adj.detail}
+                                                                        </p>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))
-                                    )}
+                                            );
+                                    })
+                                )}
                                 </div>
                             </div>
                         )}

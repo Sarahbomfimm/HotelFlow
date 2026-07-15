@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Paperclip, AlertTriangle } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, Paperclip, AlertTriangle, Camera } from 'lucide-react';
 import { progressPdfUploadsEnabled } from '../../services/storage';
 
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024;
@@ -26,6 +27,8 @@ export default function EditarAnexoHistoricoModal({ isOpen, os, historicoItem, o
 
     if (!isOpen || !os || !historicoItem) return null;
 
+    const isFoto = Boolean(historicoItem?.anexo_foto_url);
+
     const handleConfirm = () => {
         if (!motivo.trim()) return;
         if (opcao === 'substituir' && (!novoAnexoPdf || anexoErro)) return;
@@ -47,32 +50,47 @@ export default function EditarAnexoHistoricoModal({ isOpen, os, historicoItem, o
             return;
         }
 
-        const isPdf = file.type === 'application/pdf' || String(file.name || '').toLowerCase().endsWith('.pdf');
-        if (!isPdf) {
-            setNovoAnexoPdf(null);
-            setAnexoErro('Anexe somente arquivo PDF.');
-            return;
-        }
-
-        if (file.size > MAX_PDF_SIZE_BYTES) {
-            setNovoAnexoPdf(null);
-            setAnexoErro('O PDF deve ter no máximo 10MB.');
-            return;
+        if (isFoto) {
+            const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name);
+            if (!isImage) {
+                setNovoAnexoPdf(null);
+                setAnexoErro('Anexe somente arquivos de imagem (JPG, PNG, WEBP, GIF).');
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                setNovoAnexoPdf(null);
+                setAnexoErro('A imagem deve ter no máximo 5MB.');
+                return;
+            }
+        } else {
+            const isPdf = file.type === 'application/pdf' || String(file.name || '').toLowerCase().endsWith('.pdf');
+            if (!isPdf) {
+                setNovoAnexoPdf(null);
+                setAnexoErro('Anexe somente arquivo PDF.');
+                return;
+            }
+            if (file.size > MAX_PDF_SIZE_BYTES) {
+                setNovoAnexoPdf(null);
+                setAnexoErro('O PDF deve ter no máximo 10MB.');
+                return;
+            }
         }
 
         setNovoAnexoPdf(file);
         setAnexoErro('');
     };
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fadeIn">
             <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-fadeIn">
                 {/* Header */}
                 <div className="bg-hotel-blue px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-white">
-                        <Paperclip size={18} />
+                        {isFoto ? <Camera size={18} /> : <Paperclip size={18} />}
                         <div>
-                            <h3 className="font-heading font-semibold text-white">Ajustar Documento Anexado</h3>
+                            <h3 className="font-heading font-semibold text-white">
+                                {isFoto ? 'Ajustar Foto Anexada' : 'Ajustar Documento Anexado'}
+                            </h3>
                             <p className="text-white/60 text-xs font-body">Histórico de Alterações</p>
                         </div>
                     </div>
@@ -94,9 +112,13 @@ export default function EditarAnexoHistoricoModal({ isOpen, os, historicoItem, o
 
                     {/* Exibe o anexo atual */}
                     <div className="rounded-xl border border-hotel-gray/50 bg-hotel-light/30 p-3 text-xs">
-                        <p className="text-hotel-gray-md font-semibold font-body">Arquivo anexado atualmente:</p>
+                        <p className="text-hotel-gray-md font-semibold font-body">
+                            {isFoto ? 'Foto anexada atualmente:' : 'Arquivo anexado atualmente:'}
+                        </p>
                         <p className="text-sm font-semibold text-hotel-blue font-body truncate mt-1">
-                            {historicoItem.anexo_pdf_nome || 'anexo.pdf'}
+                            {isFoto 
+                                ? (historicoItem.anexo_foto_nome || 'foto.jpg') 
+                                : (historicoItem.anexo_pdf_nome || 'anexo.pdf')}
                         </p>
                     </div>
 
@@ -113,8 +135,10 @@ export default function EditarAnexoHistoricoModal({ isOpen, os, historicoItem, o
                                         : 'border-hotel-gray bg-white text-hotel-gray-md hover:border-hotel-blue/30'
                                 }`}
                             >
-                                <span className="text-sm">Remover anexo</span>
-                                <span className="text-[10px] text-hotel-gray-md font-normal mt-0.5">Excluir PDF do registro</span>
+                                <span className="text-sm">{isFoto ? 'Remover foto' : 'Remover anexo'}</span>
+                                <span className="text-[10px] text-hotel-gray-md font-normal mt-0.5">
+                                    {isFoto ? 'Excluir foto do registro' : 'Excluir PDF do registro'}
+                                </span>
                             </button>
 
                             <button
@@ -126,17 +150,19 @@ export default function EditarAnexoHistoricoModal({ isOpen, os, historicoItem, o
                                         : 'border-hotel-gray bg-white text-hotel-gray-md hover:border-hotel-blue/30'
                                 }`}
                             >
-                                <span className="text-sm">Substituir anexo</span>
-                                <span className="text-[10px] text-hotel-gray-md font-normal mt-0.5">Enviar novo arquivo PDF</span>
+                                <span className="text-sm">{isFoto ? 'Substituir foto' : 'Substituir anexo'}</span>
+                                <span className="text-[10px] text-hotel-gray-md font-normal mt-0.5">
+                                    {isFoto ? 'Enviar nova imagem' : 'Enviar novo arquivo PDF'}
+                                </span>
                             </button>
                         </div>
                     </div>
 
-                    {/* Campo de Upload do Novo PDF */}
+                    {/* Campo de Upload do Novo PDF / Foto */}
                     {opcao === 'substituir' && (
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-hotel-blue uppercase tracking-wide">
-                                Selecione o novo arquivo PDF
+                                {isFoto ? 'Selecione a nova foto' : 'Selecione o novo arquivo PDF'}
                             </label>
                             <label
                                 htmlFor="novo-anexo-pdf-input"
@@ -148,14 +174,18 @@ export default function EditarAnexoHistoricoModal({ isOpen, os, historicoItem, o
                             >
                                 <div className="flex items-center gap-3">
                                     <span className="rounded-lg bg-hotel-blue/10 p-2 text-hotel-blue">
-                                        <Paperclip size={14} />
+                                        {isFoto ? <Camera size={14} /> : <Paperclip size={14} />}
                                     </span>
                                     <div className="min-w-0">
                                         <p className="text-xs font-semibold text-hotel-blue">
-                                            {novoAnexoPdf ? 'Arquivo pronto para substituição' : 'Clique para selecionar novo PDF'}
+                                            {isFoto
+                                                ? (novoAnexoPdf ? 'Foto pronta para substituição' : 'Clique para selecionar nova foto')
+                                                : (novoAnexoPdf ? 'Arquivo pronto para substituição' : 'Clique para selecionar novo PDF')}
                                         </p>
                                         <p className="mt-0.5 text-[11px] text-hotel-gray-md">
-                                            {novoAnexoPdf ? novoAnexoPdf.name : 'Somente PDF, até 10MB'}
+                                            {novoAnexoPdf
+                                                ? novoAnexoPdf.name
+                                                : (isFoto ? 'Imagens (JPG, PNG, WEBP, GIF), até 5MB' : 'Somente PDF, até 10MB')}
                                         </p>
                                     </div>
                                 </div>
@@ -163,7 +193,7 @@ export default function EditarAnexoHistoricoModal({ isOpen, os, historicoItem, o
                             <input
                                 id="novo-anexo-pdf-input"
                                 type="file"
-                                accept="application/pdf,.pdf"
+                                accept={isFoto ? "image/*" : "application/pdf,.pdf"}
                                 className="sr-only"
                                 disabled={!progressPdfUploadsEnabled}
                                 onChange={handleFileChange}
@@ -211,6 +241,7 @@ export default function EditarAnexoHistoricoModal({ isOpen, os, historicoItem, o
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
