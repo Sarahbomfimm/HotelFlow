@@ -41,17 +41,17 @@ function CustomSelect({ value, onChange, options, placeholder }) {
     const selectedOption = options.find(o => o.value === value);
 
     return (
-        <div ref={containerRef} className="relative w-full sm:w-auto">
+        <div ref={containerRef} className="relative flex-1 min-w-[120px] sm:min-w-[140px] font-body">
             <button
                 type="button"
                 onClick={() => setOpen(!open)}
-                className="flex items-center justify-between gap-2 rounded-xl border border-hotel-gray/50 bg-white px-3 py-1.5 text-xs font-semibold text-hotel-blue hover:border-hotel-gold/60 hover:bg-slate-50 transition-all cursor-pointer shadow-sm w-full sm:w-auto min-w-[170px]"
+                className="flex items-center justify-between gap-1.5 sm:gap-2 rounded-xl border border-hotel-gray/50 bg-white px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-hotel-blue hover:border-hotel-gold/60 hover:bg-slate-50 transition-all cursor-pointer shadow-sm w-full min-w-0 sm:min-w-[140px]"
             >
                 <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
-                <ChevronDown size={14} className={`text-hotel-blue/60 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`text-hotel-blue/60 transition-transform duration-200 shrink-0 ${open ? 'rotate-180' : ''}`} />
             </button>
             {open && (
-                <div className="absolute left-0 z-50 mt-1 max-h-60 w-full min-w-[190px] overflow-y-auto rounded-xl border border-hotel-gray/40 bg-white p-1.5 shadow-lg animate-fadeIn">
+                <div className="absolute left-0 z-50 mt-1 max-h-60 w-full min-w-[150px] overflow-y-auto rounded-xl border border-hotel-gray/40 bg-white p-1.5 shadow-lg animate-fadeIn">
                     {placeholder && (
                         <button
                             type="button"
@@ -560,19 +560,19 @@ export default function DashboardLider() {
                     {/* Grid de Conteúdo Principal */}
                     <div className="grid gap-6 lg:grid-cols-3 relative z-10">
                         {/* Todas as OS */}
-                        <div className="flex flex-col rounded-3xl border border-hotel-gray/30 bg-white p-6 shadow-sm lg:col-span-2 h-[560px] animate-fadeIn">
-                            <div className="mb-4">
-                                <h3 className="font-heading font-semibold text-hotel-blue text-base">
+                        <div className="flex flex-col rounded-3xl border border-hotel-gray/30 bg-white p-4 sm:p-6 shadow-sm lg:col-span-2 min-h-[480px] h-[520px] sm:h-[560px] animate-fadeIn">
+                            <div className="mb-3 sm:mb-4">
+                                <h3 className="font-heading font-semibold text-hotel-blue text-sm sm:text-base">
                                     Solicitações Internas
                                 </h3>
                             </div>
 
                             {/* Alternador de Abas (Modo Cápsula) */}
-                            <div className="mb-4 flex items-center gap-1 bg-hotel-light p-1 rounded-xl w-fit border border-hotel-gray/30 shadow-sm">
+                            <div className="mb-3 sm:mb-4 flex items-center gap-1 bg-hotel-light p-1 rounded-xl w-full sm:w-fit border border-hotel-gray/30 shadow-sm">
                                 <button
                                     type="button"
                                     onClick={() => setTab('minhas')}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                                    className={`flex-1 sm:flex-initial px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 text-center ${
                                         tab === 'minhas'
                                             ? 'bg-white text-hotel-blue shadow-sm'
                                             : 'text-hotel-gray-md hover:text-hotel-blue'
@@ -583,7 +583,7 @@ export default function DashboardLider() {
                                 <button
                                     type="button"
                                     onClick={() => setTab('abertas')}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                                    className={`flex-1 sm:flex-initial px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 text-center ${
                                         tab === 'abertas'
                                             ? 'bg-white text-hotel-blue shadow-sm'
                                             : 'text-hotel-gray-md hover:text-hotel-blue'
@@ -594,7 +594,7 @@ export default function DashboardLider() {
                             </div>
 
                             {/* Filtros */}
-                            <div className="flex flex-wrap gap-3 mb-4 items-center">
+                            <div className="flex flex-wrap gap-2.5 sm:gap-3 mb-3 sm:mb-4 items-center">
                                 <CustomSelect
                                     value={filterLider}
                                     onChange={setFilterLider}
@@ -610,7 +610,7 @@ export default function DashboardLider() {
                                 {(filterLider || filterStatus) && (
                                     <button
                                         onClick={() => { setFilterLider(''); setFilterStatus(''); }}
-                                        className="text-xs font-semibold text-hotel-gray-md hover:text-red-500 transition-colors px-2"
+                                        className="text-xs font-semibold text-hotel-gray-md hover:text-red-500 transition-colors px-2 py-1"
                                     >
                                         Limpar
                                     </button>
@@ -644,12 +644,12 @@ export default function DashboardLider() {
                                                     tab === 'minhas' ? '/ordens' : '/ordens/abertas-por-mim',
                                                     { state: { expandOsId: os.id, onlyMine: tab === 'minhas', onlyCreatedByMe: tab === 'abertas' } },
                                                 )}
-                                                className={`group relative flex flex-col justify-between rounded-xl border border-hotel-gray/40 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer border-l-4
+                                                className={`group relative flex flex-col justify-between rounded-xl border border-hotel-gray/40 bg-white p-3 sm:p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer border-l-4
                                                     ${atrasada ? 'border-l-red-500' : os.status === StatusOS.CONCLUIDO ? 'border-l-emerald-500' : os.status === StatusOS.EM_ANDAMENTO ? 'border-l-amber-500' : 'border-l-blue-500'}`}
                                             >
                                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start w-full">
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                                                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-1">
                                                             <StatusBadge status={os.status} />
                                                             <PDCABadge etapa={os.etapa_pdca} status={os.status} compact />
                                                             <span className="text-xs text-hotel-gray-md font-body bg-hotel-gray px-2 py-0.5 rounded-full">
@@ -659,8 +659,8 @@ export default function DashboardLider() {
                                                                 <span className="text-xs text-red-600 font-semibold">⚠ Atrasada</span>
                                                             )}
                                                         </div>
-                                                        <p className="font-semibold font-body text-hotel-blue text-sm mt-1">{os.titulo}</p>
-                                                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-body">
+                                                        <p className="font-semibold font-body text-hotel-blue text-xs sm:text-sm mt-1 line-clamp-2 sm:truncate">{os.titulo}</p>
+                                                        <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] font-body">
                                                             <span className="inline-flex items-center gap-1 rounded-full border border-hotel-gray/60 bg-hotel-light px-2 py-0.5 text-hotel-gray-md">
                                                                 Prazo oficial:
                                                                 <strong className={atrasada ? 'text-red-500' : 'text-hotel-blue'}>
@@ -676,7 +676,7 @@ export default function DashboardLider() {
                                                         </div>
                                                     </div>
                                                     
-                                                    <div className="flex items-center gap-3 self-stretch sm:self-center shrink-0">
+                                                    <div className="flex items-center gap-2 sm:gap-3 justify-between sm:justify-end self-stretch sm:self-center shrink-0">
                                                         {podeAtualizar && (
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); solicitarStatus(os, nextStatus[os.status]); }}
@@ -716,7 +716,7 @@ export default function DashboardLider() {
                         </div>
 
                         {/* Urgentes */}
-                        <div className="flex flex-col rounded-3xl border border-hotel-gray/30 bg-white p-6 shadow-sm h-[560px] animate-fadeIn">
+                        <div className="flex flex-col rounded-3xl border border-hotel-gray/30 bg-white p-4 sm:p-6 shadow-sm min-h-[480px] h-[520px] sm:h-[560px] animate-fadeIn">
                             <h3 className="font-heading font-semibold text-hotel-blue text-base mb-4 flex items-center gap-2">
                                 <AlertCircle size={18} className="text-amber-500" /> Urgentes / Próximas
                             </h3>

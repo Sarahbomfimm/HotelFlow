@@ -57,18 +57,18 @@ function CustomSelect({ value, onChange, options, placeholder }) {
     const selectedOption = options.find(opt => opt.value === value);
 
     return (
-        <div ref={containerRef} className="relative flex-1 min-w-[140px] font-body">
+        <div ref={containerRef} className="relative flex-1 min-w-[120px] sm:min-w-[140px] font-body">
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between gap-2 bg-white border border-hotel-gray/50 rounded-xl px-3 py-1.5 text-xs font-semibold text-hotel-blue shadow-sm outline-none hover:border-hotel-gold/60 focus:border-hotel-gold focus:ring-2 focus:ring-hotel-gold/10 transition-all cursor-pointer"
+                className="w-full flex items-center justify-between gap-1.5 sm:gap-2 bg-white border border-hotel-gray/50 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-hotel-blue shadow-sm outline-none hover:border-hotel-gold/60 focus:border-hotel-gold focus:ring-2 focus:ring-hotel-gold/10 transition-all cursor-pointer"
             >
                 <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
-                <ChevronDown size={14} className={`text-hotel-blue/60 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`text-hotel-blue/60 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-xl border border-hotel-gray/30 bg-white py-1 shadow-lg max-h-60 overflow-y-auto min-w-[160px] animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="absolute z-50 mt-1 w-full rounded-xl border border-hotel-gray/30 bg-white py-1 shadow-lg max-h-60 overflow-y-auto min-w-[150px] animate-in fade-in slide-in-from-top-1 duration-150">
                     <button
                         type="button"
                         onClick={() => { onChange(''); setIsOpen(false); }}
@@ -81,7 +81,7 @@ function CustomSelect({ value, onChange, options, placeholder }) {
                             key={opt.value}
                             type="button"
                             onClick={() => { onChange(opt.value); setIsOpen(false); }}
-                            className={`w-full text-left px-3 py-2 text-xs transition-colors truncate ${value === opt.value ? 'bg-hotel-light text-hotel-gold font-bold' : 'text-hotel-blue hover:bg-slate-50'}`}
+                            className={`w-full text-left px-3 py-2 text-xs transition-colors ${value === opt.value ? 'bg-hotel-light text-hotel-gold font-bold' : 'text-hotel-blue hover:bg-slate-50'}`}
                         >
                             {opt.label}
                         </button>
@@ -460,10 +460,10 @@ export default function DashboardDiretora() {
 
                     <div className="grid gap-6 lg:grid-cols-3">
                         {/* OS Recentes com filtros */}
-                        <div className="lg:col-span-2 h-[560px] bg-white/95 border border-hotel-gray/40 rounded-2xl shadow-sm p-6 flex flex-col animate-fadeIn">
-                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 mb-4">
+                        <div className="lg:col-span-2 min-h-[480px] h-[520px] sm:h-[560px] bg-white/95 border border-hotel-gray/40 rounded-2xl shadow-sm p-4 sm:p-6 flex flex-col animate-fadeIn">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3 sm:pb-4 mb-3 sm:mb-4">
                                 <div>
-                                    <h3 className="font-heading font-bold text-hotel-blue text-base">
+                                    <h3 className="font-heading font-bold text-hotel-blue text-sm sm:text-base">
                                         Solicitações Internas
                                     </h3>
                                     <p className="text-[11px] text-hotel-gray-md font-body mt-0.5">
@@ -472,10 +472,10 @@ export default function DashboardDiretora() {
                                 </div>
 
                                 {/* Abas Capsule */}
-                                <div className="bg-slate-100/80 p-0.5 rounded-xl flex gap-0.5 self-start sm:self-center">
+                                <div className="bg-slate-100/80 p-0.5 rounded-xl flex gap-0.5 self-stretch sm:self-center w-full sm:w-auto">
                                     <button
                                         onClick={() => { setTab('todas'); setFilterLider(''); setFilterStatus(''); }}
-                                        className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                                        className={`flex-1 sm:flex-initial px-3 sm:px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 text-center ${
                                             tab === 'todas' 
                                                 ? 'bg-white text-hotel-blue shadow-sm' 
                                                 : 'text-hotel-gray-md hover:text-hotel-blue'
@@ -485,7 +485,7 @@ export default function DashboardDiretora() {
                                     </button>
                                     <button
                                         onClick={() => { setTab('minhas'); setFilterLider(''); setFilterStatus(''); }}
-                                        className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                                        className={`flex-1 sm:flex-initial px-3 sm:px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 text-center ${
                                             tab === 'minhas' 
                                                 ? 'bg-white text-hotel-blue shadow-sm' 
                                                 : 'text-hotel-gray-md hover:text-hotel-blue'
@@ -497,7 +497,7 @@ export default function DashboardDiretora() {
                             </div>
 
                             {/* Filtros */}
-                            <div className="flex flex-wrap gap-3 mb-4">
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                                 {tab === 'todas' && (
                                     <CustomSelect
                                         value={filterLider}
@@ -515,7 +515,7 @@ export default function DashboardDiretora() {
                                 {((tab === 'todas' && filterLider) || filterStatus) && (
                                     <button
                                         onClick={() => { setFilterLider(''); setFilterStatus(''); }}
-                                        className="text-xs font-semibold text-red-500 hover:text-red-600 transition-colors px-2"
+                                        className="text-xs font-semibold text-red-500 hover:text-red-600 transition-colors px-2 py-1"
                                     >
                                         Limpar Filtros
                                     </button>
@@ -546,15 +546,15 @@ export default function DashboardDiretora() {
                                         return (
                                             <div
                                                 key={os.id}
-                                                className={`p-4 rounded-xl border border-hotel-gray/40 border-l-4 ${leftBorderColor} transition-all duration-200 cursor-pointer bg-white hover:bg-slate-50/30 hover:shadow-sm hover:translate-x-0.5`}
+                                                className={`p-3 sm:p-4 rounded-xl border border-hotel-gray/40 border-l-4 ${leftBorderColor} transition-all duration-200 cursor-pointer bg-white hover:bg-slate-50/30 hover:shadow-sm hover:translate-x-0.5`}
                                                 onClick={() => navigate('/ordens', { state: { expandOsId: os.id } })}
                                             >
-                                                <div className="flex items-center justify-between gap-4">
+                                                <div className="flex items-center justify-between gap-3 sm:gap-4">
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                                                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-1.5">
                                                             <StatusBadge status={os.status} />
                                                             <PDCABadge etapa={os.etapa_pdca} status={os.status} compact />
-                                                            <span className="text-[10px] text-hotel-gray-md font-bold uppercase tracking-wider bg-hotel-gray/50 px-2.5 py-0.5 rounded-md">
+                                                            <span className="text-[10px] text-hotel-gray-md font-bold uppercase tracking-wider bg-hotel-gray/50 px-2 py-0.5 rounded-md">
                                                                 {os.departamento}
                                                             </span>
                                                             {atrasada && (
@@ -564,12 +564,12 @@ export default function DashboardDiretora() {
                                                             )}
                                                         </div>
 
-                                                        <p className="font-semibold font-body text-hotel-blue text-sm hover:text-hotel-gold transition-colors truncate">
+                                                        <p className="font-semibold font-body text-hotel-blue text-xs sm:text-sm hover:text-hotel-gold transition-colors line-clamp-2 sm:truncate">
                                                             {os.titulo}
                                                         </p>
 
                                                         {/* Deadlines row below title */}
-                                                        <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[10px] font-body text-hotel-gray-md">
+                                                        <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] font-body text-hotel-gray-md">
                                                             <div className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md">
                                                                 <span>Prazo oficial:</span>
                                                                 <strong className={atrasada ? 'text-red-500' : 'text-hotel-blue'}>
@@ -596,7 +596,7 @@ export default function DashboardDiretora() {
                             {ordens.length > 8 && (
                                 <button
                                     onClick={() => navigate('/ordens', { state: { viewMode: 'todos' } })}
-                                    className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-hotel-gray/50 bg-white hover:bg-slate-50 py-2.5 text-xs font-bold text-hotel-blue shadow-sm hover:shadow-md hover:border-hotel-gold/50 transition-all duration-200"
+                                    className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-hotel-gray/50 bg-white hover:bg-slate-50 py-2 sm:py-2.5 text-xs font-bold text-hotel-blue shadow-sm hover:shadow-md hover:border-hotel-gold/50 transition-all duration-200 shrink-0"
                                 >
                                     Ver todas <ArrowRight size={14} />
                                 </button>
@@ -604,9 +604,9 @@ export default function DashboardDiretora() {
                         </div>
 
                         {/* Resumo por líder */}
-                        <div className="h-[560px] bg-white/95 border border-hotel-gray/40 rounded-2xl shadow-sm p-6 flex flex-col animate-fadeIn">
-                            <div className="border-b border-slate-100 pb-4 mb-4">
-                                <h3 className="font-heading font-bold text-hotel-blue text-base flex items-center gap-2">
+                        <div className="min-h-[480px] h-[520px] sm:h-[560px] bg-white/95 border border-hotel-gray/40 rounded-2xl shadow-sm p-4 sm:p-6 flex flex-col animate-fadeIn">
+                            <div className="border-b border-slate-100 pb-3 sm:pb-4 mb-3 sm:mb-4">
+                                <h3 className="font-heading font-bold text-hotel-blue text-sm sm:text-base flex items-center gap-2">
                                     <Users size={18} /> Resumo por Líder
                                 </h3>
                                 <p className="text-[11px] text-hotel-gray-md font-body mt-0.5">
@@ -614,7 +614,7 @@ export default function DashboardDiretora() {
                                 </p>
                             </div>
                             
-                            <div className="space-y-4 flex-1 overflow-y-auto pr-1 min-h-0">
+                            <div className="space-y-3 sm:space-y-4 flex-1 overflow-y-auto pr-1 min-h-0">
                                 {lideres.map((lider, index) => {
                                     const total = ordensSemTeste.filter((o) => belongsToLeader(o, lider)).length;
                                     const concl = ordensSemTeste.filter((o) => belongsToLeader(o, lider) && o.status === StatusOS.CONCLUIDO).length;
@@ -623,19 +623,19 @@ export default function DashboardDiretora() {
                                     const grad = gradients[index % gradients.length];
                                     
                                     return (
-                                        <div key={lider.id} className="flex items-start gap-3 py-1.5 group">
+                                        <div key={lider.id} className="flex items-start gap-2.5 sm:gap-3 py-1.5 group">
                                             {/* Avatar */}
-                                            <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0 text-white font-bold text-xs shadow-sm shadow-hotel-blue/10 group-hover:scale-105 transition-transform duration-200`}>
+                                            <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0 text-white font-bold text-xs shadow-sm shadow-hotel-blue/10 group-hover:scale-105 transition-transform duration-200`}>
                                                 {initials}
                                             </div>
                                             
                                             {/* Info */}
                                             <div className="flex-1 min-w-0 space-y-1">
-                                                <div className="flex items-center justify-between text-xs font-body">
+                                                <div className="flex items-center justify-between text-xs font-body gap-2">
                                                     <span className="font-semibold text-hotel-blue group-hover:text-hotel-gold transition-colors truncate">
                                                         {lider.nome}
                                                     </span>
-                                                    <span className="text-[10px] font-bold text-hotel-gray-md bg-hotel-gray/30 px-1.5 py-0.5 rounded-full">
+                                                    <span className="text-[10px] font-bold text-hotel-gray-md bg-hotel-gray/30 px-1.5 py-0.5 rounded-full shrink-0">
                                                         {concl}/{total}
                                                     </span>
                                                 </div>
@@ -648,7 +648,7 @@ export default function DashboardDiretora() {
                                                             style={{ width: `${pct}%` }}
                                                         />
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-hotel-blue font-heading w-7 text-right">
+                                                    <span className="text-[10px] font-bold text-hotel-blue font-heading w-7 text-right shrink-0">
                                                         {pct}%
                                                     </span>
                                                 </div>
