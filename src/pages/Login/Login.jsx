@@ -94,12 +94,12 @@ export default function Login() {
             </div>
 
             {/* Painel direito */}
-            <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-                <div className="lg:hidden mb-8">
+            <div className="flex-1 flex flex-col justify-between items-center px-6 py-6 min-h-screen">
+                <div className="lg:hidden mt-4">
                     <Logo size={44} />
                 </div>
 
-                <div className="w-full max-w-sm animate-fadeIn">
+                <div className="w-full max-w-sm my-auto animate-fadeIn py-6">
                     <h1 className="font-heading font-bold text-hotel-blue text-3xl mb-1">Bem-vindo</h1>
                     <p className="text-hotel-gray-md font-body text-sm mb-8">
                         Acesse sua conta para gerenciar as solicitações internas.
@@ -162,22 +162,19 @@ export default function Login() {
                             {loading ? 'Entrando...' : 'Entrar'}
                         </button>
                     </form>
-
-
                 </div>
 
-                <footer className="mt-8 text-center select-none z-10 relative">
-                    <div className="flex flex-col items-center justify-center gap-2.5 max-w-7xl mx-auto text-xs font-body text-hotel-gray-md">
-                        <div className="text-xs text-slate-500 font-medium">
-                            &copy; {new Date().getFullYear()} HotelFlow. Todos os direitos reservados.
-                        </div>
-                        <div className="flex items-center gap-2.5">
+                <footer className="w-full text-center select-none z-10 pt-4 pb-2">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 max-w-7xl mx-auto text-xs font-body text-hotel-gray-md">
+                        <span className="text-slate-500 font-medium">&copy; {new Date().getFullYear()} HotelFlow. Todos os direitos reservados.</span>
+                        <span className="hidden sm:inline text-slate-300">•</span>
+                        <div className="flex items-center gap-2">
                             <span className="text-slate-500 font-medium">Desenvolvido por</span>
                             <a
                                 href="https://yourpage-tech.vercel.app/"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-gradient-to-r from-[#2563EB] via-[#4F46E5] to-[#9333EA] text-white font-extrabold text-xs tracking-wide shadow-sm hover:shadow-md hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+                                className="inline-flex items-center justify-center px-3.5 py-1 rounded-full bg-gradient-to-r from-[#2563EB] via-[#4F46E5] to-[#9333EA] text-white font-extrabold text-xs tracking-wide shadow-sm hover:shadow-md hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
                             >
                                 YourPage
                             </a>
