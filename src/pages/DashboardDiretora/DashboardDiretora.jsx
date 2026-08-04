@@ -27,6 +27,7 @@ import {
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
 import StatusBadge from '../../components/Badge/StatusBadge';
+import DetalhesOSModal from '../../components/Modal/DetalhesOSModal';
 import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUsers } from '../../context/UsersContext';
@@ -234,6 +235,7 @@ export default function DashboardDiretora() {
     const [filterLider, setFilterLider] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [tab, setTab] = useState('todas'); // 'todas' ou 'minhas'
+    const [selectedOsId, setSelectedOsId] = useState(null);
     const [telegramInput, setTelegramInput] = useState('');
     const [telegramSaving, setTelegramSaving] = useState(false);
     const [showTelegramForm, setShowTelegramForm] = useState(false);
@@ -547,7 +549,7 @@ export default function DashboardDiretora() {
                                             <div
                                                 key={os.id}
                                                 className={`p-3 sm:p-4 rounded-xl border border-hotel-gray/40 border-l-4 ${leftBorderColor} transition-all duration-200 cursor-pointer bg-white hover:bg-slate-50/30 hover:shadow-sm hover:translate-x-0.5`}
-                                                onClick={() => navigate('/ordens', { state: { expandOsId: os.id } })}
+                                                onClick={() => setSelectedOsId(os.id)}
                                             >
                                                 <div className="flex items-center justify-between gap-3 sm:gap-4">
                                                     <div className="flex-1 min-w-0">
@@ -665,6 +667,12 @@ export default function DashboardDiretora() {
                     </div>
                 </div>
             </div>
+
+            <DetalhesOSModal
+                isOpen={!!selectedOsId}
+                osId={selectedOsId}
+                onClose={() => setSelectedOsId(null)}
+            />
         </AppLayout>
     );
 }

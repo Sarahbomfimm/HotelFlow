@@ -8,6 +8,7 @@ import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
 import StatusBadge from '../../components/Badge/StatusBadge';
 import StatusObservacaoModal from '../../components/Modal/StatusObservacaoModal';
+import DetalhesOSModal from '../../components/Modal/DetalhesOSModal';
 import { useOS } from '../../context/OSContext';
 import { matchesOrderActor, isPrimaryResponsible } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
@@ -223,6 +224,7 @@ export default function DashboardLider() {
     const displayName = currentUserProfile?.nome || user?.nome;
 
     const [obsModal, setObsModal] = useState({ open: false, os: null, novoStatus: null });
+    const [selectedOsId, setSelectedOsId] = useState(null);
     const [filterLider, setFilterLider] = useState('');
     const [tab, setTab] = useState('minhas');
     const [filterStatus, setFilterStatus] = useState('');
@@ -640,10 +642,7 @@ export default function DashboardLider() {
                                         return (
                                             <div
                                                 key={os.id}
-                                                onClick={() => navigate(
-                                                    tab === 'minhas' ? '/ordens' : '/ordens/abertas-por-mim',
-                                                    { state: { expandOsId: os.id, onlyMine: tab === 'minhas', onlyCreatedByMe: tab === 'abertas' } },
-                                                )}
+                                                onClick={() => setSelectedOsId(os.id)}
                                                 className={`group relative flex flex-col justify-between rounded-xl border border-hotel-gray/40 bg-white p-3 sm:p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer border-l-4
                                                     ${atrasada ? 'border-l-red-500' : os.status === StatusOS.CONCLUIDO ? 'border-l-emerald-500' : os.status === StatusOS.EM_ANDAMENTO ? 'border-l-amber-500' : 'border-l-blue-500'}`}
                                             >
@@ -737,7 +736,7 @@ export default function DashboardLider() {
                                         return (
                                             <button
                                                 key={os.id}
-                                                onClick={() => navigate('/ordens', { state: { expandOsId: os.id, onlyMine: true } })}
+                                                onClick={() => setSelectedOsId(os.id)}
                                                 className={`w-full text-left p-3 rounded-lg border-l-4 transition-all hover:shadow-card cursor-pointer
                                                         ${atrasada ? 'border-red-400 bg-red-50 hover:bg-red-100' : 'border-amber-400 bg-amber-50 hover:bg-amber-100'}`}
                                             >
@@ -765,6 +764,12 @@ export default function DashboardLider() {
                 novoStatus={obsModal.novoStatus}
                 onConfirm={confirmarStatus}
                 onCancel={() => setObsModal({ open: false, os: null, novoStatus: null })}
+            />
+
+            <DetalhesOSModal
+                isOpen={!!selectedOsId}
+                osId={selectedOsId}
+                onClose={() => setSelectedOsId(null)}
             />
         </>
     );
