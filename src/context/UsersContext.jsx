@@ -34,20 +34,53 @@ function writeStoredTelegramChatId(email, chatId) {
     window.localStorage.removeItem(key);
 }
 
+function getStoredDeletedEmails() {
+    if (typeof window === 'undefined') return [];
+    try {
+        const raw = window.localStorage.getItem('hotelflow:deleted_user_emails');
+        return raw ? JSON.parse(raw) : [];
+    } catch {
+        return [];
+    }
+}
+
 function sanitizeMockUsers() {
     return USERS
         .filter((user) => user.email?.toLowerCase() !== 'bernadino@hotelflow.com')
         .map(({ senha: _omit, ...safeUser }) => safeUser);
 }
 
-function mergeUsersWithFallback(firebaseUsers) {
-    const merged = new Map(
-        sanitizeMockUsers().map((user) => [user.email.toLowerCase(), user]),
+function mergeUsersWithFallback(firebaseUsers, deletedEmailsFromFirestore = []) {
+    const deletedSet = new Set(
+        [
+            ...deletedEmailsFromFirestore,
+            ...getStoredDeletedEmails(),
+        ].map((e) => String(e).trim().toLowerCase()).filter(Boolean),
     );
 
-    firebaseUsers.forEach((user) => {
+    const hasFirebaseUsers = Array.isArray(firebaseUsers) && firebaseUsers.length > 0;
+    const firebaseEmailMap = new Map(
+        (firebaseUsers || []).map((u) => [u.email?.toLowerCase(), u]),
+    );
+
+    const baseMockUsers = sanitizeMockUsers().filter((user) => {
         const emailKey = user.email?.toLowerCase();
-        if (!emailKey) {
+        if (!emailKey || deletedSet.has(emailKey) || user.deleted === true) {
+            return false;
+        }
+        if (hasFirebaseUsers && !firebaseEmailMap.has(emailKey)) {
+            return false;
+        }
+        return true;
+    });
+
+    const merged = new Map(
+        baseMockUsers.map((user) => [user.email.toLowerCase(), user]),
+    );
+
+    (firebaseUsers || []).forEach((user) => {
+        const emailKey = user.email?.toLowerCase();
+        if (!emailKey || deletedSet.has(emailKey) || user.deleted === true) {
             return;
         }
 
@@ -69,10 +102,15 @@ function mergeUsersWithFallback(firebaseUsers) {
         });
     });
 
-    return Array.from(merged.values()).map((item) => ({
-        ...item,
-        permissions: normalizePermissions(item.role, item.permissions),
-    }));
+    return Array.from(merged.values())
+        .filter((item) => {
+            const emailKey = item.email?.toLowerCase();
+            return emailKey && !deletedSet.has(emailKey) && !item.deleted;
+        })
+        .map((item) => ({
+            ...item,
+            permissions: normalizePermissions(item.role, item.permissions),
+        }));
 }
 
 function isDepartmentResponsible(user) {
@@ -102,11 +140,29 @@ export function UsersProvider({ children }) {
     const { user, authReady } = useAuth();
     const [users, setUsers] = useState(sanitizeMockUsers);
     const [usersFromFirestore, setUsersFromFirestore] = useState([]);
+    const [deletedFirestoreEmails, setDeletedFirestoreEmails] = useState([]);
     const [loading, setLoading] = useState(Boolean(isFirebaseConfigured && db));
 
     useEffect(() => {
+        if (!isFirebaseConfigured || !db || !user) {
+            setDeletedFirestoreEmails([]);
+            return undefined;
+        }
+
+        const deletedQuery = collection(db, 'deleted_users');
+        const unsubscribe = onSnapshot(deletedQuery, (snapshot) => {
+            const emails = snapshot.docs.map((docSnap) => docSnap.id.toLowerCase());
+            setDeletedFirestoreEmails(emails);
+        }, () => {
+            setDeletedFirestoreEmails([]);
+        });
+
+        return unsubscribe;
+    }, [user]);
+
+    useEffect(() => {
         if (!isFirebaseConfigured || !db) {
-            setUsers(sanitizeMockUsers());
+            setUsers(mergeUsersWithFallback([], deletedFirestoreEmails));
             setUsersFromFirestore([]);
             setLoading(false);
             return undefined;
@@ -118,7 +174,7 @@ export function UsersProvider({ children }) {
         }
 
         if (!user) {
-            setUsers(sanitizeMockUsers());
+            setUsers(mergeUsersWithFallback([], deletedFirestoreEmails));
             setUsersFromFirestore([]);
             setLoading(false);
             return undefined;
@@ -128,7 +184,7 @@ export function UsersProvider({ children }) {
 
         const unsubscribe = onSnapshot(usersQuery, (snapshot) => {
             if (snapshot.empty) {
-                setUsers(sanitizeMockUsers());
+                setUsers(mergeUsersWithFallback([], deletedFirestoreEmails));
                 setUsersFromFirestore([]);
             } else {
                 const firebaseUsers = snapshot.docs.map((userDoc) => ({
@@ -142,17 +198,17 @@ export function UsersProvider({ children }) {
                 }));
 
                 setUsersFromFirestore(firebaseUsers);
-                setUsers(mergeUsersWithFallback(firebaseUsers));
+                setUsers(mergeUsersWithFallback(firebaseUsers, deletedFirestoreEmails));
             }
             setLoading(false);
         }, () => {
-            setUsers(sanitizeMockUsers());
+            setUsers(mergeUsersWithFallback([], deletedFirestoreEmails));
             setUsersFromFirestore([]);
             setLoading(false);
         });
 
         return unsubscribe;
-    }, [authReady, user]);
+    }, [authReady, user, deletedFirestoreEmails]);
 
     const normalizedUsers = useMemo(() => {
         const diretora = users.find((item) => item.role === UserRole.DIRETORA);

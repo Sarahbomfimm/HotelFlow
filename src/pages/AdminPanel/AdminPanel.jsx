@@ -255,6 +255,24 @@ export default function AdminPanel() {
                 addNotification('Usuário atualizado com sucesso no Firestore!', 'success');
             }
 
+            // Remove de deleted_users em caso de recriação/edição
+            if (email && isFirebaseConfigured && db) {
+                try {
+                    await deleteDoc(doc(db, 'deleted_users', email));
+                } catch {
+                    // ignore
+                }
+            }
+            if (email) {
+                try {
+                    const stored = JSON.parse(localStorage.getItem('hotelflow:deleted_user_emails') || '[]');
+                    const updated = stored.filter((e) => e.toLowerCase() !== email.toLowerCase());
+                    localStorage.setItem('hotelflow:deleted_user_emails', JSON.stringify(updated));
+                } catch {
+                    // ignore
+                }
+            }
+
             resetForm();
             setShowForm(false);
         } catch (error) {
@@ -266,11 +284,12 @@ export default function AdminPanel() {
 
     const handleDeleteUser = async (selectedUser) => {
         const userName = selectedUser?.nome || 'este usuário';
-        if (!window.confirm(`Tem certeza que deseja deletar ${userName} do Firestore?`)) return;
+        if (!window.confirm(`Tem certeza que deseja deletar ${userName}?`)) return;
 
         try {
+            const email = String(selectedUser?.email || '').trim().toLowerCase();
+
             if (isFirebaseConfigured && db) {
-                const email = String(selectedUser?.email || '').trim().toLowerCase();
                 const docIds = new Set([selectedUser?.id].filter(Boolean));
 
                 if (email) {
@@ -278,14 +297,31 @@ export default function AdminPanel() {
                         query(collection(db, 'users'), where('email', '==', email)),
                     );
                     usersByEmailSnapshot.docs.forEach((snapshotDoc) => docIds.add(snapshotDoc.id));
+
+                    await setDoc(doc(db, 'deleted_users', email), {
+                        email,
+                        deletedAt: new Date().toISOString(),
+                    });
                 }
 
                 await Promise.all(
                     Array.from(docIds).map((docId) => deleteDoc(doc(db, 'users', docId))),
                 );
             }
-            addNotification(`${userName} foi removido do Firestore.`, 'success');
-            addNotification('Observação: conta do Firebase Auth deve ser removida no console/admin SDK.', 'info');
+
+            if (email) {
+                try {
+                    const stored = JSON.parse(localStorage.getItem('hotelflow:deleted_user_emails') || '[]');
+                    if (!stored.includes(email)) {
+                        stored.push(email);
+                        localStorage.setItem('hotelflow:deleted_user_emails', JSON.stringify(stored));
+                    }
+                } catch {
+                    // ignore
+                }
+            }
+
+            addNotification(`${userName} foi removido com sucesso.`, 'success');
         } catch (error) {
             addNotification(`Erro ao deletar: ${error.message}`, 'error');
         }

@@ -14,6 +14,7 @@ export const PERMISSIONS = {
     SI_FINALIZE: 'si_finalize',
     SI_EDIT: 'si_edit',
     INVESTIMENTOS_VIEW: 'investimentos_view',
+    MANUTENCAO_VIEW: 'manutencao_view',
     TREINAMENTOS_ACCESS: 'treinamentos_access',
     INDICADORES_MANAGE: 'indicadores_manage',
 };
@@ -98,6 +99,12 @@ export const PERMISSION_DEFINITIONS = [
         category: 'Investimentos',
     },
     {
+        key: PERMISSIONS.MANUTENCAO_VIEW,
+        label: 'Visualizar módulo Manutenção',
+        description: 'Permite abrir o módulo de Manutenção na barra lateral.',
+        category: 'Manutenção',
+    },
+    {
         key: PERMISSIONS.TREINAMENTOS_ACCESS,
         label: 'Acessar Treinamentos',
         description: 'Permite abrir as telas do módulo de Treinamentos.',
@@ -127,6 +134,7 @@ export function getDefaultPermissions(role) {
             [PERMISSIONS.SI_FINALIZE]: true,
             [PERMISSIONS.SI_EDIT]: true,
             [PERMISSIONS.INVESTIMENTOS_VIEW]: true,
+            [PERMISSIONS.MANUTENCAO_VIEW]: true,
             [PERMISSIONS.TREINAMENTOS_ACCESS]: true,
             [PERMISSIONS.INDICADORES_MANAGE]: true,
         };
@@ -147,6 +155,7 @@ export function getDefaultPermissions(role) {
             [PERMISSIONS.SI_FINALIZE]: true,
             [PERMISSIONS.SI_EDIT]: true,
             [PERMISSIONS.INVESTIMENTOS_VIEW]: false,
+            [PERMISSIONS.MANUTENCAO_VIEW]: true,
             [PERMISSIONS.TREINAMENTOS_ACCESS]: true,
             [PERMISSIONS.INDICADORES_MANAGE]: true,
         };
@@ -166,6 +175,7 @@ export function getDefaultPermissions(role) {
         [PERMISSIONS.SI_FINALIZE]: false,
         [PERMISSIONS.SI_EDIT]: true,
         [PERMISSIONS.INVESTIMENTOS_VIEW]: false,
+        [PERMISSIONS.MANUTENCAO_VIEW]: true,
         [PERMISSIONS.TREINAMENTOS_ACCESS]: false,
         [PERMISSIONS.INDICADORES_MANAGE]: false,
     };

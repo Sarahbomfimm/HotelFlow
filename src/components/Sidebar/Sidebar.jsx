@@ -1,7 +1,7 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, ChartNoAxesCombined, CalendarDays,
-    LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus, TrendingUp,
+    LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus, TrendingUp, Wrench,
     User, GraduationCap, BookOpen, BarChart3, Folder, FileText
 } from 'lucide-react';
 import { useEffect, useMemo, useState, useRef } from 'react';
@@ -24,6 +24,7 @@ const liderLinks = [
     { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
     { to: '/pops', label: 'POPs', icon: BookOpen },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
+    { to: 'https://ware-mentor.vercel.app/', label: 'Manutenção', icon: Wrench, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
 const diretoraLinks = [
@@ -38,6 +39,7 @@ const diretoraLinks = [
     { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
     { to: '/pops', label: 'POPs', icon: BookOpen },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
+    { to: 'https://ware-mentor.vercel.app/', label: 'Manutenção', icon: Wrench, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
 const adminLinks = [
@@ -52,6 +54,7 @@ const adminLinks = [
     { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
     { to: '/pops', label: 'POPs', icon: BookOpen },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
+    { to: 'https://ware-mentor.vercel.app/', label: 'Manutenção', icon: Wrench, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
 export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
@@ -78,6 +81,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
     const canAccessTreinamentos = hasPermission(displayUser, PERMISSIONS.TREINAMENTOS_ACCESS);
     const canAccessAdminPanel = hasPermission(displayUser, PERMISSIONS.ADMIN_PANEL_ACCESS);
     const canAccessInvestimentos = hasPermission(displayUser, PERMISSIONS.INVESTIMENTOS_VIEW);
+    const canAccessManutencao = hasPermission(displayUser, PERMISSIONS.MANUTENCAO_VIEW);
 
     const isManagementRole = displayUser?.role === UserRole.ADMIN || displayUser?.role === UserRole.DIRETORA;
     const links = displayUser?.role === UserRole.ADMIN
@@ -92,6 +96,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
         if (link.to === '/aprovacoes') return canAccessAprovacoes;
         if (link.to === '/admin') return canAccessAdminPanel;
         if (link.label === 'Investimentos') return canAccessInvestimentos;
+        if (link.label === 'Manutenção') return canAccessManutencao;
         return true;
     });
     const showLabels = !collapsed || mobileMenuOpen;
