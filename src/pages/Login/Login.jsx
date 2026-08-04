@@ -11,9 +11,15 @@ export default function Login() {
     const [senha, setSenha] = useState('');
     const [showPwd, setShowPwd] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [isReadOnly, setIsReadOnly] = useState(true);
+
+    const handleFocusInput = () => {
+        setIsReadOnly(false);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsReadOnly(false);
         clearError();
         setLoading(true);
         await new Promise((r) => setTimeout(r, 400));
@@ -105,13 +111,17 @@ export default function Login() {
                         Acesse sua conta para gerenciar as solicitações internas.
                     </p>
 
-                    <form onSubmit={handleSubmit} noValidate className="space-y-5">
+                    <form onSubmit={handleSubmit} noValidate className="space-y-5" autoComplete="off">
                         <div>
                             <label className="label" htmlFor="email">E-mail</label>
                             <input
                                 id="email"
+                                name="email"
                                 type="email"
-                                autoComplete="email"
+                                autoComplete="off"
+                                readOnly={isReadOnly}
+                                onFocus={handleFocusInput}
+                                onClick={handleFocusInput}
                                 required
                                 className="input"
                                 placeholder="seu@email.com"
@@ -125,8 +135,12 @@ export default function Login() {
                             <div className="relative">
                                 <input
                                     id="senha"
+                                    name="senha"
                                     type={showPwd ? 'text' : 'password'}
-                                    autoComplete="current-password"
+                                    autoComplete="new-password"
+                                    readOnly={isReadOnly}
+                                    onFocus={handleFocusInput}
+                                    onClick={handleFocusInput}
                                     required
                                     className="input pr-11"
                                     placeholder="••••••••"
