@@ -12,6 +12,7 @@ import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
+import { UserRole } from '../../models/User';
 import { ApprovalStage, ApprovalStageLabel, StatusOS, PDCALabel, PDCAStep } from '../../models/OrdemDeServico';
 import { hasPermission, PERMISSIONS } from '../../services/permissions';
 
@@ -401,8 +402,9 @@ export default function Aprovacoes() {
     const { addNotification } = useNotification();
 
     const actor = currentUserProfile || user;
-    const canMove = hasPermission(actor, PERMISSIONS.SI_APPROVALS_MOVE);
-    const canViewAll = hasPermission(actor, PERMISSIONS.SI_APPROVALS_VIEW_ALL);
+    const isAdmin = actor?.role === UserRole.ADMIN || actor?.role === 'admin';
+    const canMove = isAdmin || hasPermission(actor, PERMISSIONS.SI_APPROVALS_MOVE);
+    const canViewAll = isAdmin || hasPermission(actor, PERMISSIONS.SI_APPROVALS_VIEW_ALL);
     const actorDepartments = actor?.departamentos || [];
     const [draggingId, setDraggingId] = useState(null);
     const [modalRecusaAberto, setModalRecusaAberto] = useState(false);
@@ -411,22 +413,24 @@ export default function Aprovacoes() {
 
     const podeMoverCard = useCallback((order) => {
         if (!order || !actor) return false;
-        if (canMove) return true;
+        if (isAdmin || canMove) return true;
         return matchesOrderActor(order, actor, 'criado_por');
-    }, [actor, canMove]);
+    }, [actor, canMove, isAdmin]);
 
     const visibleOrders = useMemo(() => {
-        if (canViewAll) {
+        if (isAdmin || canViewAll) {
             return ordens;
         }
 
         return getOSPorLider(actorDepartments, actor);
-    }, [actor, actorDepartments, canViewAll, getOSPorLider, ordens]);
+    }, [actor, actorDepartments, canViewAll, isAdmin, getOSPorLider, ordens]);
 
     const approvalOrders = useMemo(() => {
         return visibleOrders
             .filter((order) => [ApprovalStage.SOLICITADA, ApprovalStage.EM_ANALISE, ApprovalStage.FINALIZADA].includes(order.aprovacao_finalizacao_status))
             .filter((order) => {
+                // Usuário ADMIN visualiza todas as SIs do módulo de aprovação independentemente de hierarquia ou participação
+                if (isAdmin) return true;
                 // SIs criadas pelo usuário logado (actor) ou que ele participe (como responsável ou co-responsável)
                 return (
                     matchesOrderActor(order, actor, 'criado_por') ||
@@ -434,7 +438,7 @@ export default function Aprovacoes() {
                 );
             })
             .sort((left, right) => new Date(right.aprovacao_finalizacao_solicitada_em || right.criado_em) - new Date(left.aprovacao_finalizacao_solicitada_em || left.criado_em));
-    }, [visibleOrders, actor]);
+    }, [visibleOrders, actor, isAdmin]);
 
     const grouped = useMemo(() => {
         return COLUMNS.reduce((acc, column) => {

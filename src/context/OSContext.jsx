@@ -552,7 +552,8 @@ export function OSProvider({ children }) {
         if (!os) return;
 
         const isCriador = matchesOrderActor(os, usuario, 'criado_por');
-        if (!hasPermission(usuario, PERMISSIONS.SI_APPROVALS_MOVE) && !isCriador) {
+        const isAdmin = usuario?.role === UserRole.ADMIN || usuario?.role === 'admin';
+        if (!isAdmin && !hasPermission(usuario, PERMISSIONS.SI_APPROVALS_MOVE) && !isCriador) {
             throw new Error('Você não tem permissão para mover cards no kanban de aprovações.');
         }
 
@@ -628,7 +629,8 @@ export function OSProvider({ children }) {
         if (!os) return;
 
         const isCriador = matchesOrderActor(os, usuario, 'criado_por');
-        if (!hasPermission(usuario, PERMISSIONS.SI_APPROVALS_MOVE) && !isCriador) {
+        const isAdmin = usuario?.role === UserRole.ADMIN || usuario?.role === 'admin';
+        if (!isAdmin && !hasPermission(usuario, PERMISSIONS.SI_APPROVALS_MOVE) && !isCriador) {
             throw new Error('Você não tem permissão para recusar solicitações de finalização.');
         }
 
