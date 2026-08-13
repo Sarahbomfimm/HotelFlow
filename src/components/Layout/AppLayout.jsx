@@ -47,7 +47,7 @@ export default function AppLayout({ children, pageTitle }) {
                                 <div className="flex items-center gap-2.5">
                                     <span className="text-slate-500 font-medium">Desenvolvido por</span>
                                     <a
-                                        href="https://yourpage-tech.vercel.app/"
+                                        href="https://yourpage.com.br/"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-gradient-to-r from-[#2563EB] via-[#4F46E5] to-[#9333EA] text-white font-extrabold text-xs tracking-wide shadow-sm hover:shadow-md hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
