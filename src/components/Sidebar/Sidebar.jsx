@@ -2,7 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, ChartNoAxesCombined, CalendarDays,
     LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus, TrendingUp, Wrench,
-    User, GraduationCap, BookOpen, BarChart3, Folder, FileText
+    User, GraduationCap, BookOpen, BarChart3, Folder, FileText, Target
 } from 'lucide-react';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import Logo from '../Logo/Logo';
@@ -18,6 +18,7 @@ const liderLinks = [
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: User },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/indicadores', label: 'Indicadores', icon: BarChart3 },
+    { to: 'https://docs.google.com/spreadsheets/d/1GybKa0KdEWdUDisDMF7azhSQK-xg7fTUCscadcLZRrA/edit?usp=sharing', label: 'Metas', icon: Target, external: true },
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
@@ -33,6 +34,7 @@ const diretoraLinks = [
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: User },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/indicadores', label: 'Indicadores', icon: BarChart3 },
+    { to: 'https://docs.google.com/spreadsheets/d/1GybKa0KdEWdUDisDMF7azhSQK-xg7fTUCscadcLZRrA/edit?usp=sharing', label: 'Metas', icon: Target, external: true },
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
@@ -48,6 +50,7 @@ const adminLinks = [
     { to: '/ordens/abertas-por-mim', label: 'Abertas por mim', icon: User },
     { to: '/pdca-visual', label: 'PDCA Visual', icon: ChartNoAxesCombined },
     { to: '/indicadores', label: 'Indicadores', icon: BarChart3 },
+    { to: 'https://docs.google.com/spreadsheets/d/1GybKa0KdEWdUDisDMF7azhSQK-xg7fTUCscadcLZRrA/edit?usp=sharing', label: 'Metas', icon: Target, external: true },
     { to: '/aprovacoes', label: 'Aprovações', icon: Eye },
     { to: '/reunioes', label: 'Reuniões', icon: CalendarDays },
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
