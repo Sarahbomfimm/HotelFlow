@@ -165,6 +165,23 @@ export default function Indicadores() {
         return () => unsubscribe?.();
     }, [addNotification]);
 
+    // Estado para controlar se o usuário alterou o mês manualmente
+    const [hasUserSelectedMonth, setHasUserSelectedMonth] = useState(false);
+
+    // Seleciona automaticamente o mês que contém os dados mais recentes registrados
+    useEffect(() => {
+        if (!hasUserSelectedMonth && allIndicadores && allIndicadores.length > 0) {
+            const monthsWithData = [...allIndicadores]
+                .map((ind) => ind.mes)
+                .filter(Boolean)
+                .sort((a, b) => b.localeCompare(a));
+
+            if (monthsWithData.length > 0) {
+                setSelectedMonth(monthsWithData[0]);
+            }
+        }
+    }, [allIndicadores, hasUserSelectedMonth]);
+
     // Filtrar setores válidos
     const sectors = useMemo(() => {
         const source = availableDepartments && availableDepartments.length > 0 
@@ -299,6 +316,8 @@ export default function Indicadores() {
                 updatedAt: new Date().toISOString()
             });
 
+            setSelectedMonth(modalData.mes);
+            setHasUserSelectedMonth(true);
             addNotification(`Indicador do setor ${modalData.departamento} salvo com sucesso!`, 'success');
             setShowModal(false);
         } catch (error) {
@@ -507,6 +526,7 @@ export default function Indicadores() {
                                                         type="button"
                                                         onClick={() => {
                                                             setSelectedMonth(`${tempYear}-${m.value}`);
+                                                            setHasUserSelectedMonth(true);
                                                             setIsDropdownOpen(false);
                                                         }}
                                                         className={`py-2 rounded-xl text-[11px] font-bold font-body transition-all text-center cursor-pointer ${
