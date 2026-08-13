@@ -38,7 +38,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
-import { subscribeIndicadores, saveIndicador, deleteIndicador } from '../../services/indicadoresStorage';
+import { subscribeIndicadores, saveIndicador, deleteIndicador, DEFAULT_INDICADORES_SPREADSHEET_URL } from '../../services/indicadoresStorage';
 import { hasPermission, PERMISSIONS } from '../../services/permissions';
 
 // Lista padrão de setores para garantir que a tela nunca fique vazia
@@ -151,7 +151,7 @@ export default function Indicadores() {
         departamento: '',
         mes: '',
         porcentagem: 0,
-        linkPlanilha: ''
+        linkPlanilha: DEFAULT_INDICADORES_SPREADSHEET_URL
     });
     const [saving, setSaving] = useState(false);
     const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -270,7 +270,7 @@ export default function Indicadores() {
             departamento: sectorName,
             mes: selectedMonth,
             porcentagem: record ? record.porcentagem : 75,
-            linkPlanilha: record ? record.linkPlanilha : ''
+            linkPlanilha: record && record.linkPlanilha ? record.linkPlanilha : DEFAULT_INDICADORES_SPREADSHEET_URL
         });
         setShowModal(true);
     };
@@ -294,7 +294,7 @@ export default function Indicadores() {
                 departamento: modalData.departamento,
                 mes: modalData.mes,
                 porcentagem: Number(modalData.porcentagem),
-                linkPlanilha: modalData.linkPlanilha.trim(),
+                linkPlanilha: modalData.linkPlanilha ? modalData.linkPlanilha.trim() : DEFAULT_INDICADORES_SPREADSHEET_URL,
                 atualizadoPor: profile?.nome || 'Usuário',
                 updatedAt: new Date().toISOString()
             });
@@ -801,7 +801,7 @@ export default function Indicadores() {
                             const IconComponent = config.icon;
                             const record = currentMonthMap[dept];
                             const pct = record ? record.porcentagem : null;
-                            const hasLink = record && record.linkPlanilha;
+                            const spreadsheetLink = (record && record.linkPlanilha) ? record.linkPlanilha : DEFAULT_INDICADORES_SPREADSHEET_URL;
 
                             const classification = pct !== null ? getClassification(pct) : null;
 
@@ -874,23 +874,14 @@ export default function Indicadores() {
 
                                     {/* Ações Inferiores */}
                                     <div className="mt-5 border-t border-slate-100 pt-4 flex items-center justify-between">
-                                        {hasLink ? (
-                                            <a
-                                                href={record.linkPlanilha}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 text-[11px] font-bold text-hotel-blue hover:text-hotel-gold transition-colors"
-                                            >
-                                                <ExternalLink size={12} /> Ver Planilha Completa
-                                            </a>
-                                        ) : (
-                                            <span 
-                                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-350"
-                                                title="Não há link para a planilha detalhada cadastrada neste período."
-                                            >
-                                                <ExternalLink size={12} /> Sem Link Disponível
-                                            </span>
-                                        )}
+                                        <a
+                                            href={spreadsheetLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-[11px] font-bold text-hotel-blue hover:text-hotel-gold transition-colors"
+                                        >
+                                            <ExternalLink size={12} /> Ver Planilha Completa
+                                        </a>
 
                                         {canEditSector(dept) && (
                                             <button
@@ -979,7 +970,7 @@ export default function Indicadores() {
                                     className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs outline-none focus:border-hotel-blue focus:ring-1 focus:ring-hotel-blue shadow-sm"
                                 />
                                 <p className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mt-1">
-                                    <Info size={10} /> Cole o link da planilha do setor para consulta detalhada.
+                                    <Info size={10} /> Link fixo da planilha dos indicadores pré-preenchido.
                                 </p>
                             </div>
 

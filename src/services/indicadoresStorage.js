@@ -12,13 +12,15 @@ import { db, isFirebaseConfigured } from './firebase';
 const INDICADORES_STORAGE_KEY = 'hotelflow:indicadores:v1';
 const INDICADORES_COLLECTION = 'indicadores';
 
+export const DEFAULT_INDICADORES_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1fBPzz9MvNqtZdS6FiYrsvyqTAXNBMpty/edit?gid=929226997#gid=929226997';
+
 function normalizeIndicadorRecord(id, data) {
     return {
         id,
         departamento: data?.departamento || '',
         mes: data?.mes || '', // Formato YYYY-MM
         porcentagem: typeof data?.porcentagem === 'number' ? data.porcentagem : 0,
-        linkPlanilha: data?.linkPlanilha || '',
+        linkPlanilha: data?.linkPlanilha || DEFAULT_INDICADORES_SPREADSHEET_URL,
         atualizadoPor: data?.atualizadoPor || 'Sistema',
         updatedAt: data?.updatedAt || new Date().toISOString(),
     };
