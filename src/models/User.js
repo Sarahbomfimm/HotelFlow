@@ -14,6 +14,4 @@ export const UserRole = {
  * @property {'admin'|'diretora'|'lider'} role
  * @property {string[]} departamentos  - departamentos sob responsabilidade do líder
  */
-export function createUser({ id, nome, email, senha, role, departamentos = [] }) {
-    return { id, nome, email, senha, role, departamentos };
-}
+

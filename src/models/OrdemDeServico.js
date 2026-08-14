@@ -1,4 +1,4 @@
-﻿// Modelo de dados: Ordem de Serviço
+// Modelo de dados: Ordem de Serviço
 export const StatusOS = {
     ABERTO: 'aberto',
     EM_ANDAMENTO: 'em_andamento',
@@ -77,25 +77,4 @@ export const DEPARTAMENTOS = [
  * @property {string} criado_por_id
  * @property {string} criado_por_nome
  */
-export function createOrdemDeServico({
-    id,
-    titulo,
-    descricao,
-    departamento,
-    responsavel_id,
-    responsavel_nome,
-    prazo,
-    status = StatusOS.ABERTO,
-    etapa_pdca = PDCAStep.PLAN,
-    historico = [],
-    criado_em = new Date().toISOString(),
-    criado_por_id,
-    criado_por_nome,
-}) {
-    return {
-        id, titulo, descricao, departamento,
-        responsavel_id, responsavel_nome,
-        prazo, status, etapa_pdca, historico,
-        criado_em, criado_por_id, criado_por_nome,
-    };
-}
+

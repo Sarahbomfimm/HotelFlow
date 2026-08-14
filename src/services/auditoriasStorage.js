@@ -34,8 +34,8 @@ function normalizeAuditRecord(id, data) {
 
 function serializeAuditRecord(audit) {
     const normalized = normalizeAuditRecord(audit?.id || `${Date.now()}`, audit);
-    const { id, ...payload } = normalized;
-    return payload;
+    delete normalized.id;
+    return normalized;
 }
 
 function mergeAuditInCache(audit) {

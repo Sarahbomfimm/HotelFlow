@@ -94,7 +94,7 @@ export const PERMISSION_DEFINITIONS = [
     },
     {
         key: PERMISSIONS.INVESTIMENTOS_VIEW,
-        label: 'Vizualizar app de investimentos',
+        label: 'Visualizar app de investimentos',
         description: 'Permite abrir o módulo de Investimentos na barra lateral.',
         category: 'Investimentos',
     },

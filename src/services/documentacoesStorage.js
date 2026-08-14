@@ -6,7 +6,6 @@ import {
     orderBy,
     query,
     setDoc,
-    where,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 
@@ -29,8 +28,8 @@ function normalizeCategoryRecord(id, data) {
 
 function serializeCategoryRecord(category) {
     const normalized = normalizeCategoryRecord(category?.id || `${Date.now()}`, category);
-    const { id, ...payload } = normalized;
-    return payload;
+    delete normalized.id;
+    return normalized;
 }
 
 function normalizeDocumentRecord(id, data) {
@@ -48,8 +47,8 @@ function normalizeDocumentRecord(id, data) {
 
 function serializeDocumentRecord(docRec) {
     const normalized = normalizeDocumentRecord(docRec?.id || `${Date.now()}`, docRec);
-    const { id, ...payload } = normalized;
-    return payload;
+    delete normalized.id;
+    return normalized;
 }
 
 // CACHE FUNCTIONS FOR CATEGORIES
