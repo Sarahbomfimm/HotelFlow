@@ -203,11 +203,11 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
     const confirmDelete = async () => {
         setToDelete(null);
         try {
-            await excluirOS(os.id);
+            await excluirOS(os.id, actor);
             addNotification(`SI "${os.titulo}" excluída com sucesso.`, 'success');
             onClose?.();
         } catch (error) {
-            addNotification('Erro ao excluir SI.', 'error');
+            addNotification(error?.message || 'Erro ao excluir SI.', 'error');
         }
     };
 
