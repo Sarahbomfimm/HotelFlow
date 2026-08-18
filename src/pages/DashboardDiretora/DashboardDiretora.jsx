@@ -627,7 +627,7 @@ export default function DashboardDiretora() {
                                     return (
                                         <div key={lider.id} className="flex items-start gap-2.5 sm:gap-3 py-1.5 group">
                                             {/* Avatar */}
-                                            <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0 text-white font-bold text-xs shadow-sm shadow-hotel-blue/10 group-hover:scale-105 transition-transform duration-200`}>
+                                            <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0 text-white font-bold text-xs shadow-sm shadow-hotel-blue/10`}>
                                                 {initials}
                                             </div>
                                             

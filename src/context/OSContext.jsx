@@ -1024,18 +1024,18 @@ export function OSProvider({ children }) {
         };
     }, [ordens]);
 
-    /** Remove uma OS (apenas por admin/diretoria ou pelo criador) */
+    /** Remove uma OS (apenas por Admin ou pelo próprio criador) */
     const excluirOS = useCallback(async (osId, usuario) => {
         const os = ordens.find((item) => item.id === osId);
 
         if (!os) return;
 
-        // Validação de segurança: apenas quem criou ou admin/diretoria pode excluir
+        // Validação de segurança: apenas quem criou ou perfil Admin pode excluir
         const isCriador = matchesOrderActor(os, usuario, 'criado_por');
-        const isManagement = isManagementRole(usuario?.role);
+        const isAdmin = usuario?.role === UserRole.ADMIN || usuario?.role === 'admin';
 
-        if (!isCriador && !isManagement) {
-            throw new Error('Você não tem permissão para excluir esta SI.');
+        if (!isCriador && !isAdmin) {
+            throw new Error('Apenas o Administrador ou o criador desta SI podem excluí-la.');
         }
 
         if (!isFirebaseConfigured || !db) {

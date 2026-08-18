@@ -569,6 +569,7 @@ export default function ListaOS() {
     const location = useLocation();
     const actor = currentUserProfile || user;
     const actorDepartments = actor?.departamentos || [];
+    const isAdmin = actor?.role === UserRole.ADMIN || actor?.role === 'admin';
     const isDiretora = actor?.role === UserRole.DIRETORA || actor?.role === UserRole.ADMIN;
     const canFinalizeSI = hasPermission(actor, PERMISSIONS.SI_FINALIZE);
     const canMoveApprovals = hasPermission(actor, PERMISSIONS.SI_APPROVALS_MOVE);
@@ -1145,7 +1146,7 @@ export default function ListaOS() {
         const canRequestFinalization = os.status === StatusOS.EM_ANDAMENTO && isResponsavel && !canConcludeDirectly && !hasPendingApproval;
         const podeAtualizar = !canReopen && (canStart || canConcludeDirectly);
         const podeEditar = isDiretora || isCriador;
-        const podeExcluir = isDiretora || isCriador;
+        const podeExcluir = isAdmin || isCriador;
 
         return (
             <div
@@ -1328,7 +1329,7 @@ export default function ListaOS() {
         const canRequestFinalization = os.status === StatusOS.EM_ANDAMENTO && isResponsavel && !canConcludeDirectly && !hasPendingApproval;
         const podeAtualizar = !canReopen && (canStart || canConcludeDirectly);
         const podeEditar = isDiretora || isCriador;
-        const podeExcluir = isDiretora || isCriador;
+        const podeExcluir = isAdmin || isCriador;
         const podeEditarChecklist = isDiretora || isCriador || isResponsavel || isLiderOfDept;
 
         const historico = os.historico || [];
