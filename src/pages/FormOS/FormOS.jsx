@@ -78,7 +78,7 @@ export default function FormOS() {
         return date.toISOString();
     };
 
-    const uploadImageToCloudinary = async (file) => {
+    const uploadFileToCloudinary = async (file) => {
         if (!isCloudinaryConfigured) {
             addNotification(
                 'Cloudinary não configurado. Defina VITE_CLOUDINARY_CLOUD_NAME e VITE_CLOUDINARY_UPLOAD_PRESET no .env e reinicie o npm run dev.',
@@ -89,41 +89,59 @@ export default function FormOS() {
 
         try {
             setUploadingImage(true);
+            const isPdf = file.type === 'application/pdf' || String(file.name || '').toLowerCase().endsWith('.pdf');
+            const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name);
+
+            if (!isPdf && !isImage) {
+                addNotification('Anexe somente fotos (JPG, PNG, WEBP) ou arquivos PDF.', 'error');
+                return;
+            }
+
+            const maxSize = isPdf ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+            if (file.size > maxSize) {
+                addNotification(`Arquivo muito grande. Máximo ${isPdf ? '10MB para PDF' : '5MB para foto'}.`, 'error');
+                return;
+            }
+
+            const rawPreset = import.meta.env.VITE_CLOUDINARY_RAW_UPLOAD_PRESET?.trim() || cloudinaryUploadPreset;
+            const uploadPreset = isPdf ? rawPreset : cloudinaryUploadPreset;
+            const resourceType = isPdf ? 'raw' : 'image';
+
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('upload_preset', cloudinaryUploadPreset);
+            formData.append('upload_preset', uploadPreset);
+
+            if (isPdf) {
+                const safeName = String(file.name || 'anexo.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
+                formData.append('public_id', `${Date.now()}-${safeName}`);
+            }
 
             const response = await fetch(
-                `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`,
+                `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/${resourceType}/upload`,
                 { method: 'POST', body: formData },
             );
 
             const data = await response.json();
 
             if (!response.ok) {
-                const cloudinaryMessage = data?.error?.message || 'Erro ao fazer upload da imagem.';
+                const cloudinaryMessage = data?.error?.message || 'Erro ao fazer upload do arquivo.';
                 throw new Error(cloudinaryMessage);
             }
 
             setForm((prev) => ({ ...prev, imagem: data.secure_url }));
-            addNotification('Imagem anexada com sucesso!', 'success');
+            addNotification(`${isPdf ? 'PDF' : 'Foto'} anexado com sucesso!`, 'success');
         } catch (error) {
-            addNotification(`Erro ao enviar imagem: ${error.message}`, 'error');
+            addNotification(`Erro ao enviar arquivo: ${error.message}`, 'error');
             console.error(error);
         } finally {
             setUploadingImage(false);
         }
     };
 
-    const handleImageFileChange = (e) => {
+    const handleFileChange = (e) => {
         const file = e.target.files?.[0];
         if (file) {
-            // Validar tamanho (max 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                addNotification('Imagem muito grande. Máximo 5MB.', 'error');
-                return;
-            }
-            uploadImageToCloudinary(file);
+            uploadFileToCloudinary(file);
         }
     };
 
@@ -302,25 +320,57 @@ export default function FormOS() {
                         </div>
                     </div>
 
-                    {/* Upload de Imagem com Cloudinary */}
+                    {/* Upload de Foto ou PDF com Cloudinary */}
                     <div>
                         <label className="label">
-                            <Upload size={14} className="inline mr-1.5" />Anexar Foto <span className="text-hotel-gray-md font-normal">(opcional)</span>
+                            <Upload size={14} className="inline mr-1.5" />Anexar Foto ou PDF <span className="text-hotel-gray-md font-normal">(opcional)</span>
                         </label>
                         {form.imagem ? (
                             <div className="relative">
-                                <img
-                                    src={form.imagem}
-                                    alt="Preview SI"
-                                    className="w-full max-h-40 object-cover rounded-lg border border-hotel-gray"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={removeImage}
-                                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors"
-                                >
-                                    <X size={16} />
-                                </button>
+                                {typeof form.imagem === 'string' && (/\.pdf($|\?)/i.test(form.imagem) || form.imagem.includes('/raw/upload/')) ? (
+                                    <div className="flex items-center justify-between p-4 rounded-lg border border-hotel-gray bg-hotel-light/40">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="p-2 rounded-lg bg-red-100 text-red-600 shrink-0">
+                                                <FileText size={24} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-hotel-blue truncate">Documento PDF Anexado</p>
+                                                <a
+                                                    href={form.imagem}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs text-hotel-gold hover:underline font-medium"
+                                                >
+                                                    Visualizar PDF
+                                                </a>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={removeImage}
+                                            className="bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors shrink-0"
+                                            title="Remover anexo"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="relative">
+                                        <img
+                                            src={form.imagem}
+                                            alt="Preview SI"
+                                            className="w-full max-h-40 object-cover rounded-lg border border-hotel-gray"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={removeImage}
+                                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors"
+                                            title="Remover anexo"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <label className={`w-full border-2 border-dashed rounded-lg p-6 text-center transition-colors block ${
@@ -331,25 +381,25 @@ export default function FormOS() {
                                 {uploadingImage ? (
                                     <>
                                         <Loader size={24} className="mx-auto mb-2 text-hotel-blue animate-spin" />
-                                        <p className="text-sm font-semibold text-hotel-blue font-body">Enviando...</p>
+                                        <p className="text-sm font-semibold text-hotel-blue font-body">Enviando arquivo...</p>
                                     </>
                                 ) : (
                                     <>
                                         <Upload size={24} className={`mx-auto mb-2 ${isCloudinaryConfigured ? 'text-hotel-gray-md' : 'text-red-400'}`} />
                                         <p className={`text-sm font-semibold font-body ${isCloudinaryConfigured ? 'text-hotel-blue' : 'text-red-600'}`}>
-                                            {isCloudinaryConfigured ? 'Clique para enviar uma foto' : 'Cloudinary não configurado'}
+                                            {isCloudinaryConfigured ? 'Clique para enviar uma foto ou PDF' : 'Cloudinary não configurado'}
                                         </p>
                                         <p className="text-xs text-hotel-gray-md font-body mt-1">
                                             {isCloudinaryConfigured
-                                                ? 'ou arraste um arquivo'
+                                                ? 'ou arraste um arquivo (Foto ou PDF)'
                                                 : 'Adicione VITE_CLOUDINARY_CLOUD_NAME e VITE_CLOUDINARY_UPLOAD_PRESET no .env'}
                                         </p>
                                     </>
                                 )}
                                 <input
                                     type="file"
-                                    accept="image/*"
-                                    onChange={handleImageFileChange}
+                                    accept="image/*,application/pdf,.pdf"
+                                    onChange={handleFileChange}
                                     disabled={uploadingImage || !isCloudinaryConfigured}
                                     className="hidden"
                                 />

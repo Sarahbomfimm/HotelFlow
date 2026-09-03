@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
     X, Eye, ListTodo, Clock3, Tag, User, Calendar, Image as ImageIcon, Download,
     Play, Check, FileCheck, Plus, Edit3, Trash2, Trash, CheckSquare, Square,
-    MessageSquare, RefreshCw, GitBranch, Paperclip, AlertTriangle, ChevronRight, Activity, CalendarDays
+    MessageSquare, RefreshCw, GitBranch, Paperclip, AlertTriangle, ChevronRight, Activity, CalendarDays, FileText
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -314,29 +314,53 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
                                 </p>
                             </div>
 
-                            {/* Imagem Anexada */}
+                            {/* Anexo da SI (Foto ou PDF) */}
                             {os.imagem && (
-                                <div className="rounded-xl overflow-hidden border border-hotel-gray/30 shadow-sm bg-white">
-                                    <div className="flex items-center gap-2 px-3 py-2 bg-hotel-light border-b border-hotel-gray/20">
-                                        <ImageIcon size={14} className="text-hotel-gray-md" />
-                                        <span className="text-xs font-semibold text-hotel-blue font-body flex-1">Imagem anexada</span>
+                                typeof os.imagem === 'string' && (/\.pdf($|\?)/i.test(os.imagem) || os.imagem.includes('/raw/upload/')) ? (
+                                    <div className="rounded-xl overflow-hidden border border-hotel-gray/30 shadow-sm bg-white p-3.5 flex items-center justify-between">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="p-2.5 rounded-xl bg-red-50 text-red-600 shrink-0 border border-red-100">
+                                                <FileText size={22} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <span className="text-xs font-bold text-hotel-blue font-body block truncate">Documento PDF Anexado</span>
+                                                <span className="text-[11px] text-hotel-gray-md font-body">Clique no botão ao lado para abrir ou baixar</span>
+                                            </div>
+                                        </div>
                                         <a
                                             href={os.imagem}
-                                            download={`SI-${os.id}.png`}
-                                            className="flex items-center gap-1 text-hotel-blue text-xs font-semibold hover:text-hotel-gold transition-colors"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            download={`SI-${os.id}.pdf`}
+                                            className="flex items-center gap-1.5 text-hotel-blue text-xs font-semibold hover:text-hotel-gold transition-colors shrink-0 border border-hotel-gray/40 rounded-xl px-3 py-2 bg-hotel-light/60 hover:bg-hotel-light"
                                             onClick={(e) => e.stopPropagation()}
                                         >
-                                            <Download size={13} /> Baixar
+                                            <Download size={14} /> Abrir PDF
                                         </a>
                                     </div>
-                                    <img
-                                        src={os.imagem}
-                                        alt="Imagem da SI"
-                                        className="w-full max-h-64 object-cover cursor-pointer"
-                                        onClick={() => window.open(os.imagem, '_blank')}
-                                        title="Clique para abrir em tamanho completo"
-                                    />
-                                </div>
+                                ) : (
+                                    <div className="rounded-xl overflow-hidden border border-hotel-gray/30 shadow-sm bg-white">
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-hotel-light border-b border-hotel-gray/20">
+                                            <ImageIcon size={14} className="text-hotel-gray-md" />
+                                            <span className="text-xs font-semibold text-hotel-blue font-body flex-1">Imagem anexada</span>
+                                            <a
+                                                href={os.imagem}
+                                                download={`SI-${os.id}.png`}
+                                                className="flex items-center gap-1 text-hotel-blue text-xs font-semibold hover:text-hotel-gold transition-colors"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <Download size={13} /> Baixar
+                                            </a>
+                                        </div>
+                                        <img
+                                            src={os.imagem}
+                                            alt="Imagem da SI"
+                                            className="w-full max-h-64 object-cover cursor-pointer"
+                                            onClick={() => window.open(os.imagem, '_blank')}
+                                            title="Clique para abrir em tamanho completo"
+                                        />
+                                    </div>
+                                )
                             )}
 
                             {/* Informações / Metadados */}
