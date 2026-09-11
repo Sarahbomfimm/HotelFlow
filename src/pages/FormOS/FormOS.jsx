@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, ArrowLeft, CalendarDays, User, Building2, FileText, Upload, X, Loader } from 'lucide-react';
+import { Send, ArrowLeft, CalendarDays, User, Building2, FileText, Upload, X, Loader, FileSpreadsheet, Link2, ExternalLink, Download } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
 import OSCreatedAlert from '../../components/OSCreatedAlert/OSCreatedAlert';
 import { useOS } from '../../context/OSContext';
@@ -9,6 +9,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { format } from 'date-fns';
 import { UserRole } from '../../models/User';
+import { getAttachmentType } from '../../utils/attachmentUtils';
 
 export default function FormOS() {
     const { criarOS } = useOS();
@@ -35,6 +36,8 @@ export default function FormOS() {
     const [showAlert, setShowAlert] = useState(false);
     const [submitError, setSubmitError] = useState('');
     const [responsaveisSelecionados, setResponsaveisSelecionados] = useState(new Set());
+    const [sheetsUrlInput, setSheetsUrlInput] = useState('');
+    const [showUrlInput, setShowUrlInput] = useState(false);
     const prazoInputRef = useRef(null);
 
     const assignableUsers = useMemo(() => {
@@ -73,6 +76,7 @@ export default function FormOS() {
 
         input.click();
     };
+
     const toLocalEndOfDayISO = (dateString) => {
         const date = new Date(`${dateString}T23:59:59`);
         return date.toISOString();
@@ -89,30 +93,34 @@ export default function FormOS() {
 
         try {
             setUploadingImage(true);
-            const isPdf = file.type === 'application/pdf' || String(file.name || '').toLowerCase().endsWith('.pdf');
+            const fileNameLower = String(file.name || '').toLowerCase();
+            const isPdf = file.type === 'application/pdf' || fileNameLower.endsWith('.pdf');
+            const isExcel = /\.(xlsx|xls|csv)$/i.test(file.name) || file.type.includes('spreadsheet') || file.type.includes('excel') || file.type.includes('csv');
             const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name);
 
-            if (!isPdf && !isImage) {
-                addNotification('Anexe somente fotos (JPG, PNG, WEBP) ou arquivos PDF.', 'error');
+            if (!isPdf && !isExcel && !isImage) {
+                addNotification('Anexe somente fotos (JPG, PNG, WEBP), PDFs ou planilhas (XLSX, XLS, CSV).', 'error');
                 return;
             }
 
-            const maxSize = isPdf ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+            const isRaw = isPdf || isExcel;
+            const maxSize = isRaw ? 15 * 1024 * 1024 : 5 * 1024 * 1024;
             if (file.size > maxSize) {
-                addNotification(`Arquivo muito grande. Máximo ${isPdf ? '10MB para PDF' : '5MB para foto'}.`, 'error');
+                addNotification(`Arquivo muito grande. Máximo ${isRaw ? '15MB para PDF/Planilha' : '5MB para foto'}.`, 'error');
                 return;
             }
 
             const rawPreset = import.meta.env.VITE_CLOUDINARY_RAW_UPLOAD_PRESET?.trim() || cloudinaryUploadPreset;
-            const uploadPreset = isPdf ? rawPreset : cloudinaryUploadPreset;
-            const resourceType = isPdf ? 'raw' : 'image';
+            const uploadPreset = isRaw ? rawPreset : cloudinaryUploadPreset;
+            const resourceType = isRaw ? 'raw' : 'image';
 
             const formData = new FormData();
             formData.append('file', file);
             formData.append('upload_preset', uploadPreset);
 
-            if (isPdf) {
-                const safeName = String(file.name || 'anexo.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
+            if (isRaw) {
+                const defaultName = isPdf ? 'anexo.pdf' : isExcel ? 'planilha.xlsx' : 'documento';
+                const safeName = String(file.name || defaultName).replace(/[^a-zA-Z0-9._-]/g, '_');
                 formData.append('public_id', `${Date.now()}-${safeName}`);
             }
 
@@ -129,7 +137,8 @@ export default function FormOS() {
             }
 
             setForm((prev) => ({ ...prev, imagem: data.secure_url }));
-            addNotification(`${isPdf ? 'PDF' : 'Foto'} anexado com sucesso!`, 'success');
+            const labelTipo = isPdf ? 'PDF' : isExcel ? 'Planilha Excel' : 'Foto';
+            addNotification(`${labelTipo} anexado(a) com sucesso!`, 'success');
         } catch (error) {
             addNotification(`Erro ao enviar arquivo: ${error.message}`, 'error');
             console.error(error);
@@ -143,6 +152,20 @@ export default function FormOS() {
         if (file) {
             uploadFileToCloudinary(file);
         }
+    };
+
+    const handleAddSheetsUrl = (e) => {
+        if (e) e.preventDefault();
+        const url = sheetsUrlInput.trim();
+        if (!url) return;
+        if (!/^https?:\/\//i.test(url)) {
+            addNotification('Insira um link válido iniciando com http:// ou https://', 'error');
+            return;
+        }
+        setForm((prev) => ({ ...prev, imagem: url }));
+        addNotification('Link da planilha anexado com sucesso!', 'success');
+        setSheetsUrlInput('');
+        setShowUrlInput(false);
     };
 
     const removeImage = () => {
@@ -320,90 +343,203 @@ export default function FormOS() {
                         </div>
                     </div>
 
-                    {/* Upload de Foto ou PDF com Cloudinary */}
+                    {/* Upload de Foto, PDF, Excel ou Google Sheets */}
                     <div>
                         <label className="label">
-                            <Upload size={14} className="inline mr-1.5" />Anexar Foto ou PDF <span className="text-hotel-gray-md font-normal">(opcional)</span>
+                            <Upload size={14} className="inline mr-1.5" />Anexar Foto, PDF, Excel ou Google Sheets <span className="text-hotel-gray-md font-normal">(opcional)</span>
                         </label>
                         {form.imagem ? (
                             <div className="relative">
-                                {typeof form.imagem === 'string' && (/\.pdf($|\?)/i.test(form.imagem) || form.imagem.includes('/raw/upload/')) ? (
-                                    <div className="flex items-center justify-between p-4 rounded-lg border border-hotel-gray bg-hotel-light/40">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className="p-2 rounded-lg bg-red-100 text-red-600 shrink-0">
-                                                <FileText size={24} />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-semibold text-hotel-blue truncate">Documento PDF Anexado</p>
-                                                <a
-                                                    href={form.imagem}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-xs text-hotel-gold hover:underline font-medium"
+                                {(() => {
+                                    const type = getAttachmentType(form.imagem);
+                                    if (type === 'sheets') {
+                                        return (
+                                            <div className="flex items-center justify-between p-4 rounded-xl border border-emerald-200 bg-emerald-50/70">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700 shrink-0 border border-emerald-200">
+                                                        <FileSpreadsheet size={24} />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-semibold text-emerald-950 truncate">Planilha Google Sheets Anexada</p>
+                                                        <a
+                                                            href={form.imagem}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs text-emerald-700 hover:text-emerald-800 hover:underline font-medium inline-flex items-center gap-1 mt-0.5"
+                                                        >
+                                                            <ExternalLink size={12} /> Abrir no Google Sheets
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={removeImage}
+                                                    className="bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors shrink-0"
+                                                    title="Remover anexo"
                                                 >
-                                                    Visualizar PDF
-                                                </a>
+                                                    <X size={16} />
+                                                </button>
                                             </div>
+                                        );
+                                    }
+                                    if (type === 'excel') {
+                                        return (
+                                            <div className="flex items-center justify-between p-4 rounded-xl border border-emerald-200 bg-emerald-50/70">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700 shrink-0 border border-emerald-200">
+                                                        <FileSpreadsheet size={24} />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-semibold text-emerald-950 truncate">Planilha Excel / CSV Anexada</p>
+                                                        <a
+                                                            href={form.imagem}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs text-emerald-700 hover:text-emerald-800 hover:underline font-medium inline-flex items-center gap-1 mt-0.5"
+                                                        >
+                                                            <Download size={12} /> Visualizar / Baixar Planilha
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={removeImage}
+                                                    className="bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors shrink-0"
+                                                    title="Remover anexo"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                        );
+                                    }
+                                    if (type === 'pdf') {
+                                        return (
+                                            <div className="flex items-center justify-between p-4 rounded-xl border border-hotel-gray bg-hotel-light/40">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="p-2 rounded-lg bg-red-100 text-red-600 shrink-0">
+                                                        <FileText size={24} />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-semibold text-hotel-blue truncate">Documento PDF Anexado</p>
+                                                        <a
+                                                            href={form.imagem}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs text-hotel-gold hover:underline font-medium inline-flex items-center gap-1 mt-0.5"
+                                                        >
+                                                            <ExternalLink size={12} /> Visualizar PDF
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={removeImage}
+                                                    className="bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors shrink-0"
+                                                    title="Remover anexo"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <div className="relative">
+                                            <img
+                                                src={form.imagem}
+                                                alt="Preview SI"
+                                                className="w-full max-h-40 object-cover rounded-lg border border-hotel-gray"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={removeImage}
+                                                className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors"
+                                                title="Remover anexo"
+                                            >
+                                                <X size={16} />
+                                            </button>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={removeImage}
-                                            className="bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors shrink-0"
-                                            title="Remover anexo"
-                                        >
-                                            <X size={16} />
-                                        </button>
-                                    </div>
+                                    );
+                                })()}
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <label className={`w-full border-2 border-dashed rounded-xl p-5 text-center transition-colors block ${
+                                    isCloudinaryConfigured
+                                        ? 'border-hotel-gray hover:border-hotel-blue hover:bg-hotel-light/50 cursor-pointer'
+                                        : 'border-red-200 bg-red-50 cursor-not-allowed'
+                                }`}>
+                                    {uploadingImage ? (
+                                        <>
+                                            <Loader size={24} className="mx-auto mb-2 text-hotel-blue animate-spin" />
+                                            <p className="text-sm font-semibold text-hotel-blue font-body">Enviando arquivo...</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-center gap-2 mb-2">
+                                                <Upload size={22} className={isCloudinaryConfigured ? 'text-hotel-gray-md' : 'text-red-400'} />
+                                                <FileSpreadsheet size={22} className={isCloudinaryConfigured ? 'text-emerald-600' : 'text-red-400'} />
+                                            </div>
+                                            <p className={`text-sm font-semibold font-body ${isCloudinaryConfigured ? 'text-hotel-blue' : 'text-red-600'}`}>
+                                                {isCloudinaryConfigured ? 'Clique para enviar foto, PDF ou planilha Excel' : 'Cloudinary não configurado'}
+                                            </p>
+                                            <p className="text-xs text-hotel-gray-md font-body mt-1">
+                                                {isCloudinaryConfigured
+                                                    ? 'ou arraste um arquivo (Foto, PDF, XLSX, XLS ou CSV)'
+                                                    : 'Adicione VITE_CLOUDINARY_CLOUD_NAME e VITE_CLOUDINARY_UPLOAD_PRESET no .env'}
+                                            </p>
+                                        </>
+                                    )}
+                                    <input
+                                        type="file"
+                                        accept="image/*,application/pdf,.pdf,.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                                        onChange={handleFileChange}
+                                        disabled={uploadingImage || !isCloudinaryConfigured}
+                                        className="hidden"
+                                    />
+                                </label>
+
+                                {!showUrlInput ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowUrlInput(true)}
+                                        className="text-xs text-emerald-700 hover:text-emerald-800 hover:underline font-medium inline-flex items-center gap-1.5 px-1 py-0.5"
+                                    >
+                                        <Link2 size={13} /> Anexar via link do Google Sheets
+                                    </button>
                                 ) : (
-                                    <div className="relative">
-                                        <img
-                                            src={form.imagem}
-                                            alt="Preview SI"
-                                            className="w-full max-h-40 object-cover rounded-lg border border-hotel-gray"
+                                    <div className="flex items-center gap-2 bg-emerald-50/90 p-2 rounded-xl border border-emerald-200 animate-fadeIn">
+                                        <Link2 size={16} className="text-emerald-600 shrink-0 ml-1" />
+                                        <input
+                                            type="url"
+                                            value={sheetsUrlInput}
+                                            onChange={(e) => setSheetsUrlInput(e.target.value)}
+                                            placeholder="Cole o link do Google Sheets (https://docs.google.com/spreadsheets/...)"
+                                            className="flex-1 text-xs bg-white border border-emerald-200 rounded-lg px-2.5 py-1.5 text-gray-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleAddSheetsUrl(e);
+                                                }
+                                            }}
                                         />
                                         <button
                                             type="button"
-                                            onClick={removeImage}
-                                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors"
-                                            title="Remover anexo"
+                                            onClick={handleAddSheetsUrl}
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0"
                                         >
-                                            <X size={16} />
+                                            Anexar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShowUrlInput(false); setSheetsUrlInput(''); }}
+                                            className="text-gray-400 hover:text-gray-600 p-1 shrink-0"
+                                            title="Cancelar"
+                                        >
+                                            <X size={14} />
                                         </button>
                                     </div>
                                 )}
                             </div>
-                        ) : (
-                            <label className={`w-full border-2 border-dashed rounded-lg p-6 text-center transition-colors block ${
-                                isCloudinaryConfigured
-                                    ? 'border-hotel-gray hover:border-hotel-blue hover:bg-hotel-light/50 cursor-pointer'
-                                    : 'border-red-200 bg-red-50 cursor-not-allowed'
-                            }`}>
-                                {uploadingImage ? (
-                                    <>
-                                        <Loader size={24} className="mx-auto mb-2 text-hotel-blue animate-spin" />
-                                        <p className="text-sm font-semibold text-hotel-blue font-body">Enviando arquivo...</p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Upload size={24} className={`mx-auto mb-2 ${isCloudinaryConfigured ? 'text-hotel-gray-md' : 'text-red-400'}`} />
-                                        <p className={`text-sm font-semibold font-body ${isCloudinaryConfigured ? 'text-hotel-blue' : 'text-red-600'}`}>
-                                            {isCloudinaryConfigured ? 'Clique para enviar uma foto ou PDF' : 'Cloudinary não configurado'}
-                                        </p>
-                                        <p className="text-xs text-hotel-gray-md font-body mt-1">
-                                            {isCloudinaryConfigured
-                                                ? 'ou arraste um arquivo (Foto ou PDF)'
-                                                : 'Adicione VITE_CLOUDINARY_CLOUD_NAME e VITE_CLOUDINARY_UPLOAD_PRESET no .env'}
-                                        </p>
-                                    </>
-                                )}
-                                <input
-                                    type="file"
-                                    accept="image/*,application/pdf,.pdf"
-                                    onChange={handleFileChange}
-                                    disabled={uploadingImage || !isCloudinaryConfigured}
-                                    className="hidden"
-                                />
-                            </label>
                         )}
                     </div>
 

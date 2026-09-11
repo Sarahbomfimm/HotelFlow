@@ -5,8 +5,9 @@ import {
     Edit3, Clock3, ArrowLeft, CalendarRange, Image as ImageIcon,
     Download, Paperclip, Play, Check, FileCheck, Eye, ListTodo, Plus, Trash, CheckSquare, Square,
     CalendarDays, ChevronLeft, ChevronRight, Calendar, Tag, User, Hash, Activity, CheckCircle2, Sparkles,
-    MessageSquare, RefreshCw, GitBranch, AlertTriangle, FileText,
+    MessageSquare, RefreshCw, GitBranch, AlertTriangle, FileText, FileSpreadsheet, ExternalLink,
 } from 'lucide-react';
+import { getAttachmentType } from '../../utils/attachmentUtils';
 import AppLayout from '../../components/Layout/AppLayout';
 import PDCABadge from '../../components/Badge/PDCABadge';
 import StatusBadge from '../../components/Badge/StatusBadge';
@@ -1406,31 +1407,84 @@ export default function ListaOS() {
                                     </p>
                                 </div>
 
-                                {/* Anexo da SI (Foto ou PDF) */}
-                                {os.imagem && (
-                                    typeof os.imagem === 'string' && (/\.pdf($|\?)/i.test(os.imagem) || os.imagem.includes('/raw/upload/')) ? (
-                                        <div className="rounded-xl overflow-hidden border border-hotel-gray/30 shadow-sm bg-white p-3.5 flex items-center justify-between">
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <div className="p-2.5 rounded-xl bg-red-50 text-red-600 shrink-0 border border-red-100">
-                                                    <FileText size={22} />
+                                {/* Anexo da SI (Foto, PDF, Excel ou Google Sheets) */}
+                                {os.imagem && (() => {
+                                    const type = getAttachmentType(os.imagem);
+                                    if (type === 'sheets') {
+                                        return (
+                                            <div className="rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50/70 shadow-sm p-3.5 flex items-center justify-between">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700 shrink-0 border border-emerald-200">
+                                                        <FileSpreadsheet size={22} />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <span className="text-xs font-bold text-emerald-950 font-body block truncate">Planilha Google Sheets Anexada</span>
+                                                        <span className="text-[11px] text-emerald-700 font-body">Clique no botão para abrir a planilha online</span>
+                                                    </div>
                                                 </div>
-                                                <div className="min-w-0">
-                                                    <span className="text-xs font-bold text-hotel-blue font-body block truncate">Documento PDF Anexado</span>
-                                                    <span className="text-[11px] text-hotel-gray-md font-body">Clique no botão ao lado para abrir ou baixar</span>
-                                                </div>
+                                                <a
+                                                    href={os.imagem}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1.5 text-emerald-800 text-xs font-semibold hover:text-emerald-950 transition-colors shrink-0 border border-emerald-300 rounded-xl px-3 py-2 bg-white hover:bg-emerald-100/50 shadow-sm"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <ExternalLink size={14} /> Abrir Google Sheets
+                                                </a>
                                             </div>
-                                            <a
-                                                href={os.imagem}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                download={`SI-${os.id}.pdf`}
-                                                className="flex items-center gap-1.5 text-hotel-blue text-xs font-semibold hover:text-hotel-gold transition-colors shrink-0 border border-hotel-gray/40 rounded-xl px-3 py-2 bg-hotel-light/60 hover:bg-hotel-light"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                <Download size={14} /> Abrir PDF
-                                            </a>
-                                        </div>
-                                    ) : (
+                                        );
+                                    }
+                                    if (type === 'excel') {
+                                        return (
+                                            <div className="rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50/70 shadow-sm p-3.5 flex items-center justify-between">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700 shrink-0 border border-emerald-200">
+                                                        <FileSpreadsheet size={22} />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <span className="text-xs font-bold text-emerald-950 font-body block truncate">Planilha Excel / CSV Anexada</span>
+                                                        <span className="text-[11px] text-emerald-700 font-body">Clique no botão para abrir ou baixar</span>
+                                                    </div>
+                                                </div>
+                                                <a
+                                                    href={os.imagem}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    download={`SI-${os.id}.xlsx`}
+                                                    className="flex items-center gap-1.5 text-emerald-800 text-xs font-semibold hover:text-emerald-950 transition-colors shrink-0 border border-emerald-300 rounded-xl px-3 py-2 bg-white hover:bg-emerald-100/50 shadow-sm"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <Download size={14} /> Baixar Planilha
+                                                </a>
+                                            </div>
+                                        );
+                                    }
+                                    if (type === 'pdf') {
+                                        return (
+                                            <div className="rounded-xl overflow-hidden border border-hotel-gray/30 shadow-sm bg-white p-3.5 flex items-center justify-between">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="p-2.5 rounded-xl bg-red-50 text-red-600 shrink-0 border border-red-100">
+                                                        <FileText size={22} />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <span className="text-xs font-bold text-hotel-blue font-body block truncate">Documento PDF Anexado</span>
+                                                        <span className="text-[11px] text-hotel-gray-md font-body">Clique no botão ao lado para abrir ou baixar</span>
+                                                    </div>
+                                                </div>
+                                                <a
+                                                    href={os.imagem}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    download={`SI-${os.id}.pdf`}
+                                                    className="flex items-center gap-1.5 text-hotel-blue text-xs font-semibold hover:text-hotel-gold transition-colors shrink-0 border border-hotel-gray/40 rounded-xl px-3 py-2 bg-hotel-light/60 hover:bg-hotel-light"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <Download size={14} /> Abrir PDF
+                                                </a>
+                                            </div>
+                                        );
+                                    }
+                                    return (
                                         <div className="rounded-xl overflow-hidden border border-hotel-gray/30 shadow-sm bg-white">
                                             <div className="flex items-center gap-2 px-3 py-2 bg-hotel-light border-b border-hotel-gray/20">
                                                 <ImageIcon size={14} className="text-hotel-gray-md" />
@@ -1452,8 +1506,8 @@ export default function ListaOS() {
                                                 title="Clique para abrir em tamanho completo"
                                             />
                                         </div>
-                                    )
-                                )}
+                                    );
+                                })()}
 
                                 {/* Informações / Metadados */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs font-body">
