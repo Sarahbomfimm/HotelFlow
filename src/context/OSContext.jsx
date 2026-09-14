@@ -1096,7 +1096,7 @@ export function OSProvider({ children }) {
 
         const payload = {
             checklist: novoChecklist,
-            historico: [...os.historico, { data: new Date().toISOString(), usuario_nome: usuario.nome, descricao: changeDesc }],
+            historico: [...os.historico, { data: new Date().toISOString(), usuario_nome: usuario?.nome || 'Usuário', descricao: changeDesc }],
         };
 
         if (!isFirebaseConfigured || !db) {

@@ -42,7 +42,10 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
     const { currentUserProfile, availableDepartments } = useUsers();
 
     const actor = currentUserProfile || user;
-    const actorDepartments = actor?.departamentos || [];
+    const actorDepartments = [
+        ...(Array.isArray(actor?.departamentos) ? actor.departamentos : []),
+        ...(actor?.departamento ? [actor.departamento] : []),
+    ];
     const isAdmin = actor?.role === UserRole.ADMIN || actor?.role === 'admin';
     const isDiretora = actor?.role === UserRole.DIRETORA || actor?.role === UserRole.ADMIN;
     const canFinalizeSI = hasPermission(actor, PERMISSIONS.SI_FINALIZE);
@@ -86,8 +89,10 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
     const prazoEstimadoCard = getLeaderEstimatedDeadlineValue(os);
     const isResponsavel = matchesOrderActor(os, actor, 'responsavel');
     const isCriador = matchesOrderActor(os, actor, 'criado_por');
-    const isLider = actor?.role === UserRole.LIDER;
-    const isInDept = actorDepartments && actorDepartments.includes(os.departamento);
+    const isLider = actor?.role === UserRole.LIDER || String(actor?.role || '').toLowerCase() === 'lider';
+    const isInDept = actorDepartments.some(
+        (d) => String(d || '').trim().toLowerCase() === String(os?.departamento || '').trim().toLowerCase()
+    );
     const isLiderOfDept = isLider && isInDept;
 
     const isActStage = os.etapa_pdca === PDCAStep.ACT;
@@ -102,7 +107,7 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
     const podeAtualizar = !canReopen && (canStart || canConcludeDirectly);
     const podeEditar = isDiretora || isCriador;
     const podeExcluir = isAdmin || isCriador;
-    const podeEditarChecklist = isDiretora || isCriador || isResponsavel || isLiderOfDept;
+    const podeEditarChecklist = isDiretora || isAdmin || isCriador || isResponsavel || isLiderOfDept;
 
     const nextStatus = {
         [StatusOS.ABERTO]: StatusOS.EM_ANDAMENTO,
@@ -127,10 +132,10 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
         }
     };
 
-    const handleAdicionarObs = async ({ observacao, fotoUrl, pdfUrl, pdfNome }) => {
+    const handleAdicionarObs = async (texto, etapaPdca, prazoEstimado, anexoPdfFile, coResponsaveis, anexoFotoFile) => {
         setAdicionarObsModal(false);
         try {
-            await adicionarObservacao(os.id, observacao, actor, fotoUrl, pdfUrl, pdfNome);
+            await adicionarObservacao(os.id, texto, actor, etapaPdca, prazoEstimado, anexoPdfFile, coResponsaveis, anexoFotoFile);
             addNotification('Progresso registrado com sucesso.', 'success');
         } catch (error) {
             addNotification(error?.message || 'Não foi possível adicionar o progresso.', 'error');
@@ -143,7 +148,7 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
             const updated = currentChecklist.map((item) =>
                 item.id === itemId ? { ...item, concluido: !item.concluido } : item
             );
-            await atualizarChecklist(os.id, updated);
+            await atualizarChecklist(os.id, updated, actor);
         } catch (error) {
             addNotification('Erro ao atualizar item do checklist.', 'error');
         }
@@ -158,7 +163,7 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
                 texto: novoItemChecklist.trim(),
                 concluido: false,
             };
-            await atualizarChecklist(os.id, [...currentChecklist, newItem]);
+            await atualizarChecklist(os.id, [...currentChecklist, newItem], actor);
             setNovoItemChecklist('');
         } catch (error) {
             addNotification('Erro ao adicionar item ao checklist.', 'error');
@@ -172,7 +177,7 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
             const updated = currentChecklist.map((item) =>
                 item.id === itemId ? { ...item, texto: editingChecklist.text.trim() } : item
             );
-            await atualizarChecklist(os.id, updated);
+            await atualizarChecklist(os.id, updated, actor);
             setEditingChecklist({ osId: null, itemId: null, text: '' });
         } catch (error) {
             addNotification('Erro ao editar item do checklist.', 'error');
@@ -183,7 +188,7 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
         try {
             const currentChecklist = os.checklist || [];
             const updated = currentChecklist.filter((item) => item.id !== itemId);
-            await atualizarChecklist(os.id, updated);
+            await atualizarChecklist(os.id, updated, actor);
         } catch (error) {
             addNotification('Erro ao remover item do checklist.', 'error');
         }

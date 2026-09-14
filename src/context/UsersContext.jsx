@@ -152,7 +152,12 @@ export function UsersProvider({ children }) {
         const deletedQuery = collection(db, 'deleted_users');
         const unsubscribe = onSnapshot(deletedQuery, (snapshot) => {
             const emails = snapshot.docs.map((docSnap) => docSnap.id.toLowerCase());
-            setDeletedFirestoreEmails(emails);
+            setDeletedFirestoreEmails((prev) => {
+                if (prev.length === emails.length && prev.every((val, idx) => val === emails[idx])) {
+                    return prev;
+                }
+                return emails;
+            });
         }, () => {
             setDeletedFirestoreEmails([]);
         });
