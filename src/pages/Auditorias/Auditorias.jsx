@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     ClipboardCheck,
     Filter,
@@ -41,6 +41,50 @@ const QUESTIONS_PER_SENSE = 5;
 const MAX_PER_QUESTION = 4;
 const MAX_PER_SENSE = QUESTIONS_PER_SENSE * MAX_PER_QUESTION;
 const MAX_TOTAL = SENSOS.length * MAX_PER_SENSE;
+const CUSTOM_QUESTIONS_START_MONTH = '2026-10';
+
+const CUSTOM_SECTOR_QUESTIONS = {
+    'Manutenção': {
+        normalizacao: 7,
+    },
+    'Compras e Suprimentos': {
+        triagem: 6,
+        higiene_conforto: 6,
+    },
+};
+
+function getQuestionsCount(setor, mes, senseKey) {
+    if (setor === 'Manutenção' && mes === '2026-10' && senseKey === 'higiene_conforto') {
+        return 7;
+    }
+
+    if (mes && mes >= CUSTOM_QUESTIONS_START_MONTH) {
+        const customCount = CUSTOM_SECTOR_QUESTIONS[setor]?.[senseKey];
+        if (customCount) {
+            return customCount;
+        }
+    }
+
+    return QUESTIONS_PER_SENSE;
+}
+
+function syncScoresWithConfig(scores, setor = '', mes = '') {
+    return SENSOS.reduce((acc, sense) => {
+        const questionCount = getQuestionsCount(setor, mes, sense.key);
+        const currentScores = Array.isArray(scores?.[sense.key]) ? scores[sense.key] : [];
+        acc[sense.key] = Array.from({ length: questionCount }, (_, index) => Number(currentScores[index] ?? 0));
+        return acc;
+    }, {});
+}
+
+function calculateSenseScore(scoresArray, setor, mes, senseKey) {
+    const questionCount = getQuestionsCount(setor, mes, senseKey);
+    const values = Array.isArray(scoresArray) ? scoresArray.slice(0, questionCount) : [];
+    const rawSum = values.reduce((sum, value) => sum + Number(value || 0), 0);
+    const maxRaw = questionCount * MAX_PER_QUESTION;
+    if (maxRaw <= 0) return 0;
+    return Math.round((rawSum / maxRaw) * MAX_PER_SENSE);
+}
 
 const LEGACY_SENSE_MAP = {
     triagem: 'seiri',
@@ -73,16 +117,13 @@ function scorePercent(total) {
     return Math.max(0, Math.min(100, (Number(total || 0) / MAX_TOTAL) * 100));
 }
 
-function buildInitialScores() {
-    return SENSOS.reduce((acc, sense) => ({
-        ...acc,
-        [sense.key]: Array(QUESTIONS_PER_SENSE).fill(0),
-    }), {});
+function buildInitialScores(setor = '', mes = '') {
+    return syncScoresWithConfig({}, setor, mes);
 }
 
 function getSenseTotalFromAudit(audit, senseKey) {
     if (Array.isArray(audit?.scores?.[senseKey])) {
-        return audit.scores[senseKey].reduce((sum, value) => sum + Number(value || 0), 0);
+        return calculateSenseScore(audit.scores[senseKey], audit?.setor, audit?.mes, senseKey);
     }
 
     if (typeof audit?.senseTotals?.[senseKey] === 'number') {
@@ -273,7 +314,12 @@ export default function Auditorias({ mode }) {
     }, [departmentsForCoverage.length, sectorsAuditedCount]);
 
     const monthlyConformity = useMemo(() => {
-        const totalQuestions = monthScopedAudits.length * QUESTIONS_PER_SENSE * SENSOS.length;
+        const totalQuestions = monthScopedAudits.reduce((total, audit) => (
+            total + SENSOS.reduce((senseSum, sense) => {
+                const answers = Array.isArray(audit?.scores?.[sense.key]) ? audit.scores[sense.key] : null;
+                return senseSum + (answers ? answers.length : getQuestionsCount(audit?.setor, audit?.mes, sense.key));
+            }, 0)
+        ), 0);
 
         if (totalQuestions === 0) {
             return {
@@ -332,7 +378,12 @@ export default function Auditorias({ mode }) {
         if (!editFormData) return {};
         return SENSOS.reduce((acc, sense) => ({
             ...acc,
-            [sense.key]: (editFormData.scores?.[sense.key] || []).reduce((sum, v) => sum + Number(v || 0), 0),
+            [sense.key]: calculateSenseScore(
+                editFormData.scores?.[sense.key],
+                editFormData.setor,
+                editFormData.mes,
+                sense.key,
+            ),
         }), {});
     }, [editFormData]);
 
@@ -368,9 +419,14 @@ export default function Auditorias({ mode }) {
     const senseTotals = useMemo(
         () => SENSOS.reduce((acc, sense) => ({
             ...acc,
-            [sense.key]: (formData.scores[sense.key] || []).reduce((sum, value) => sum + Number(value || 0), 0),
+            [sense.key]: calculateSenseScore(
+                formData.scores[sense.key],
+                formData.setor,
+                formData.mes,
+                sense.key,
+            ),
         }), {}),
-        [formData.scores],
+        [formData.mes, formData.scores, formData.setor],
     );
 
     const formTotal = useMemo(
@@ -381,7 +437,8 @@ export default function Auditorias({ mode }) {
     const handleQuestionScoreChange = (senseKey, questionIndex, value) => {
         const score = Number(value);
         setFormData((prev) => {
-            const currentSenseScores = [...(prev.scores[senseKey] || Array(QUESTIONS_PER_SENSE).fill(0))];
+            const questionCount = getQuestionsCount(prev.setor, prev.mes, senseKey);
+            const currentSenseScores = [...(prev.scores[senseKey] || Array(questionCount).fill(0))];
             currentSenseScores[questionIndex] = score;
 
             return {
@@ -395,13 +452,16 @@ export default function Auditorias({ mode }) {
     };
 
     const fillSenseScores = (senseKey, score) => {
-        setFormData((prev) => ({
-            ...prev,
-            scores: {
-                ...prev.scores,
-                [senseKey]: Array(QUESTIONS_PER_SENSE).fill(Number(score)),
-            },
-        }));
+        setFormData((prev) => {
+            const questionCount = getQuestionsCount(prev.setor, prev.mes, senseKey);
+            return {
+                ...prev,
+                scores: {
+                    ...prev.scores,
+                    [senseKey]: Array(questionCount).fill(Number(score)),
+                },
+            };
+        });
     };
 
     const handleCreate = async (event) => {
@@ -412,6 +472,7 @@ export default function Auditorias({ mode }) {
         }
 
         const total = formTotal;
+        const normalizedScores = syncScoresWithConfig(formData.scores, formData.setor, formData.mes);
 
         const newAudit = {
             id: `${Date.now()}`,
@@ -424,7 +485,7 @@ export default function Auditorias({ mode }) {
             maxScore: MAX_TOTAL,
             total,
             senseTotals,
-            scores: formData.scores,
+            scores: normalizedScores,
         };
 
         try {
@@ -451,13 +512,14 @@ export default function Auditorias({ mode }) {
                 },
             )));
 
+            const defaultMonth = getCurrentMonth();
             setLastCreatedDepartment(formData.setor);
             setFormData((prev) => ({
                 ...prev,
                 setor: '',
-                mes: getCurrentMonth(),
+                mes: defaultMonth,
                 observacoes: '',
-                scores: buildInitialScores(),
+                scores: buildInitialScores('', defaultMonth),
             }));
             setSavedSuccess(true);
             setTimeout(() => setSavedSuccess(false), 3000);
@@ -469,12 +531,7 @@ export default function Auditorias({ mode }) {
     const createdAuditLink = getAuditLinkByDepartment(auditLinksByDepartment, lastCreatedDepartment);
 
     const handleEditStart = (audit) => {
-        const scores = {};
-        SENSOS.forEach((sense) => {
-            scores[sense.key] = Array.isArray(audit.scores?.[sense.key])
-                ? [...audit.scores[sense.key]]
-                : Array(QUESTIONS_PER_SENSE).fill(0);
-        });
+        const scores = syncScoresWithConfig(audit.scores, audit.setor, audit.mes);
         setEditFormData({ setor: audit.setor, mes: audit.mes, observacoes: audit.observacoes || '', scores });
         setEditingAudit(audit);
     };
@@ -482,25 +539,30 @@ export default function Auditorias({ mode }) {
     const handleEditQuestionChange = (senseKey, questionIndex, value) => {
         const score = Number(value);
         setEditFormData((prev) => {
-            const cur = [...(prev.scores[senseKey] || Array(QUESTIONS_PER_SENSE).fill(0))];
+            const questionCount = getQuestionsCount(prev.setor, prev.mes, senseKey);
+            const cur = [...(prev.scores[senseKey] || Array(questionCount).fill(0))];
             cur[questionIndex] = score;
             return { ...prev, scores: { ...prev.scores, [senseKey]: cur } };
         });
     };
 
     const fillEditSenseScores = (senseKey, score) => {
-        setEditFormData((prev) => ({
-            ...prev,
-            scores: {
-                ...prev.scores,
-                [senseKey]: Array(QUESTIONS_PER_SENSE).fill(Number(score)),
-            },
-        }));
+        setEditFormData((prev) => {
+            const questionCount = getQuestionsCount(prev.setor, prev.mes, senseKey);
+            return {
+                ...prev,
+                scores: {
+                    ...prev.scores,
+                    [senseKey]: Array(questionCount).fill(Number(score)),
+                },
+            };
+        });
     };
 
     const handleEditSave = async (e) => {
         e.preventDefault();
         try {
+            const normalizedScores = syncScoresWithConfig(editFormData.scores, editFormData.setor, editFormData.mes);
             const updatedAudit = await saveAudit({
                 ...editingAudit,
                 setor: editFormData.setor,
@@ -508,7 +570,7 @@ export default function Auditorias({ mode }) {
                 observacoes: editFormData.observacoes.trim(),
                 total: editFormTotal,
                 senseTotals: editSenseTotals,
-                scores: editFormData.scores,
+                scores: normalizedScores,
                 updatedAt: new Date().toISOString(),
             });
 
@@ -643,7 +705,14 @@ export default function Auditorias({ mode }) {
                                     <label className="label">Setor</label>
                                     <select
                                         value={formData.setor}
-                                        onChange={(e) => setFormData((prev) => ({ ...prev, setor: e.target.value }))}
+                                        onChange={(e) => {
+                                            const nextSetor = e.target.value;
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                setor: nextSetor,
+                                                scores: syncScoresWithConfig(prev.scores, nextSetor, prev.mes),
+                                            }));
+                                        }}
                                         className="input"
                                         required
                                     >
@@ -658,7 +727,14 @@ export default function Auditorias({ mode }) {
                                     <input
                                         type="month"
                                         value={formData.mes}
-                                        onChange={(e) => setFormData((prev) => ({ ...prev, mes: e.target.value }))}
+                                        onChange={(e) => {
+                                            const nextMes = e.target.value;
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                mes: nextMes,
+                                                scores: syncScoresWithConfig(prev.scores, prev.setor, nextMes),
+                                            }));
+                                        }}
                                         onClick={openMonthPicker}
                                         onFocus={openMonthPicker}
                                         className="input h-11 cursor-pointer"
@@ -668,7 +744,9 @@ export default function Auditorias({ mode }) {
                             </div>
 
                             <div className="grid gap-4 rounded-2xl border border-hotel-blue/10 bg-hotel-light/30 p-4">
-                                {SENSOS.map((sense) => (
+                                {SENSOS.map((sense) => {
+                                    const questionCount = getQuestionsCount(formData.setor, formData.mes, sense.key);
+                                    return (
                                     <div key={sense.key} className="rounded-xl border border-hotel-blue/10 bg-white p-3">
                                         <div className="mb-2 flex items-center justify-between">
                                             <label className="label m-0">{sense.label}</label>
@@ -691,18 +769,19 @@ export default function Auditorias({ mode }) {
                                         </div>
                                         <div className="mb-1 text-[11px] font-medium text-hotel-gray-md">Clique na nota de cada pergunta:</div>
                                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-5 sm:gap-2.5">
-                                            {Array.from({ length: QUESTIONS_PER_SENSE }).map((_, questionIndex) => (
+                                            {Array.from({ length: questionCount }).map((_, questionIndex) => (
                                                 <label key={questionIndex} className="flex flex-col gap-1.5 rounded-lg border border-hotel-blue/10 bg-hotel-light/20 p-2 text-[11px] text-hotel-gray-md">
                                                     <span className="font-semibold text-hotel-blue/80">Q{questionIndex + 1}</span>
                                                     <ScoreSelector
-                                                        value={formData.scores[sense.key][questionIndex]}
+                                                        value={formData.scores[sense.key]?.[questionIndex] ?? 0}
                                                         onChange={(value) => handleQuestionScoreChange(sense.key, questionIndex, value)}
                                                     />
                                                 </label>
                                             ))}
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                                 <div className="flex items-center justify-between rounded-xl border border-hotel-blue/15 bg-white px-3 py-2.5">
                                 <div className="overflow-hidden rounded-xl border border-hotel-blue/15 bg-[linear-gradient(135deg,#07233a_0%,#0d4569_100%)]">
                                     <div className="flex items-center justify-between px-4 py-3">
@@ -958,7 +1037,14 @@ export default function Auditorias({ mode }) {
                                     <label className="label">Setor</label>
                                     <select
                                         value={editFormData.setor}
-                                        onChange={(e) => setEditFormData((prev) => ({ ...prev, setor: e.target.value }))}
+                                        onChange={(e) => {
+                                            const nextSetor = e.target.value;
+                                            setEditFormData((prev) => ({
+                                                ...prev,
+                                                setor: nextSetor,
+                                                scores: syncScoresWithConfig(prev.scores, nextSetor, prev.mes),
+                                            }));
+                                        }}
                                         className="input"
                                         required
                                     >
@@ -972,7 +1058,14 @@ export default function Auditorias({ mode }) {
                                     <input
                                         type="month"
                                         value={editFormData.mes}
-                                        onChange={(e) => setEditFormData((prev) => ({ ...prev, mes: e.target.value }))}
+                                        onChange={(e) => {
+                                            const nextMes = e.target.value;
+                                            setEditFormData((prev) => ({
+                                                ...prev,
+                                                mes: nextMes,
+                                                scores: syncScoresWithConfig(prev.scores, prev.setor, nextMes),
+                                            }));
+                                        }}
                                         onClick={openMonthPicker}
                                         onFocus={openMonthPicker}
                                         className="input h-11 cursor-pointer"
@@ -982,7 +1075,9 @@ export default function Auditorias({ mode }) {
                             </div>
 
                             <div className="grid gap-4 rounded-2xl border border-hotel-blue/10 bg-hotel-light/30 p-4">
-                                {SENSOS.map((sense) => (
+                                {SENSOS.map((sense) => {
+                                    const questionCount = getQuestionsCount(editFormData.setor, editFormData.mes, sense.key);
+                                    return (
                                     <div key={sense.key} className="rounded-xl border border-hotel-blue/10 bg-white p-3">
                                         <div className="mb-2 flex items-center justify-between">
                                             <label className="label m-0">{sense.label}</label>
@@ -1005,11 +1100,11 @@ export default function Auditorias({ mode }) {
                                         </div>
                                         <div className="mb-1 text-[11px] font-medium text-hotel-gray-md">Clique na nota de cada pergunta:</div>
                                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-5 sm:gap-2.5">
-                                            {Array.from({ length: QUESTIONS_PER_SENSE }).map((_, qi) => (
+                                            {Array.from({ length: questionCount }).map((_, qi) => (
                                                 <label key={qi} className="flex flex-col gap-1.5 rounded-lg border border-hotel-blue/10 bg-hotel-light/20 p-2 text-[11px] text-hotel-gray-md">
                                                     <span className="font-semibold text-hotel-blue/80">Q{qi + 1}</span>
                                                     <ScoreSelector
-                                                        value={editFormData.scores[sense.key][qi]}
+                                                        value={editFormData.scores[sense.key]?.[qi] ?? 0}
                                                         onChange={(value) => handleEditQuestionChange(sense.key, qi, value)}
                                                         compact
                                                     />
@@ -1017,7 +1112,8 @@ export default function Auditorias({ mode }) {
                                             ))}
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                                 <div className="flex items-center justify-between rounded-xl border border-hotel-blue/15 bg-white px-3 py-2.5">
                                     <p className="text-sm font-semibold text-hotel-gray-md">Pontuação total</p>
                                     <span className="rounded-full bg-hotel-gold/15 px-3 py-1 text-sm font-bold text-hotel-blue">
