@@ -335,6 +335,194 @@ function compareOrdersByCompletion(left, right) {
     return new Date(left.prazo) - new Date(right.prazo);
 }
 
+const SEARCH_STOPWORDS = new Set([
+    'a', 'as', 'o', 'os', 'de', 'da', 'do', 'das', 'dos',
+    'em', 'no', 'na', 'nos', 'nas', 'para', 'pra', 'por',
+    'com', 'sem', 'e', 'ou', 'um', 'uma', 'ao', 'aos', 'si', 'sis',
+]);
+
+function normalizeSearchText(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function stemPortugueseToken(token) {
+    if (token.length <= 3) return token;
+    if (token.endsWith('coes')) return `${token.slice(0, -4)}cao`;
+    if (token.endsWith('aes')) return `${token.slice(0, -3)}ao`;
+    if (token.endsWith('oes')) return `${token.slice(0, -3)}ao`;
+    if (token.endsWith('ais') && token.length > 4) return `${token.slice(0, -3)}al`;
+    if (token.endsWith('eis') && token.length > 4) return `${token.slice(0, -3)}el`;
+    if (token.endsWith('ois') && token.length > 4) return `${token.slice(0, -3)}ol`;
+    if (token.endsWith('ns') && token.length > 4) return `${token.slice(0, -2)}m`;
+    if (token.endsWith('es') && token.length > 4 && /[rzs]$/.test(token.slice(0, -2))) return token.slice(0, -2);
+    if (token.endsWith('s') && !token.endsWith('ss')) return token.slice(0, -1);
+    return token;
+}
+
+function splitSearchWords(normalizedText) {
+    if (!normalizedText) return [];
+    return normalizedText.split(/[^a-z0-9]+/).filter(Boolean);
+}
+
+function isWithinOneEdit(a, b) {
+    if (a === b) return true;
+    const lenA = a.length;
+    const lenB = b.length;
+    if (Math.abs(lenA - lenB) > 1) return false;
+
+    let i = 0;
+    let j = 0;
+    let edits = 0;
+
+    while (i < lenA && j < lenB) {
+        if (a[i] === b[j]) {
+            i += 1;
+            j += 1;
+            continue;
+        }
+
+        edits += 1;
+        if (edits > 1) return false;
+
+        if (lenA === lenB) {
+            if (i + 1 < lenA && a[i] === b[j + 1] && a[i + 1] === b[j]) {
+                i += 2;
+                j += 2;
+                continue;
+            }
+            i += 1;
+            j += 1;
+        } else if (lenA > lenB) {
+            i += 1;
+        } else {
+            j += 1;
+        }
+    }
+
+    if (i < lenA || j < lenB) {
+        edits += 1;
+    }
+
+    return edits <= 1;
+}
+
+function tokenMatchesField(token, stemmedToken, normalizedField, fieldWords) {
+    if (!normalizedField) return 0;
+
+    if (normalizedField.includes(token)) {
+        if (fieldWords.some((w) => w === token || w === stemmedToken)) return 3;
+        if (fieldWords.some((w) => w.startsWith(token) || w.startsWith(stemmedToken))) return 2.5;
+        return 2;
+    }
+
+    if (stemmedToken !== token && normalizedField.includes(stemmedToken)) {
+        return 2;
+    }
+
+    if (token.length >= 4) {
+        for (const word of fieldWords) {
+            if (word.length < 3) continue;
+            const stemmedWord = stemPortugueseToken(word);
+            if (
+                isWithinOneEdit(token, word) ||
+                isWithinOneEdit(stemmedToken, stemmedWord) ||
+                (word.length > token.length && isWithinOneEdit(token, word.slice(0, token.length)))
+            ) {
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+function formatSafeSearchDate(isoValue) {
+    if (!isoValue) return '';
+    try {
+        const parsed = parseISO(String(isoValue));
+        return `${format(parsed, 'dd/MM/yyyy')} ${format(parsed, 'dd/MM')}`;
+    } catch {
+        return '';
+    }
+}
+
+function getOrderSearchScore(os, rawQuery) {
+    const normalizedQuery = normalizeSearchText(rawQuery);
+    if (!normalizedQuery) return 1;
+
+    const rawTokens = normalizedQuery.split(/[\s,;]+/).filter(Boolean);
+    if (rawTokens.length === 0) return 1;
+
+    const meaningfulTokens = rawTokens.filter((t) => !SEARCH_STOPWORDS.has(t));
+    const tokens = meaningfulTokens.length > 0 ? meaningfulTokens : rawTokens;
+
+    const tituloNorm = normalizeSearchText(os.titulo);
+    const tituloWords = splitSearchWords(tituloNorm);
+
+    const identificadoresNorm = normalizeSearchText([
+        os.id,
+        os.departamento,
+        os.responsavel_nome,
+        os.criado_por_nome,
+        ...(Array.isArray(os.co_responsaveis) ? os.co_responsaveis.map((c) => `${c.nome || ''} ${c.email || ''}`) : []),
+    ].join(' '));
+    const identificadoresWords = splitSearchWords(identificadoresNorm);
+
+    const descricaoNorm = normalizeSearchText(os.descricao);
+    const descricaoWords = splitSearchWords(descricaoNorm);
+
+    const prazoEstimado = getLeaderEstimatedDeadlineValue(os);
+    const atrasada = isSIOverdue(os);
+    const metadadosNorm = normalizeSearchText([
+        StatusLabel[os.status] || os.status || '',
+        atrasada ? 'atrasada atrasado vencida vencido' : '',
+        PDCALabel[os.etapa_pdca] || '',
+        os.etapa_pdca ? `etapa ${os.etapa_pdca}` : '',
+        formatSafeSearchDate(os.prazo),
+        formatSafeSearchDate(prazoEstimado),
+        formatSafeSearchDate(os.criado_em),
+        ...(Array.isArray(os.checklist) ? os.checklist.map((item) => item?.texto || '') : []),
+        ...(Array.isArray(os.historico)
+            ? os.historico.map((h) => `${h?.descricao || ''} ${h?.usuario_nome || ''} ${h?.anexo_pdf_nome || ''} ${h?.anexo_foto_nome || ''}`)
+            : []),
+    ].join(' '));
+    const metadadosWords = splitSearchWords(metadadosNorm);
+
+    let totalScore = 0;
+
+    if (tituloNorm === normalizedQuery) {
+        totalScore += 150;
+    } else if (tituloNorm.startsWith(normalizedQuery)) {
+        totalScore += 90;
+    } else if (tituloNorm.includes(normalizedQuery)) {
+        totalScore += 60;
+    } else if (identificadoresNorm.includes(normalizedQuery) || descricaoNorm.includes(normalizedQuery)) {
+        totalScore += 35;
+    }
+
+    for (const token of tokens) {
+        const stemmed = stemPortugueseToken(token);
+        const titleMatch = tokenMatchesField(token, stemmed, tituloNorm, tituloWords) * 30;
+        const idMatch = tokenMatchesField(token, stemmed, identificadoresNorm, identificadoresWords) * 18;
+        const descMatch = tokenMatchesField(token, stemmed, descricaoNorm, descricaoWords) * 12;
+        const metaMatch = tokenMatchesField(token, stemmed, metadadosNorm, metadadosWords) * 6;
+
+        const bestTokenScore = Math.max(titleMatch, idMatch, descMatch, metaMatch);
+        if (bestTokenScore === 0) {
+            return 0;
+        }
+
+        totalScore += bestTokenScore + (titleMatch > 0 ? 10 : 0);
+    }
+
+    return totalScore;
+}
+
 function escapeCsvValue(value) {
     const text = String(value ?? '');
     if (/["\n\r;]/.test(text) || text.includes(',')) {
@@ -810,10 +998,14 @@ export default function ListaOS() {
         return base.filter((o) => hasUnreadProgress(o)).length;
     }, [base, hasUnreadProgress]);
 
-        const filtered = useMemo(() => {
+    const filtered = useMemo(() => {
+        const hasActiveSearch = Boolean(search.trim());
+        const searchScores = hasActiveSearch ? new Map() : null;
+
         return base
             .filter((o) => {
                 if (viewMode === 'diario') {
+                    if (hasActiveSearch) return true;
                     if (!o.prazo) return false;
                     try {
                         const osDate = parseISO(o.prazo);
@@ -872,6 +1064,7 @@ export default function ListaOS() {
             })
             .filter((o) => {
                 if (viewMode === 'diario' || viewMode === 'recentes') return true;
+                if (hasActiveSearch) return true;
                 if (!shouldFilterByNavigationMonth) return true;
                 return isOrderInSelectedDashboardMonth(o, navigationMonthDate);
             })
@@ -893,17 +1086,22 @@ export default function ListaOS() {
                 return new Date(o.prazo) <= fim;
             })
             .filter((o) => {
-                if (!search) return true;
-                const q = search.toLowerCase();
-                return (
-                    o.titulo.toLowerCase().includes(q) ||
-                    o.descricao.toLowerCase().includes(q) ||
-                    o.responsavel_nome.toLowerCase().includes(q) ||
-                    o.departamento.toLowerCase().includes(q) ||
-                    (Array.isArray(o.co_responsaveis) && o.co_responsaveis.some((c) => c.nome?.toLowerCase().includes(q)))
-                );
+                if (!hasActiveSearch) return true;
+                const score = getOrderSearchScore(o, search);
+                if (score <= 0) return false;
+                searchScores.set(o.id, score);
+                return true;
             })
-            .sort(compareOrdersByCompletion);
+            .sort((left, right) => {
+                if (hasActiveSearch) {
+                    const leftScore = searchScores.get(left.id) || 0;
+                    const rightScore = searchScores.get(right.id) || 0;
+                    if (rightScore !== leftScore) {
+                        return rightScore - leftScore;
+                    }
+                }
+                return compareOrdersByCompletion(left, right);
+            });
     }, [
         base,
         viewMode,

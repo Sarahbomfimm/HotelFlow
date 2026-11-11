@@ -35,11 +35,11 @@ export default function Header({ pageTitle = '', onMenuClick }) {
             {/* Ações */}
             <div className="flex items-center gap-2 sm:gap-3">
                 <NotificationBell />
-                <div className="hidden h-10 w-[84px] items-center justify-center rounded-xl bg-white px-1 py-1 shadow-sm sm:flex">
+                <div className="hidden h-10 w-[88px] overflow-hidden items-center justify-center rounded-xl bg-white shadow-sm sm:flex">
                     <img
                         src="/pajucara hotel flow logo pequena 2.png"
                         alt="Pajucara Hotel"
-                        className="h-full w-full scale-110 rounded-lg object-contain"
+                        className="h-full w-full object-cover object-center"
                     />
                 </div>
             </div>
