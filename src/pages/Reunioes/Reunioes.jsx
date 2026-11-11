@@ -3,7 +3,7 @@ import AppLayout from '../../components/Layout/AppLayout';
 import ConfirmModal from '../../components/Modal/ConfirmModal';
 import {
     CalendarDays, Clock3, MapPin, X, Users, ListTodo, CheckSquare, Square,
-    BellRing, Plus, CalendarRange, ChevronLeft, ChevronRight, Edit2, Trash2, AlertCircle, Save, Eye, Trash, Check
+    BellRing, Plus, CalendarRange, ChevronLeft, ChevronRight, Edit2, Trash2, AlertCircle, Save, Eye, Trash, Check, Printer
 } from 'lucide-react';
 import { useReuniao } from '../../context/ReuniaoContext';
 import { useAuth } from '../../context/AuthContext';
@@ -118,6 +118,15 @@ function capitalizeFirstLetter(value) {
     }
 
     return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUsers, currentUserId }) {
@@ -757,6 +766,344 @@ export default function Reunioes() {
         reuniaoSelecionada.status?.toLowerCase() === 'cancelada'
     );
 
+    const handleImprimirReuniao = () => {
+        if (!reuniaoSelecionada) return;
+
+        const dataInicio = new Date(reuniaoSelecionada.data_inicio);
+        const dataFormatada = format(dataInicio, 'dd/MM/yyyy');
+        const horaInicio = format(dataInicio, 'HH:mm');
+        const horaFim = reuniaoSelecionada.hora_fim || format(new Date(reuniaoSelecionada.data_fim || reuniaoSelecionada.data_inicio), 'HH:mm');
+        const recorrenciaTexto = RecorrenciaLabel[reuniaoSelecionada.recorrencia] || 'Sem recorrência';
+        const concluidaNoDetalhe = reuniaoSelecionada.status === 'concluida' || new Date(reuniaoSelecionada.data_fim || reuniaoSelecionada.data_inicio) < new Date();
+        const statusTexto = concluidaNoDetalhe ? 'Concluída' : (StatusLabel[reuniaoSelecionada.status] || 'Agendada');
+
+        const participantes = Array.isArray(reuniaoSelecionada.participantes) ? reuniaoSelecionada.participantes : [];
+        const aceitos = participantes.filter((p) => (p.status || 'ACEITO') === 'ACEITO');
+        const pendentes = participantes.filter((p) => p.status === 'PENDENTE');
+        const recusados = participantes.filter((p) => p.status === 'RECUSADO');
+        const checklist = Array.isArray(reuniaoSelecionada.checklist) ? reuniaoSelecionada.checklist : [];
+
+        const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(reuniaoSelecionada.titulo)} - Detalhes da Reunião</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 8mm;
+        }
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        html, body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #07233a;
+            background: #ffffff;
+        }
+        .card {
+            border: 1px solid #d8e2ec;
+            border-radius: 14px;
+            overflow: hidden;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        .header {
+            background: linear-gradient(135deg, #07233a 0%, #0d4569 100%);
+            color: #ffffff;
+            padding: 14px 18px;
+        }
+        .badge-top {
+            display: inline-block;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 999px;
+            padding: 3px 10px;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.85);
+        }
+        .title {
+            margin: 8px 0 6px;
+            font-size: 18px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+        .header-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .header-pill {
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 999px;
+            padding: 3px 10px;
+        }
+        .body {
+            padding: 14px 18px;
+        }
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .info-box {
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 9px 11px;
+        }
+        .section-label {
+            margin: 0;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .info-primary {
+            margin: 4px 0 0;
+            font-size: 12px;
+            font-weight: 700;
+            color: #07233a;
+        }
+        .info-secondary {
+            margin: 2px 0 0;
+            font-size: 11px;
+            color: #64748b;
+        }
+        .status-badge {
+            display: inline-block;
+            margin-top: 4px;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            ${concluidaNoDetalhe
+                ? 'background: #d1fae5; color: #047857;'
+                : 'background: rgba(196, 154, 108, 0.2); color: #9a6f3a;'}
+        }
+        .section-box {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        .section-box:last-child {
+            margin-bottom: 0;
+        }
+        .section-box.muted {
+            background: #f8fafc;
+        }
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .chip {
+            display: inline-block;
+            padding: 2px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .chip-aceito { border: 1px solid #a7f3d0; background: #ecfdf5; color: #047857; }
+        .chip-pendente { border: 1px solid #fde68a; background: #fffbeb; color: #b45309; }
+        .chip-recusado { border: 1px solid #fecaca; background: #fef2f2; color: #dc2626; }
+        .participant-group + .participant-group {
+            margin-top: 8px;
+        }
+        .checklist-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .check-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .check-item.done {
+            border-color: #d1fae5;
+            background: #f0fdf4;
+            color: #047857;
+            text-decoration: line-through;
+        }
+        .check-box {
+            display: inline-flex;
+            width: 14px;
+            height: 14px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            border: 1.5px solid #94a3b8;
+            font-size: 10px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .check-item.done .check-box {
+            border-color: #047857;
+            background: #047857;
+            color: #ffffff;
+        }
+        .text-content {
+            margin: 5px 0 0;
+            font-size: 11.5px;
+            line-height: 1.45;
+            color: #334155;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div id="print-card" class="card">
+        <div class="header">
+            <span class="badge-top">Detalhes da reunião</span>
+            <h1 class="title">${escapeHtml(reuniaoSelecionada.titulo)}</h1>
+            <div class="header-meta">
+                <span class="header-pill">${escapeHtml(dataFormatada)} · ${escapeHtml(horaInicio)}</span>
+                ${reuniaoSelecionada.sala ? `<span class="header-pill">${escapeHtml(reuniaoSelecionada.sala)}</span>` : ''}
+            </div>
+        </div>
+        <div class="body">
+            <div class="grid-4">
+                <div class="info-box">
+                    <p class="section-label">Data e hora</p>
+                    <p class="info-primary">${escapeHtml(dataFormatada)}</p>
+                    <p class="info-secondary">${escapeHtml(horaInicio)} — ${escapeHtml(horaFim)}</p>
+                </div>
+                <div class="info-box">
+                    <p class="section-label">Sala</p>
+                    <p class="info-primary">${escapeHtml(reuniaoSelecionada.sala || '—')}</p>
+                </div>
+                <div class="info-box">
+                    <p class="section-label">Recorrência</p>
+                    <p class="info-primary">${escapeHtml(recorrenciaTexto)}</p>
+                </div>
+                <div class="info-box">
+                    <p class="section-label">Status</p>
+                    <span class="status-badge">${escapeHtml(statusTexto)}</span>
+                </div>
+            </div>
+
+            ${participantes.length > 0 ? `
+                <div class="section-box">
+                    ${aceitos.length > 0 ? `
+                        <div class="participant-group">
+                            <p class="section-label">Participantes Confirmados</p>
+                            <div class="chips">
+                                ${aceitos.map((p) => `<span class="chip chip-aceito">${escapeHtml(p.nome)}</span>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${pendentes.length > 0 ? `
+                        <div class="participant-group">
+                            <p class="section-label">Aguardando Confirmação</p>
+                            <div class="chips">
+                                ${pendentes.map((p) => `<span class="chip chip-pendente">${escapeHtml(p.nome)}</span>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${recusados.length > 0 ? `
+                        <div class="participant-group">
+                            <p class="section-label">Recusados</p>
+                            <div class="chips">
+                                ${recusados.map((p) => `<span class="chip chip-recusado">${escapeHtml(p.nome)}${p.motivo_recusa ? ` (${escapeHtml(p.motivo_recusa)})` : ' (Recusou)'}</span>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            ` : ''}
+
+            ${checklist.length > 0 ? `
+                <div class="section-box">
+                    <p class="section-label">Checklist da Reunião</p>
+                    <div class="checklist-grid">
+                        ${checklist.map((item) => `
+                            <div class="check-item ${item.concluido ? 'done' : ''}">
+                                <span class="check-box">${item.concluido ? '✓' : ''}</span>
+                                <span>${escapeHtml(item.texto)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+
+            ${reuniaoSelecionada.descricao ? `
+                <div class="section-box muted">
+                    <p class="section-label">Pauta</p>
+                    <p class="text-content">${escapeHtml(reuniaoSelecionada.descricao)}</p>
+                </div>
+            ` : ''}
+
+            ${reuniaoSelecionada.ata ? `
+                <div class="section-box muted">
+                    <p class="section-label">Ata</p>
+                    <p class="text-content">${escapeHtml(reuniaoSelecionada.ata)}</p>
+                </div>
+            ` : ''}
+        </div>
+    </div>
+</body>
+</html>`;
+
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '730px';
+        iframe.style.height = '1020px';
+        iframe.style.border = '0';
+        iframe.style.visibility = 'hidden';
+        iframe.style.pointerEvents = 'none';
+        document.body.appendChild(iframe);
+
+        const doc = iframe.contentWindow?.document;
+        if (!doc) {
+            document.body.removeChild(iframe);
+            return;
+        }
+
+        doc.open();
+        doc.write(html);
+        doc.close();
+
+        setTimeout(() => {
+            const printCard = doc.getElementById('print-card');
+            const maxPageHeight = 960;
+            if (printCard && printCard.scrollHeight > maxPageHeight) {
+                const scale = Math.max(0.55, maxPageHeight / printCard.scrollHeight);
+                printCard.style.zoom = String(scale);
+            }
+
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 1000);
+        }, 150);
+    };
+
     return (
         <AppLayout pageTitle="Reuniões">
             <div className="animate-fadeIn space-y-6">
@@ -1343,6 +1690,15 @@ export default function Reunioes() {
                                         </button>
                                     </>
                                 )}
+                                <button
+                                    type="button"
+                                    onClick={handleImprimirReuniao}
+                                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-hotel-blue/15 bg-hotel-blue/5 px-4 py-2.5 text-sm font-semibold text-hotel-blue transition-colors hover:bg-hotel-blue/10 sm:w-auto"
+                                    aria-label="Imprimir detalhes da reunião"
+                                    title="Imprimir detalhes da reunião"
+                                >
+                                    <Printer size={16} /> Imprimir
+                                </button>
                                 {Array.isArray(reuniaoSelecionada.historico) && reuniaoSelecionada.historico.length > 0 && (
                                     <button
                                         onClick={() => setHistoricoAberto(true)}
