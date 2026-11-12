@@ -287,6 +287,24 @@ export default function DashboardDiretora() {
             .slice(0, 8);
     }, [base, filterLider, filterStatus, lideres]);
 
+    const lideresOrdenadosPorResumo = useMemo(() => {
+        return lideres
+            .map((lider) => {
+                const total = ordensSemTeste.filter((o) => belongsToLeader(o, lider)).length;
+                const concl = ordensSemTeste.filter((o) => belongsToLeader(o, lider) && o.status === StatusOS.CONCLUIDO).length;
+                const exactPct = total > 0 ? (concl / total) * 100 : 0;
+                const pct = Math.round(exactPct);
+                return { lider, total, concl, pct, exactPct };
+            })
+            .sort((a, b) => {
+                if (b.pct !== a.pct) return b.pct - a.pct;
+                if (b.exactPct !== a.exactPct) return b.exactPct - a.exactPct;
+                if (b.concl !== a.concl) return b.concl - a.concl;
+                if (b.total !== a.total) return b.total - a.total;
+                return (a.lider.nome || '').localeCompare(b.lider.nome || '', 'pt-BR');
+            });
+    }, [lideres, ordensSemTeste]);
+
     const navigateToOrders = (state = {}) => navigate('/ordens', { state: { selectedMonth, viewMode: 'todos', ...state } });
 
     const getInitials = (name) => {
@@ -590,10 +608,7 @@ export default function DashboardDiretora() {
                             </div>
                             
                             <div className="space-y-3 sm:space-y-4 flex-1 overflow-y-auto pr-1 min-h-0">
-                                {lideres.map((lider, index) => {
-                                    const total = ordensSemTeste.filter((o) => belongsToLeader(o, lider)).length;
-                                    const concl = ordensSemTeste.filter((o) => belongsToLeader(o, lider) && o.status === StatusOS.CONCLUIDO).length;
-                                    const pct = total > 0 ? Math.round((concl / total) * 100) : 0;
+                                {lideresOrdenadosPorResumo.map(({ lider, total, concl, pct }, index) => {
                                     const initials = getInitials(lider.nome);
                                     const grad = gradients[index % gradients.length];
                                     

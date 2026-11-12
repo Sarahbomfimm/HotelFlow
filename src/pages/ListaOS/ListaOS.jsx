@@ -4,7 +4,7 @@ import {
     Search, Filter, ChevronDown, ChevronUp, Trash2, X,
     Edit3, Clock3, ArrowLeft, CalendarRange, Image as ImageIcon,
     Download, Paperclip, Play, Check, FileCheck, Eye, ListTodo, Plus, Trash, CheckSquare, Square,
-    CalendarDays, ChevronLeft, ChevronRight, Calendar, Tag, User, Hash, Activity, CheckCircle2, Sparkles,
+    CalendarDays, ChevronLeft, ChevronRight, Calendar, Tag, User, Hash, Activity, CheckCircle2,
     MessageSquare, RefreshCw, GitBranch, AlertTriangle, FileText, FileSpreadsheet, ExternalLink,
 } from 'lucide-react';
 import { getAttachmentType } from '../../utils/attachmentUtils';
@@ -167,7 +167,7 @@ const parseTimelineDescription = (descricao, isEtapa, isStatus) => {
         if (match) {
             const deStage = match[1];
             const paraStage = match[2];
-            
+
             // Extract optional observação
             let obsText = '';
             const obsIdx = mainDesc.indexOf('Observação:');
@@ -201,7 +201,7 @@ const parseTimelineDescription = (descricao, isEtapa, isStatus) => {
         if (match) {
             const deStatus = match[1];
             const paraStatus = match[2];
-            
+
             // Extract optional observação
             let obsText = '';
             const obsIdx = mainDesc.indexOf('Observação:');
@@ -239,12 +239,11 @@ const parseTimelineDescription = (descricao, isEtapa, isStatus) => {
             contentElement = (
                 <div className="space-y-1.5">
                     <div>
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border ${
-                            stepChar === 'P' ? 'bg-sky-50 text-sky-700 border-sky-200' :
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border ${stepChar === 'P' ? 'bg-sky-50 text-sky-700 border-sky-200' :
                             stepChar === 'D' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                            stepChar === 'C' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                            'bg-rose-50 text-rose-700 border-rose-200'
-                        }`}>
+                                stepChar === 'C' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                    'bg-rose-50 text-rose-700 border-rose-200'
+                            }`}>
                             Etapa {stepChar} - {PDCALabel[stepChar]}
                         </span>
                     </div>
@@ -661,7 +660,7 @@ export default function ListaOS() {
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, []);
- 
+
     const sofiaIds = useMemo(() => {
         if (!users) return [];
         return users
@@ -673,7 +672,7 @@ export default function ListaOS() {
     const liderFilterOptions = useMemo(() => {
         if (!users) return [];
         const assignable = users.filter((u) => [UserRole.LIDER, UserRole.ADMIN, UserRole.DIRETORA].includes(u.role));
-        
+
         const uniqueByName = new Map();
         assignable.forEach((u) => {
             const normName = String(u.nome || '').trim().toLowerCase();
@@ -721,7 +720,7 @@ export default function ListaOS() {
     }, [selectedMonthFromNavigation, shouldShowOnlyCurrentMonth]);
     const shouldFilterByNavigationMonth = Boolean(navigationMonthDate);
 
-        const [search, setSearch] = useState('');
+    const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState(isPdcaOnlyNavigation ? [] : (locState.filterStatus ? [locState.filterStatus] : []));
     const [filterPdca, setFilterPdca] = useState(locState.filterPdca ? [locState.filterPdca] : []);
     const [novoItemChecklist, setNovoItemChecklist] = useState('');
@@ -804,7 +803,7 @@ export default function ListaOS() {
         const currentDayOfWeek = centerDate.getDay();
         const startOfWeek = new Date(centerDate);
         startOfWeek.setDate(centerDate.getDate() - currentDayOfWeek);
-        
+
         const days = [];
         for (let i = 0; i < 7; i++) {
             const d = new Date(startOfWeek);
@@ -813,7 +812,7 @@ export default function ListaOS() {
             const dayNum = d.getDate();
             const weekdayShort = d.toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0, 3).replace('.', '');
             const capitalizedShort = weekdayShort.charAt(0).toUpperCase() + weekdayShort.slice(1);
-            
+
             const taskCount = baseOrders.filter(o => {
                 if (o.status === StatusOS.CONCLUIDO) return false;
                 if (!o.prazo) return false;
@@ -826,7 +825,7 @@ export default function ListaOS() {
                     return false;
                 }
             }).length;
-            
+
             days.push({
                 dateStr,
                 dayNum,
@@ -1294,13 +1293,12 @@ export default function ListaOS() {
                     setExpanded(os.id);
                     setModalActiveTab('detalhes');
                 }}
-                className={`cursor-pointer border rounded-3xl p-6 shadow-sm transition-all duration-200 select-none flex flex-col justify-between ${
-                    atrasada 
-                        ? 'border-red-300 bg-red-50/30 shadow-md shadow-red-100/50 hover:border-red-400 hover:shadow-lg hover:shadow-red-100 bg-opacity-70' 
-                        : isExpanded 
-                            ? 'bg-white border-hotel-blue shadow-md' 
-                            : 'bg-white border-hotel-gray/40 hover:border-hotel-blue/30 hover:shadow-md'
-                }`}
+                className={`cursor-pointer border rounded-3xl p-6 shadow-sm transition-all duration-200 select-none flex flex-col justify-between ${atrasada
+                    ? 'border-red-300 bg-red-50/30 shadow-md shadow-red-100/50 hover:border-red-400 hover:shadow-lg hover:shadow-red-100 bg-opacity-70'
+                    : isExpanded
+                        ? 'bg-white border-hotel-blue shadow-md'
+                        : 'bg-white border-hotel-gray/40 hover:border-hotel-blue/30 hover:shadow-md'
+                    }`}
             >
                 <div>
                     <div className="flex items-start justify-between gap-3">
@@ -1479,8 +1477,8 @@ export default function ListaOS() {
                             </span>
                             <h3 className="font-extrabold text-base sm:text-lg mt-1 truncate tracking-wide">{os.titulo}</h3>
                         </div>
-                        <button 
-                            onClick={() => setExpanded(null)} 
+                        <button
+                            onClick={() => setExpanded(null)}
                             className="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-xl transition-all"
                             aria-label="Fechar detalhes"
                         >
@@ -1493,11 +1491,10 @@ export default function ListaOS() {
                         <button
                             type="button"
                             onClick={() => setModalActiveTab('detalhes')}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                modalActiveTab === 'detalhes'
-                                    ? 'bg-hotel-blue text-white shadow-sm'
-                                    : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
-                            }`}
+                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${modalActiveTab === 'detalhes'
+                                ? 'bg-hotel-blue text-white shadow-sm'
+                                : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
+                                }`}
                         >
                             <Eye size={13} />
                             Detalhes
@@ -1505,11 +1502,10 @@ export default function ListaOS() {
                         <button
                             type="button"
                             onClick={() => setModalActiveTab('checklist')}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                modalActiveTab === 'checklist'
-                                    ? 'bg-hotel-blue text-white shadow-sm'
-                                    : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
-                            }`}
+                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${modalActiveTab === 'checklist'
+                                ? 'bg-hotel-blue text-white shadow-sm'
+                                : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
+                                }`}
                         >
                             <ListTodo size={13} />
                             Checklist
@@ -1517,11 +1513,10 @@ export default function ListaOS() {
                         <button
                             type="button"
                             onClick={() => setModalActiveTab('progresso')}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                modalActiveTab === 'progresso'
-                                    ? 'bg-hotel-blue text-white shadow-sm'
-                                    : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
-                            }`}
+                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${modalActiveTab === 'progresso'
+                                ? 'bg-hotel-blue text-white shadow-sm'
+                                : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
+                                }`}
                         >
                             <Clock3 size={13} />
                             Progresso
@@ -1795,7 +1790,7 @@ export default function ListaOS() {
                                 <p className="mb-3 flex items-center gap-1.5 text-xs font-bold text-hotel-blue uppercase tracking-wider font-body">
                                     <ListTodo size={14} /> Checklist de Etapas da SI
                                 </p>
-                                
+
                                 <div className="space-y-2">
                                     {(!os.checklist || os.checklist.length === 0) && !podeEditarChecklist && (
                                         <p className="text-sm text-hotel-gray-md font-body">Nenhum item cadastrado no checklist.</p>
@@ -1881,7 +1876,7 @@ export default function ListaOS() {
                                 <p className="mb-3 flex items-center gap-1.5 text-xs font-bold text-hotel-blue uppercase tracking-wider font-body">
                                     <Clock3 size={14} /> Log de Alterações / Progresso
                                 </p>
-                                
+
                                 <div className="space-y-3 pr-1">
                                     {historico.length === 0 ? (
                                         <p className="text-sm text-hotel-gray-md">Nenhum progresso registrado.</p>
@@ -1889,11 +1884,11 @@ export default function ListaOS() {
                                         [...historico].reverse().map((h, index) => {
                                             const isEtapa = h.tipo === 'etapa' || h.descricao.includes('Etapa PDCA alterada') || h.descricao.includes('alteração de etapa');
                                             const isStatus = h.tipo === 'status' || h.descricao.includes('Status alterado');
-                                            
+
                                             let cardClass = 'border-hotel-gray/30 bg-hotel-light/20';
                                             let iconClass = 'bg-hotel-blue/10 text-hotel-blue';
                                             let IconComponent = MessageSquare;
-                                            
+
                                             if (isEtapa) {
                                                 cardClass = 'border-amber-300 bg-amber-50/30 shadow-sm shadow-amber-50';
                                                 iconClass = 'bg-amber-100 text-amber-600 border border-amber-200';
@@ -2005,8 +2000,8 @@ export default function ListaOS() {
                                                     </div>
                                                 </div>
                                             );
-                                    })
-                                )}
+                                        })
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -2048,7 +2043,7 @@ export default function ListaOS() {
         );
     };
 
-        return (
+    return (
         <AppLayout pageTitle={pageTitle}>
             <div className="animate-fadeIn">
                 {ordensError && (
@@ -2073,11 +2068,10 @@ export default function ListaOS() {
                         <button
                             type="button"
                             onClick={() => setViewMode('diario')}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                viewMode === 'diario'
-                                    ? 'bg-hotel-blue text-white shadow-sm'
-                                    : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
-                            }`}
+                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'diario'
+                                ? 'bg-hotel-blue text-white shadow-sm'
+                                : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
+                                }`}
                         >
                             <CalendarDays size={14} />
                             Agenda
@@ -2089,42 +2083,40 @@ export default function ListaOS() {
                                     setViewMode('todos');
                                     handleDismissAlert();
                                 }}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
-                                    viewMode === 'todos'
-                                        ? 'bg-hotel-blue text-white shadow-sm'
-                                        : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
-                                }`}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${viewMode === 'todos'
+                                    ? 'bg-hotel-blue text-white shadow-sm'
+                                    : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
+                                    }`}
                             >
                                 <ListTodo size={14} />
                                 Todas as SIs
                                 {showAlert && viewMode === 'diario' && (
-                                    <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-hotel-gold opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-hotel-gold"></span>
-                                    </span>
+                                    <span className="ml-0.5 inline-block h-1.5 w-1.5 rounded-full bg-hotel-gold" />
                                 )}
                             </button>
-                            {/* Balão de Dica Animado */}
+                            {/* Tooltip Contextual Discreto */}
                             {showAlert && viewMode === 'diario' && (
-                                <div className="absolute top-full left-1/2 mt-3 w-56 bg-gradient-to-br from-amber-400 via-hotel-gold to-amber-600 text-white text-[11px] font-bold p-3 rounded-2xl shadow-[0_12px_32px_rgba(196,154,108,0.45)] border border-white/20 animate-bounce-subtle z-30 text-center backdrop-blur-sm">
-                                    <div className="flex items-center gap-1.5 justify-center mb-1 select-none">
-                                        <Sparkles size={11} className="text-white animate-pulse shrink-0" />
-                                        <span className="uppercase tracking-widest text-[9px] opacity-90 font-black">Dica de Navegação</span>
+                                <div className="absolute top-full left-0 mt-2.5 w-64 rounded-xl border border-slate-200/90 border-l-[3px] border-l-hotel-blue bg-white p-3 text-left shadow-[0_10px_28px_-6px_rgba(15,23,42,0.14)] animate-fadeIn z-30">
+                                    <div className="absolute -top-1.5 left-8 h-2.5 w-2.5 rotate-45 border-l border-t border-slate-200/90 bg-white" />
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="text-xs font-semibold text-slate-900 font-heading">
+                                            Visão completa
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDismissAlert();
+                                            }}
+                                            className="-mr-1 -mt-0.5 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                                            aria-label="Fechar dica"
+                                        >
+                                            <X size={12} />
+                                        </button>
                                     </div>
-                                    <span className="block leading-relaxed">Visualize todas as SIs registradas e acompanhe seus progressos de forma consolidada.</span>
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDismissAlert();
-                                        }}
-                                        className="absolute top-1.5 right-1.5 text-white/80 hover:text-white transition-all p-1 rounded-full hover:bg-white/20 bg-black/15 flex items-center justify-center"
-                                        aria-label="Fechar alerta"
-                                    >
-                                        <X size={10} />
-                                    </button>
-                                    {/* Arrow pointing up */}
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-b-amber-400"></div>
+                                    <p className="mt-1 text-[11px] font-normal text-slate-500 leading-relaxed font-body">
+                                        Alterne para listar todas as solicitações registradas sem filtro de data.
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -2134,11 +2126,10 @@ export default function ListaOS() {
                                 setViewMode('recentes');
                                 handleDismissAlert();
                             }}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
-                                viewMode === 'recentes'
-                                    ? 'bg-hotel-blue text-white shadow-sm'
-                                    : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
-                            }`}
+                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${viewMode === 'recentes'
+                                ? 'bg-hotel-blue text-white shadow-sm'
+                                : 'text-hotel-gray-md hover:text-hotel-blue bg-transparent hover:bg-white/50'
+                                }`}
                         >
                             <Activity size={14} />
                             Acompanhamento
@@ -2179,7 +2170,7 @@ export default function ListaOS() {
                                 >
                                     <ChevronLeft size={18} className="text-hotel-gray-md" />
                                 </button>
-                                
+
                                 <button
                                     type="button"
                                     onClick={() => adjustDate(1)}
@@ -2235,11 +2226,10 @@ export default function ListaOS() {
                                     key={day.dateStr}
                                     type="button"
                                     onClick={() => setSelectedDate(day.dateStr)}
-                                    className={`relative flex flex-col items-center justify-center py-2.5 rounded-xl transition-all cursor-pointer border ${
-                                        day.isActive
-                                            ? 'bg-hotel-blue text-white shadow-md font-black scale-[1.03] border-transparent ring-2 ring-hotel-blue/20'
-                                            : 'hover:bg-hotel-light border-hotel-gray/30 text-hotel-gray-md hover:text-hotel-blue bg-white'
-                                    }`}
+                                    className={`relative flex flex-col items-center justify-center py-2.5 rounded-xl transition-all cursor-pointer border ${day.isActive
+                                        ? 'bg-hotel-blue text-white shadow-md font-black scale-[1.03] border-transparent ring-2 ring-hotel-blue/20'
+                                        : 'hover:bg-hotel-light border-hotel-gray/30 text-hotel-gray-md hover:text-hotel-blue bg-white'
+                                        }`}
                                 >
                                     <span className={`text-[9px] sm:text-xs font-bold uppercase tracking-wider ${day.isActive ? 'text-white/80' : 'text-hotel-gray-md/75'}`}>
                                         {day.weekdayShort}
@@ -2247,7 +2237,7 @@ export default function ListaOS() {
                                     <span className="text-base sm:text-lg font-extrabold mt-0.5">
                                         {day.dayNum}
                                     </span>
-                                    
+
                                     {/* Indicador de SIs ativas no dia */}
                                     {day.taskCount > 0 && (
                                         <span className={`absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${day.isActive ? 'bg-white' : 'bg-hotel-blue animate-pulse'}`} />
@@ -2440,12 +2430,12 @@ export default function ListaOS() {
                 onConfirm={confirmarStatusChange}
                 onCancel={() => setObsModal({ open: false, os: null, novoStatus: null })}
             />
-                        <AdicionarObservacaoModal
-                            isOpen={adicionarObsModal.open}
-                            os={adicionarObsModal.os}
-                            onConfirm={handleAdicionarObs}
-                            onCancel={() => setAdicionarObsModal({ open: false, os: null })}
-                        />
+            <AdicionarObservacaoModal
+                isOpen={adicionarObsModal.open}
+                os={adicionarObsModal.os}
+                onConfirm={handleAdicionarObs}
+                onCancel={() => setAdicionarObsModal({ open: false, os: null })}
+            />
             <HistoricoOSModal
                 isOpen={historicoModal.open}
                 os={ordens.find(o => o.id === historicoModal.os?.id) || historicoModal.os}

@@ -2,7 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, ChartNoAxesCombined, CalendarDays,
     LogOut, ChevronLeft, ChevronRight, X, Settings, ClipboardCheck, Eye, Plus, TrendingUp,
-    User, GraduationCap, BookOpen, BarChart3, Folder, FileText, Target
+    User, GraduationCap, BookOpen, BarChart3, Folder, FileText, Target, Utensils
 } from 'lucide-react';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import Logo from '../Logo/Logo';
@@ -24,6 +24,7 @@ const liderLinks = [
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
     { to: '/pops', label: 'POPs', icon: BookOpen },
+    { to: 'https://fichas-tecnicas-gamma.vercel.app/', label: 'Fichas Técnicas A&B', icon: Utensils, external: true },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
@@ -39,6 +40,7 @@ const diretoraLinks = [
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
     { to: '/pops', label: 'POPs', icon: BookOpen },
+    { to: 'https://fichas-tecnicas-gamma.vercel.app/', label: 'Fichas Técnicas A&B', icon: Utensils, external: true },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
@@ -54,6 +56,7 @@ const adminLinks = [
     { to: '/auditorias/visualizar', label: 'Auditorias', icon: ClipboardCheck },
     { to: '/treinamentos', label: 'Treinamentos', icon: GraduationCap },
     { to: '/pops', label: 'POPs', icon: BookOpen },
+    { to: 'https://fichas-tecnicas-gamma.vercel.app/', label: 'Fichas Técnicas A&B', icon: Utensils, external: true },
     { to: 'https://verdance-xi.vercel.app/auth', label: 'Investimentos', icon: TrendingUp, external: true },
     { to: '/admin', label: 'Gerenciamento', icon: Settings },
 ];
@@ -195,7 +198,7 @@ export default function Sidebar({ mobileMenuOpen = false, onCloseMobile }) {
             <nav
                 ref={navRef}
                 onScroll={handleScroll}
-                className="flex-1 space-y-1 overflow-y-auto px-2 py-4"
+                className="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-2 py-4 mr-0.5"
             >
                 {visibleLinks.map(({ to, label, icon: Icon, external }) => {
                     const isAuditoriasLink = to === '/auditorias/visualizar';
