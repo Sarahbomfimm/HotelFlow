@@ -178,7 +178,7 @@ Você pode receber alertas de novas SIs, atualizações e reuniões diretamente 
             strong: ['indicadores', 'visao geral', 'como usar o dashboard'],
             response: `🏡 **Como aproveitar ao máximo o seu Dashboard:**
 
-O Dashboard é a sua central de controle diário no HotelFlow. Como você é **\${roleLabel}**, veja o que está disponível para você:
+O Dashboard é a sua central de controle diário no HotelFlow. Como você é **${roleLabel}**, veja o que está disponível para você:
 
 * 📊 **Métricas Rápidas:** Veja a quantidade de SIs abertas, em andamento, concluídas e atrasadas do seu setor.
 * ⚡ **Atalhos Rápidos:** Botões de um clique para abrir uma Nova SI, acessar o Kanban PDCA ou gerenciar reuniões.
@@ -477,7 +477,7 @@ function formatMarkdown(text) {
     lines.forEach((line, index) => {
         const trimmed = line.trim();
         const headingMatch = line.match(/^###\s+(.*)$/);
-        const ulMatch = line.match(/^\s*([*\-]|•)\s+(.*)$/);
+        const ulMatch = line.match(/^\s*([*-]|•)\s+(.*)$/);
         const olMatch = line.match(/^\s*(\d+)\.\s+(.*)$/);
 
         if (headingMatch) {

@@ -35,7 +35,8 @@ function normalizeTreinamentoRecord(id, data) {
 
 function serializeTreinamentoRecord(treinamento) {
     const normalized = normalizeTreinamentoRecord(treinamento?.id || `${Date.now()}`, treinamento);
-    const { id, ...payload } = normalized;
+    const payload = { ...normalized };
+    delete payload.id;
     return payload;
 }
 

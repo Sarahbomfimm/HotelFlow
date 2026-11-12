@@ -106,13 +106,6 @@ function scoreLabel(total) {
     return { text: 'Péssimo', tone: 'text-red-700 bg-red-100', cardBorder: 'border-red-400/40', cardBg: 'bg-red-500/20', statusColor: 'text-red-300', dot: 'bg-red-400' };
 }
 
-function barColor(avg) {
-    if (avg >= 16) return { from: '#10b981', to: '#059669' };
-    if (avg >= 12) return { from: '#3b82f6', to: '#2563eb' };
-    if (avg >= 8) return { from: '#f59e0b', to: '#d97706' };
-    return { from: '#ef4444', to: '#dc2626' };
-}
-
 function scorePercent(total) {
     return Math.max(0, Math.min(100, (Number(total || 0) / MAX_TOTAL) * 100));
 }
@@ -364,11 +357,6 @@ export default function Auditorias({ mode }) {
         return Math.round((total / sectorAudits.length) * 10) / 10;
     }, [audits, selectedDepartment]);
 
-    const criticalCount = useMemo(
-        () => visibleAudits.filter((audit) => getAuditTotal(audit) <= 50).length,
-        [visibleAudits],
-    );
-
     const sectorStatus = useMemo(() => {
         if (visibleAudits.length === 0) return null;
         return scoreLabel(Math.round(monthlyAverage));
@@ -391,30 +379,6 @@ export default function Auditorias({ mode }) {
         () => SENSOS.reduce((sum, sense) => sum + (editSenseTotals[sense.key] || 0), 0),
         [editSenseTotals],
     );
-
-    const topSector = useMemo(() => {
-        if (visibleAudits.length === 0) {
-            return null;
-        }
-
-        const grouped = visibleAudits.reduce((acc, audit) => {
-            const current = acc[audit.setor] || { total: 0, count: 0 };
-            acc[audit.setor] = {
-                total: current.total + getAuditTotal(audit),
-                count: current.count + 1,
-            };
-            return acc;
-        }, {});
-
-        const ranked = Object.entries(grouped)
-            .map(([setor, data]) => ({
-                setor,
-                media: Math.round((data.total / data.count) * 10) / 10,
-            }))
-            .sort((a, b) => b.media - a.media);
-
-        return ranked[0] || null;
-    }, [visibleAudits]);
 
     const senseTotals = useMemo(
         () => SENSOS.reduce((acc, sense) => ({

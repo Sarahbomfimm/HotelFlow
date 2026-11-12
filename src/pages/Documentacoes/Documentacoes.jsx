@@ -103,7 +103,7 @@ export default function Documentacoes() {
             unsubCats();
             unsubDocs();
         };
-    }, []);
+    }, [addNotification]);
 
     // Filter documents
     const filteredDocuments = useMemo(() => {

@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '../Sidebar/Sidebar';
 import Header from '../Header/Header';
-import { useAuth } from '../../context/AuthContext';
 
 export default function AppLayout({ children, pageTitle }) {
     const location = useLocation();
-    const { user } = useAuth();
     
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 

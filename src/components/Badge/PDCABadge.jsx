@@ -7,7 +7,7 @@ const classes = {
     [PDCAStep.ACT]: 'bg-emerald-500 text-white pdca-badge-pulse',
 };
 
-export default function PDCABadge({ etapa, status, compact = false }) {
+export default function PDCABadge({ etapa, compact = false }) {
     if (!etapa) return null;
 
     return (

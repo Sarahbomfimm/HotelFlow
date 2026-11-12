@@ -269,7 +269,7 @@ export function ReuniaoProvider({ children }) {
         } catch (err) {
             throw new Error(`Erro ao atualizar reunião: ${err.message}`);
         }
-    }, [reunioes, user?.nome]);
+    }, [reunioes, user]);
 
     const deletarReuniao = useCallback(async (id) => {
         if (!isFirebaseConfigured || !db) {

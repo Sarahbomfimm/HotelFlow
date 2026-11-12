@@ -28,7 +28,8 @@ function normalizeIndicadorRecord(id, data) {
 
 function serializeIndicadorRecord(record) {
     const normalized = normalizeIndicadorRecord(record?.id || `${record.departamento}_${record.mes}`, record);
-    const { id, ...payload } = normalized;
+    const payload = { ...normalized };
+    delete payload.id;
     return payload;
 }
 

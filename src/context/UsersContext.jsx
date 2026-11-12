@@ -47,7 +47,11 @@ function getStoredDeletedEmails() {
 function sanitizeMockUsers() {
     return USERS
         .filter((user) => user.email?.toLowerCase() !== 'bernadino@hotelflow.com')
-        .map(({ senha: _omit, ...safeUser }) => safeUser);
+        .map((user) => {
+            const safeUser = { ...user };
+            delete safeUser.senha;
+            return safeUser;
+        });
 }
 
 function mergeUsersWithFallback(firebaseUsers, deletedEmailsFromFirestore = []) {

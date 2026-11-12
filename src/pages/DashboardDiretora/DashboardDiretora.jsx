@@ -21,7 +21,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ClipboardList, CheckCircle2, Clock, AlertCircle,
-    Users, TrendingUp, ArrowRight, Send, PlusCircle, CalendarDays,
+    Users, TrendingUp, ArrowRight, PlusCircle,
     Calendar, ChevronRight, Info, Activity, Sparkles, Filter, ChevronDown,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
@@ -31,7 +31,6 @@ import DetalhesOSModal from '../../components/Modal/DetalhesOSModal';
 import { useOS } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUsers } from '../../context/UsersContext';
-import { useNotification } from '../../context/NotificationContext';
 import { StatusOS, StatusLabel, PDCAStep } from '../../models/OrdemDeServico';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -39,7 +38,6 @@ import { getLeaderEstimatedDeadlineValue, isSIOverdue } from '../../utils/osDead
 import { isOrderInSelectedDashboardMonth } from '../../utils/osMonthRules';
 
 const DEPARTAMENTO_TESTE = 'Teste';
-const TELEGRAM_PROMO_EVENT = 'hotelflow:open-telegram-banner';
 
 function CustomSelect({ value, onChange, options, placeholder }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -190,7 +188,7 @@ function PDCAStatCard({ etapa, total, totalBase, onClick }) {
             hoverBorder: 'hover:border-emerald-300'
         },
     };
-    const { label, color, bg, border, letterBg, barColor, hoverBorder } = config[etapa];
+    const { label, letterBg, barColor, hoverBorder } = config[etapa];
     const pct = totalBase > 0 ? Math.round((total / totalBase) * 100) : 0;
 
     return (
@@ -227,7 +225,7 @@ function PDCAStatCard({ etapa, total, totalBase, onClick }) {
 export default function DashboardDiretora() {
     const { ordens, error: ordensError } = useOS();
     const { user } = useAuth();
-    const { lideres, currentUserProfile, updateTelegramChatId } = useUsers();
+    const { lideres, currentUserProfile } = useUsers();
     const navigate = useNavigate();
     const displayName = currentUserProfile?.nome || user?.nome;
     const isAdmin = (currentUserProfile?.role || user?.role) === 'admin';
@@ -236,32 +234,7 @@ export default function DashboardDiretora() {
     const [filterStatus, setFilterStatus] = useState('');
     const [tab, setTab] = useState('todas'); // 'todas' ou 'minhas'
     const [selectedOsId, setSelectedOsId] = useState(null);
-    const [telegramInput, setTelegramInput] = useState('');
-    const [telegramSaving, setTelegramSaving] = useState(false);
-    const [showTelegramForm, setShowTelegramForm] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
-    const telegramBannerRef = useRef(null);
-
-    const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'HotelFloww_Bot';
-    const telegramBotLink = `https://t.me/${telegramBotUsername}`;
-
-    const { addNotification } = useNotification();
-
-    useEffect(() => {
-        const openTelegramBanner = () => {
-            if (currentUserProfile?.telegram_chat_id) return;
-            setShowTelegramForm(true);
-            telegramBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            sessionStorage.removeItem(TELEGRAM_PROMO_EVENT);
-        };
-
-        if (sessionStorage.getItem(TELEGRAM_PROMO_EVENT) === '1') {
-            openTelegramBanner();
-        }
-
-        window.addEventListener(TELEGRAM_PROMO_EVENT, openTelegramBanner);
-        return () => window.removeEventListener(TELEGRAM_PROMO_EVENT, openTelegramBanner);
-    }, [currentUserProfile?.telegram_chat_id]);
 
     const selectedMonthDate = useMemo(() => parseISO(`${selectedMonth}-01`), [selectedMonth]);
     const ordensSemTeste = useMemo(

@@ -2,18 +2,17 @@ import { useState, useEffect } from 'react';
 import {
     X, Eye, ListTodo, Clock3, Tag, User, Calendar, Image as ImageIcon, Download,
     Play, Check, FileCheck, Plus, Edit3, Trash2, Trash, CheckSquare, Square,
-    MessageSquare, RefreshCw, GitBranch, Paperclip, AlertTriangle, ChevronRight, Activity, CalendarDays, FileText,
+    MessageSquare, RefreshCw, GitBranch, Paperclip, AlertTriangle, FileText,
     FileSpreadsheet, ExternalLink
 } from 'lucide-react';
 import { getAttachmentType } from '../../utils/attachmentUtils';
 import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { useOS, matchesOrderActor } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import {
-    StatusOS, PDCAStep, StatusLabel, PDCALabel, ApprovalStage
+    StatusOS, PDCAStep, ApprovalStage
 } from '../../models/OrdemDeServico';
 import { isSIOverdue, getLeaderEstimatedDeadlineValue } from '../../utils/osDeadlineRules';
 import { UserRole } from '../../models/User';
@@ -39,7 +38,7 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
     } = useOS();
     const { user } = useAuth();
     const { addNotification } = useNotification();
-    const { currentUserProfile, availableDepartments } = useUsers();
+    const { currentUserProfile } = useUsers();
 
     const actor = currentUserProfile || user;
     const actorDepartments = [
@@ -149,7 +148,7 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
                 item.id === itemId ? { ...item, concluido: !item.concluido } : item
             );
             await atualizarChecklist(os.id, updated, actor);
-        } catch (error) {
+        } catch {
             addNotification('Erro ao atualizar item do checklist.', 'error');
         }
     };
@@ -165,7 +164,7 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
             };
             await atualizarChecklist(os.id, [...currentChecklist, newItem], actor);
             setNovoItemChecklist('');
-        } catch (error) {
+        } catch {
             addNotification('Erro ao adicionar item ao checklist.', 'error');
         }
     };
@@ -179,7 +178,7 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
             );
             await atualizarChecklist(os.id, updated, actor);
             setEditingChecklist({ osId: null, itemId: null, text: '' });
-        } catch (error) {
+        } catch {
             addNotification('Erro ao editar item do checklist.', 'error');
         }
     };
@@ -189,20 +188,19 @@ export default function DetalhesOSModal({ osId, os: osProp, isOpen, onClose }) {
             const currentChecklist = os.checklist || [];
             const updated = currentChecklist.filter((item) => item.id !== itemId);
             await atualizarChecklist(os.id, updated, actor);
-        } catch (error) {
+        } catch {
             addNotification('Erro ao remover item do checklist.', 'error');
         }
     };
 
-    const handleConfirmEditarAnexo = async ({ acao, texto, fotoUrl, pdfUrl, pdfNome }) => {
-        const itemHistorico = editarAnexoModalState.item;
-        setEditarAnexoModalState({ open: false, item: null });
-
-        if (!itemHistorico) return;
-
+    const handleConfirmEditarAnexo = async (osId, dataItem, novoPdfFile, removerAnexo, motivo) => {
         try {
-            await editarAnexoHistorico(os.id, itemHistorico, acao, { texto, fotoUrl, pdfUrl, pdfNome }, actor);
-            addNotification('Registro do histórico atualizado com sucesso.', 'success');
+            await editarAnexoHistorico(osId, dataItem, novoPdfFile, removerAnexo, motivo, actor);
+            addNotification(
+                removerAnexo ? 'Anexo do histórico removido com sucesso.' : 'Anexo do histórico substituído com sucesso.',
+                'success',
+            );
+            setEditarAnexoModalState({ open: false, item: null });
         } catch (error) {
             addNotification(error?.message || 'Erro ao editar anexo do histórico.', 'error');
         }

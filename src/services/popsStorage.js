@@ -28,7 +28,8 @@ function normalizePopRecord(id, data) {
 
 function serializePopRecord(pop) {
     const normalized = normalizePopRecord(pop?.id || `${Date.now()}`, pop);
-    const { id, ...payload } = normalized;
+    const payload = { ...normalized };
+    delete payload.id;
     return payload;
 }
 

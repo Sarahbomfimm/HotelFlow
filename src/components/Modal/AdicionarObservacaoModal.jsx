@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ArrowRight, Paperclip, User, Camera, Image as ImageIcon, ChevronDown } from 'lucide-react';
+import { X, ArrowRight, Paperclip, User, Camera, ChevronDown } from 'lucide-react';
 import PDCABadge from '../Badge/PDCABadge';
 import { PDCALabel, PDCAStep } from '../../models/OrdemDeServico';
 import { UserRole } from '../../models/User';
@@ -79,7 +79,7 @@ export default function AdicionarObservacaoModal({ isOpen, os, onConfirm, onCanc
         const handler = (e) => { if (e.key === 'Escape') onCancel(); };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [isOpen, onCancel, os?.id, os?.etapa_pdca]);
+    }, [isOpen, onCancel, os?.id, os?.etapa_pdca, os?.co_responsaveis]);
 
     if (!isOpen || !os) return null;
 

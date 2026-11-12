@@ -8,7 +8,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import AppLayout from '../../components/Layout/AppLayout';
 import StatusBadge from '../../components/Badge/StatusBadge';
-import { useOS } from '../../context/OSContext';
+import { useOS, matchesOrderActor } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
@@ -290,63 +290,6 @@ function HistoricoOSModal({ isOpen, onClose, os }) {
     );
 }
 
-function normalizeIdentityValue(value) {
-    return String(value || '').trim().toLowerCase();
-}
-
-function matchesOrderActor(order, actor, prefix) {
-    if (!order || !actor) {
-        return false;
-    }
-
-    if (prefix === 'responsavel' && Array.isArray(order.co_responsaveis)) {
-        const actorIds = [actor.id, actor.firebaseUid]
-            .map(normalizeIdentityValue)
-            .filter(Boolean);
-        const actorEmail = normalizeIdentityValue(actor.email);
-
-        const isCoResponsavel = order.co_responsaveis.some((responsavel) => {
-            const responsavelIds = [responsavel.id, responsavel.uid]
-                .map(normalizeIdentityValue)
-                .filter(Boolean);
-
-            if (actorIds.some((id) => responsavelIds.includes(id))) {
-                return true;
-            }
-
-            const responsavelEmail = normalizeIdentityValue(responsavel.email);
-            if (actorEmail && responsavelEmail && actorEmail === responsavelEmail) {
-                return true;
-            }
-
-            return false;
-        });
-
-        if (isCoResponsavel) {
-            return true;
-        }
-    }
-
-    const actorIds = [actor.id, actor.firebaseUid]
-        .map(normalizeIdentityValue)
-        .filter(Boolean);
-    const orderIds = [order[`${prefix}_id`], order[`${prefix}_uid`]]
-        .map(normalizeIdentityValue)
-        .filter(Boolean);
-
-    if (actorIds.some((id) => orderIds.includes(id))) {
-        return true;
-    }
-
-    const actorEmail = normalizeIdentityValue(actor.email);
-    const orderEmail = normalizeIdentityValue(order[`${prefix}_email`]);
-    if (actorEmail && orderEmail && actorEmail === orderEmail) {
-        return true;
-    }
-
-    return false;
-}
-
 function ModalRecusaFinalizacao({ isOpen, onClose, onConfirm }) {
     const [motivo, setMotivo] = useState('');
 
@@ -405,7 +348,7 @@ export default function Aprovacoes() {
     const isAdmin = actor?.role === UserRole.ADMIN || actor?.role === 'admin';
     const canMove = isAdmin || hasPermission(actor, PERMISSIONS.SI_APPROVALS_MOVE);
     const canViewAll = isAdmin || hasPermission(actor, PERMISSIONS.SI_APPROVALS_VIEW_ALL);
-    const actorDepartments = actor?.departamentos || [];
+    const actorDepartments = useMemo(() => actor?.departamentos || [], [actor?.departamentos]);
     const [draggingId, setDraggingId] = useState(null);
     const [modalRecusaAberto, setModalRecusaAberto] = useState(false);
     const [osParaRecusar, setOsParaRecusar] = useState(null);

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    ClipboardList, CheckCircle2, Clock, AlertCircle, Send, PlusCircle, Play, Check, ArrowRight, CalendarDays,
+    ClipboardList, CheckCircle2, Clock, AlertCircle, Send, PlusCircle, Play, Check, ArrowRight,
     Sparkles, Filter, ChevronDown, ChevronRight, Activity, TrendingUp
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
@@ -9,8 +9,7 @@ import PDCABadge from '../../components/Badge/PDCABadge';
 import StatusBadge from '../../components/Badge/StatusBadge';
 import StatusObservacaoModal from '../../components/Modal/StatusObservacaoModal';
 import DetalhesOSModal from '../../components/Modal/DetalhesOSModal';
-import { useOS } from '../../context/OSContext';
-import { matchesOrderActor, isPrimaryResponsible } from '../../context/OSContext';
+import { useOS, matchesOrderActor } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUsers } from '../../context/UsersContext';
 import { useNotification } from '../../context/NotificationContext';
@@ -22,7 +21,6 @@ import { getApplicableDeadlineDate, getLeaderEstimatedDeadlineValue, isSIOverdue
 import { isOrderInSelectedDashboardMonth } from '../../utils/osMonthRules';
 
 const DEPARTAMENTO_TESTE = 'Teste';
-const TELEGRAM_PROMO_EVENT = 'hotelflow:open-telegram-banner';
 
 function CustomSelect({ value, onChange, options, placeholder }) {
     const [open, setOpen] = useState(false);
@@ -218,7 +216,7 @@ function PDCAStatCard({ etapa, total, totalBase, onClick }) {
 export default function DashboardLider() {
     const { getOSPorLider, atualizarStatus, error: ordensError } = useOS();
     const { user } = useAuth();
-    const { lideres, currentUserProfile, updateTelegramChatId } = useUsers();
+    const { lideres, currentUserProfile } = useUsers();
     const { addNotification } = useNotification();
     const navigate = useNavigate();
     const displayName = currentUserProfile?.nome || user?.nome;
@@ -228,19 +226,12 @@ export default function DashboardLider() {
     const [filterLider, setFilterLider] = useState('');
     const [tab, setTab] = useState('minhas');
     const [filterStatus, setFilterStatus] = useState('');
-    const [telegramInput, setTelegramInput] = useState('');
-    const [telegramSaving, setTelegramSaving] = useState(false);
-    const [showTelegramForm, setShowTelegramForm] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
-    const telegramBannerRef = useRef(null);
-
-    const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'HotelFloww_Bot';
-    const telegramBotLink = `https://t.me/${telegramBotUsername}`;
 
     const selectedMonthDate = useMemo(() => parseISO(`${selectedMonth}-01`), [selectedMonth]);
     const actor = currentUserProfile || user;
     const canFinalizeSI = hasPermission(actor, PERMISSIONS.SI_FINALIZE);
-    const actorDepartments = actor?.departamentos || [];
+    const actorDepartments = useMemo(() => actor?.departamentos || [], [actor?.departamentos]);
 
     const ordens = useMemo(
         () => getOSPorLider(actorDepartments, actor),
@@ -383,41 +374,6 @@ export default function DashboardLider() {
             novoStatus === StatusOS.CONCLUIDO ? 'success' : 'info',
         );
     };
-
-    const handleSaveTelegram = async () => {
-        const chatId = telegramInput.trim();
-        if (!chatId || !/^\d+$/.test(chatId)) {
-            addNotification('ID inválido. Cole apenas os números que o bot enviou.', 'error');
-            return;
-        }
-        setTelegramSaving(true);
-        try {
-            await updateTelegramChatId(chatId);
-            addNotification('Telegram conectado com sucesso! 🎉 Você receberá notificações de novas SIs.', 'success');
-            setShowTelegramForm(false);
-            setTelegramInput('');
-        } catch {
-            addNotification('Erro ao salvar ID do Telegram. Tente novamente.', 'error');
-        } finally {
-            setTelegramSaving(false);
-        }
-    };
-
-    useEffect(() => {
-        const openTelegramBanner = () => {
-            if (currentUserProfile?.telegram_chat_id) return;
-            setShowTelegramForm(true);
-            telegramBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            sessionStorage.removeItem(TELEGRAM_PROMO_EVENT);
-        };
-
-        if (sessionStorage.getItem(TELEGRAM_PROMO_EVENT) === '1') {
-            openTelegramBanner();
-        }
-
-        window.addEventListener(TELEGRAM_PROMO_EVENT, openTelegramBanner);
-        return () => window.removeEventListener(TELEGRAM_PROMO_EVENT, openTelegramBanner);
-    }, [currentUserProfile?.telegram_chat_id]);
 
     const navigateToOrders = (state = {}) => navigate('/ordens', { state: { selectedMonth, viewMode: 'todos', ...state } });
 

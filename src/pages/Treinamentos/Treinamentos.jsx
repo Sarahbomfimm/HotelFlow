@@ -24,7 +24,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
-import { hasPermission, PERMISSIONS } from '../../services/permissions';
 import {
     subscribeTreinamentos,
     saveTreinamento,
@@ -33,11 +32,6 @@ import {
 } from '../../services/treinamentosStorage';
 import { uploadTreinamentoPdf } from '../../services/storage';
 import { createUserNotification } from '../../services/notifications';
-
-
-function getCurrentMonth() {
-    return new Date().toISOString().slice(0, 7); // YYYY-MM
-}
 
 export default function Treinamentos() {
     const { user } = useAuth();
@@ -198,7 +192,6 @@ export default function Treinamentos() {
     // Check invite status of logged-in user for selected training
     const modalInviteStatus = useMemo(() => {
         if (!selectedTreinamento) return null;
-        const uId = profile?.firebaseUid || profile?.id || user?.firebaseUid || user?.id;
         const uNome = profile?.nome || user?.nome || '';
         const uEmail = profile?.email || user?.email || '';
 
@@ -662,7 +655,6 @@ export default function Treinamentos() {
                 ) : (
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {filteredTreinamentos.map((t) => {
-                            const uId = profile?.firebaseUid || profile?.id || user?.firebaseUid || user?.id;
                             const uNome = profile?.nome || user?.nome || '';
                             const uEmail = profile?.email || user?.email || '';
 

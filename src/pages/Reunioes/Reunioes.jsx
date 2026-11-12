@@ -129,8 +129,8 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUsers, currentUserId }) {
-    const initialFormData = {
+function getInitialReuniaoFormData() {
+    return {
         titulo: '',
         data_inicio: new Date().toISOString().split('T')[0],
         hora_inicio: '09:00',
@@ -142,8 +142,10 @@ function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUser
         descricao: '',
         checklist: [],
     };
+}
 
-    const [formData, setFormData] = useState(initialFormData);
+function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUsers, currentUserId }) {
+    const [formData, setFormData] = useState(getInitialReuniaoFormData);
     const [novoItemChecklist, setNovoItemChecklist] = useState('');
     const [editingItemChecklist, setEditingItemChecklist] = useState({ id: null, text: '' });
 
@@ -163,7 +165,7 @@ function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUser
             return;
         }
 
-        setFormData(initialFormData);
+        setFormData(getInitialReuniaoFormData());
     }, [isOpen, reuniaoEditando]);
 
     if (!isOpen) return null;
@@ -177,7 +179,7 @@ function FormularioReuniao({ isOpen, onClose, onSave, reuniaoEditando, todosUser
             titulo: capitalizeFirstLetter(formData.titulo),
             sala: capitalizeFirstLetter(formData.sala),
         });
-        setFormData(initialFormData);
+        setFormData(getInitialReuniaoFormData());
         onClose();
     };
 
@@ -640,7 +642,7 @@ export default function Reunioes() {
             setReuniaoSelecionada(null); // Fecha os detalhes imediatamente após a recusa
             addNotification('Participação recusada e motivo registrado.', 'success');
             setModalRecusaAberto(false);
-        } catch (err) {
+        } catch {
             addNotification('Não foi possível recusar a participação.', 'error');
         }
     };
@@ -664,7 +666,7 @@ export default function Reunioes() {
             const atualizada = await atualizarReuniao(reuniaoSelecionada.id, payload);
             setReuniaoSelecionada(atualizada);
             addNotification('Participação confirmada.', 'success');
-        } catch (err) {
+        } catch {
             addNotification('Não foi possível confirmar a participação.', 'error');
         }
     };
@@ -697,7 +699,7 @@ export default function Reunioes() {
             const payload = { ...reuniaoSelecionada, checklist: novoChecklist };
             const atualizada = await atualizarReuniao(reuniaoSelecionada.id, payload);
             setReuniaoSelecionada(atualizada);
-        } catch (err) {
+        } catch {
             addNotification("Não foi possível atualizar o item do checklist.", "error");
         }
     };
@@ -713,7 +715,7 @@ export default function Reunioes() {
             setReuniaoSelecionada(atualizada);
             setEditingChecklistDetalhe({ id: null, text: '' });
             addNotification("Item do checklist atualizado.", "success");
-        } catch (err) {
+        } catch {
             addNotification("Não foi possível editar o item do checklist.", "error");
         }
     };

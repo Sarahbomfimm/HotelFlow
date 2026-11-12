@@ -306,7 +306,11 @@ export default function Pops() {
     // POPs filtrados por busca no setor selecionado
     const filteredSectorPops = useMemo(() => {
         if (!selectedSector) return [];
-        const pops = getSectorStatsValue(selectedSector).popsList || [];
+        const targetClean = cleanStringForMatching(selectedSector);
+        const matchedKey = Object.keys(sectorStats).find(
+            (key) => cleanStringForMatching(key) === targetClean
+        );
+        const pops = (matchedKey ? sectorStats[matchedKey]?.popsList : []) || [];
         return pops
             .filter((p) => {
                 const query = searchTerm.toLowerCase();

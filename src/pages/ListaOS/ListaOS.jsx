@@ -16,82 +16,19 @@ import EditarOSModal from '../../components/Modal/EditarOSModal';
 import StatusObservacaoModal from '../../components/Modal/StatusObservacaoModal';
 import AdicionarObservacaoModal from '../../components/Modal/AdicionarObservacaoModal';
 import EditarAnexoHistoricoModal from '../../components/Modal/EditarAnexoHistoricoModal';
-import { useOS } from '../../context/OSContext';
+import { useOS, normalizeIdentityValue, matchesOrderActor } from '../../context/OSContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
 import { UserRole } from '../../models/User';
 import { hasPermission, PERMISSIONS } from '../../services/permissions';
 import { StatusOS, StatusLabel, PDCAStep, PDCALabel, ApprovalStage } from '../../models/OrdemDeServico';
-import { format, parseISO, isSameMonth, isSameDay } from 'date-fns';
+import { format, parseISO, isSameDay } from 'date-fns';
 import { getLeaderEstimatedDeadlineValue, isSIOverdue } from '../../utils/osDeadlineRules';
 import { isOrderInSelectedDashboardMonth } from '../../utils/osMonthRules';
 import { ptBR } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-
-function normalizeIdentityValue(value) {
-    return String(value || '').trim().toLowerCase();
-}
-
-function matchesOrderActor(order, actor, prefix) {
-    if (!order || !actor) {
-        return false;
-    }
-
-    if (prefix === 'responsavel' && Array.isArray(order.co_responsaveis)) {
-        const actorIds = [actor.id, actor.firebaseUid]
-            .map(normalizeIdentityValue)
-            .filter(Boolean);
-        const actorEmail = normalizeIdentityValue(actor.email);
-
-        const isCoResponsavel = order.co_responsaveis.some((responsavel) => {
-            const responsavelIds = [responsavel.id, responsavel.uid]
-                .map(normalizeIdentityValue)
-                .filter(Boolean);
-
-            if (actorIds.some((id) => responsavelIds.includes(id))) {
-                return true;
-            }
-
-            const responsavelEmail = normalizeIdentityValue(responsavel.email);
-            if (actorEmail && responsavelEmail && actorEmail === responsavelEmail) {
-                return true;
-            }
-
-            return false;
-        });
-
-        if (isCoResponsavel) {
-            return true;
-        }
-    }
-
-    const actorIds = [actor.id, actor.firebaseUid]
-        .map(normalizeIdentityValue)
-        .filter(Boolean);
-    const orderIds = [order[`${prefix}_id`], order[`${prefix}_uid`]]
-        .map(normalizeIdentityValue)
-        .filter(Boolean);
-
-    if (actorIds.some((id) => orderIds.includes(id))) {
-        return true;
-    }
-
-    const actorEmail = normalizeIdentityValue(actor.email);
-    const orderEmail = normalizeIdentityValue(order[`${prefix}_email`]);
-    if (actorEmail && orderEmail && actorEmail === orderEmail) {
-        return true;
-    }
-
-    const actorNome = normalizeIdentityValue(actor.nome);
-    const orderNome = normalizeIdentityValue(order[`${prefix}_nome`]);
-    if (actorNome && orderNome && actorNome === orderNome) {
-        return true;
-    }
-
-    return false;
-}
 
 function MultiSelectFilter({
     title,
@@ -672,7 +609,7 @@ function HistoricoOSModal({ isOpen, onClose, os, actor, isDiretora, onEditarAnex
     );
 }
 
-const CustomDateInput = forwardRef(({ value, onClick, weekday, dayAndMonth }, ref) => (
+const CustomDateInput = forwardRef(({ onClick, weekday, dayAndMonth }, ref) => (
     <button
         type="button"
         onClick={onClick}
@@ -757,7 +694,7 @@ export default function ListaOS() {
     }, [users]);
     const location = useLocation();
     const actor = currentUserProfile || user;
-    const actorDepartments = actor?.departamentos || [];
+    const actorDepartments = useMemo(() => actor?.departamentos || [], [actor?.departamentos]);
     const isAdmin = actor?.role === UserRole.ADMIN || actor?.role === 'admin';
     const isDiretora = actor?.role === UserRole.DIRETORA || actor?.role === UserRole.ADMIN;
     const canFinalizeSI = hasPermission(actor, PERMISSIONS.SI_FINALIZE);
@@ -885,7 +822,7 @@ export default function ListaOS() {
                 try {
                     const osDate = parseISO(o.prazo);
                     return isSameDay(osDate, d);
-                } catch (err) {
+                } catch {
                     return false;
                 }
             }).length;
@@ -1011,7 +948,7 @@ export default function ListaOS() {
                         const osDate = parseISO(o.prazo);
                         const agendaDate = parseLocalDate(selectedDate);
                         return isSameDay(osDate, agendaDate);
-                    } catch (e) {
+                    } catch {
                         return false;
                     }
                 }
@@ -1216,7 +1153,7 @@ export default function ListaOS() {
         try {
             await atualizarChecklist(os.id, novoChecklist, actor);
             setNovoItemChecklist('');
-        } catch (error) {
+        } catch {
             addNotification('Erro ao atualizar checklist.', 'error');
         }
     };
@@ -1227,7 +1164,7 @@ export default function ListaOS() {
         );
         try {
             await atualizarChecklist(os.id, novoChecklist, actor);
-        } catch (error) {
+        } catch {
             addNotification('Erro ao atualizar checklist.', 'error');
         }
     };
@@ -1236,7 +1173,7 @@ export default function ListaOS() {
         const novoChecklist = (os.checklist || []).filter(item => item.id !== itemId);
         try {
             await atualizarChecklist(os.id, novoChecklist, actor);
-        } catch (error) {
+        } catch {
             addNotification('Erro ao remover item do checklist.', 'error');
         }
     };
@@ -1249,7 +1186,7 @@ export default function ListaOS() {
         try {
             await atualizarChecklist(os.id, novoChecklist, actor);
             setEditingChecklist({ osId: null, itemId: null, text: '' });
-        } catch (error) {
+        } catch {
             addNotification('Erro ao editar item do checklist.', 'error');
         }
     };
@@ -1344,8 +1281,6 @@ export default function ListaOS() {
         const hasPendingApproval = [ApprovalStage.SOLICITADA, ApprovalStage.EM_ANALISE].includes(os.aprovacao_finalizacao_status);
         const canRequestFinalization = os.status === StatusOS.EM_ANDAMENTO && isResponsavel && !canConcludeDirectly && !hasPendingApproval;
         const podeAtualizar = !canReopen && (canStart || canConcludeDirectly);
-        const podeEditar = isDiretora || isCriador;
-        const podeExcluir = isAdmin || isCriador;
 
         return (
             <div
@@ -1958,18 +1893,15 @@ export default function ListaOS() {
                                             let cardClass = 'border-hotel-gray/30 bg-hotel-light/20';
                                             let iconClass = 'bg-hotel-blue/10 text-hotel-blue';
                                             let IconComponent = MessageSquare;
-                                            let textClass = 'text-hotel-gray-md';
                                             
                                             if (isEtapa) {
                                                 cardClass = 'border-amber-300 bg-amber-50/30 shadow-sm shadow-amber-50';
                                                 iconClass = 'bg-amber-100 text-amber-600 border border-amber-200';
                                                 IconComponent = RefreshCw;
-                                                textClass = 'text-slate-800 font-semibold';
                                             } else if (isStatus) {
                                                 cardClass = 'border-hotel-blue/20 bg-hotel-blue/5 shadow-sm shadow-blue-50';
                                                 iconClass = 'bg-hotel-blue/15 text-hotel-blue border border-hotel-blue/10';
                                                 IconComponent = GitBranch;
-                                                textClass = 'text-hotel-blue font-semibold';
                                             }
 
                                             const { contentElement, adjustments } = parseTimelineDescription(h.descricao, isEtapa, isStatus);
