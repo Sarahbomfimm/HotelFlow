@@ -165,6 +165,22 @@ export default function AppRouter() {
                     }
                 />
                 <Route
+                    path="/admin/:section"
+                    element={
+                        <ProtectedRoute requiredPermission={PERMISSIONS.ADMIN_PANEL_ACCESS}>
+                            <AdminPanel />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/admin/:section/:itemId"
+                    element={
+                        <ProtectedRoute requiredPermission={PERMISSIONS.ADMIN_PANEL_ACCESS}>
+                            <AdminPanel />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
                     path="/admin/lideres/:userId/editar"
                     element={
                         <ProtectedRoute requiredPermission={PERMISSIONS.ADMIN_PANEL_ACCESS}>
