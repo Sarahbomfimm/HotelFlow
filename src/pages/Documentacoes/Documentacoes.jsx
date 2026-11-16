@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
     FileText,
+    FileSpreadsheet,
+    Link2,
+    ExternalLink,
     Plus,
     Search,
     Trash2,
@@ -10,15 +13,14 @@ import {
     Folder,
     ArrowLeft,
     Download,
-    Info,
     Calendar,
     User,
     Sparkles,
-    BookOpen,
     Eye,
     FolderOpen,
 } from 'lucide-react';
 import AppLayout from '../../components/Layout/AppLayout';
+import { getAttachmentType } from '../../utils/attachmentUtils';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useUsers } from '../../context/UsersContext';
@@ -68,7 +70,13 @@ export default function Documentacoes() {
 
     // Form states
     const [catForm, setCatForm] = useState({ titulo: '', descricao: '' });
-    const [docForm, setDocForm] = useState({ titulo: '', descricao: '', file: null });
+    const [docForm, setDocForm] = useState({
+        titulo: '',
+        descricao: '',
+        attachmentMode: 'file', // 'file' | 'link'
+        file: null,
+        linkUrl: '',
+    });
 
     // Confirm deletes
     const [deleteCatId, setDeleteCatId] = useState(null);
@@ -203,8 +211,58 @@ export default function Documentacoes() {
     // Document submission
     const handleCreateDocument = async (e) => {
         e.preventDefault();
-        if (!docForm.titulo.trim() || !docForm.file || !selectedCategory) {
-            addNotification('Preencha o assunto/título e anexe o arquivo.', 'error');
+        if (!selectedCategory || !docForm.titulo.trim()) {
+            addNotification('Preencha o assunto/nome do documento.', 'error');
+            return;
+        }
+
+        const isLinkMode = docForm.attachmentMode === 'link';
+
+        if (isLinkMode) {
+            const rawUrl = docForm.linkUrl.trim();
+            if (!rawUrl) {
+                addNotification('Informe o link da planilha compartilhada.', 'error');
+                return;
+            }
+            const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+            try {
+                new URL(normalizedUrl);
+            } catch {
+                addNotification('Informe uma URL válida para a planilha.', 'error');
+                return;
+            }
+
+            setSaving(true);
+            try {
+                const isGoogleSheets = normalizedUrl.toLowerCase().includes('docs.google.com/spreadsheets') || normalizedUrl.toLowerCase().includes('sheets.google.com');
+                const newDoc = {
+                    categoryId: selectedCategory.id,
+                    titulo: docForm.titulo.trim(),
+                    descricao: docForm.descricao.trim(),
+                    pdf: {
+                        name: isGoogleSheets ? 'Planilha Google Sheets (Compartilhada)' : 'Planilha Online Compartilhada',
+                        data: normalizedUrl,
+                        isExternalLink: true,
+                    },
+                    criadoPorId: profile?.id || null,
+                    criadoPorNome: profile?.nome || 'Usuário',
+                    createdAt: new Date().toISOString(),
+                };
+
+                await saveDocument(newDoc);
+                addNotification('Planilha compartilhada vinculada com sucesso!', 'success');
+                setDocForm({ titulo: '', descricao: '', attachmentMode: 'file', file: null, linkUrl: '' });
+                setShowDocModal(false);
+            } catch (error) {
+                addNotification(`Erro ao vincular planilha: ${error.message}`, 'error');
+            } finally {
+                setSaving(false);
+            }
+            return;
+        }
+
+        if (!docForm.file) {
+            addNotification('Selecione um arquivo para anexar.', 'error');
             return;
         }
 
@@ -231,7 +289,7 @@ export default function Documentacoes() {
 
             await saveDocument(newDoc);
             addNotification('Documento anexado com sucesso!', 'success');
-            setDocForm({ titulo: '', descricao: '', file: null });
+            setDocForm({ titulo: '', descricao: '', attachmentMode: 'file', file: null, linkUrl: '' });
             setShowDocModal(false);
         } catch (error) {
             addNotification(`Erro ao anexar documento: ${error.message}`, 'error');
@@ -446,75 +504,113 @@ export default function Documentacoes() {
                             </div>
                         ) : (
                             <div className="grid gap-4 sm:grid-cols-2">
-                                {filteredDocuments.map((docRec) => (
-                                    <div
-                                        key={docRec.id}
-                                        className="rounded-2xl border border-slate-150 bg-white p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4 sm:flex-row sm:items-start"
-                                    >
-                                        <div className="flex items-start gap-3 min-w-0">
-                                            <div className="rounded-xl bg-indigo-50 text-indigo-600 p-2.5 flex-shrink-0">
-                                                <FileText size={20} />
-                                            </div>
-                                            <div className="min-w-0 space-y-1">
-                                                <h4 className="font-heading font-extrabold text-sm text-slate-800 truncate" title={docRec.titulo}>
-                                                    {docRec.titulo}
-                                                </h4>
-                                                {docRec.descricao && (
-                                                    <p className="text-xs text-slate-500 font-body line-clamp-2 leading-relaxed">
-                                                        {docRec.descricao}
-                                                    </p>
-                                                )}
-                                                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] text-slate-400 font-semibold pt-1">
-                                                    <span className="flex items-center gap-1">
-                                                        <User size={12} /> {docRec.criadoPorNome}
-                                                    </span>
-                                                    <span>•</span>
-                                                    <span className="flex items-center gap-1">
-                                                        <Calendar size={12} /> {new Date(docRec.createdAt).toLocaleDateString('pt-BR')}
-                                                    </span>
-                                                </div>
-                                                {docRec.pdf?.name && (
-                                                    <p className="text-[10px] font-mono text-indigo-600 truncate mt-1">
-                                                        {docRec.pdf.name}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
+                                {filteredDocuments.map((docRec) => {
+                                    const fileUrl = docRec.pdf?.data || '';
+                                    const fileName = docRec.pdf?.name || '';
+                                    const attachType = getAttachmentType(fileUrl);
+                                    const isSpreadsheet =
+                                        Boolean(docRec.pdf?.isExternalLink) ||
+                                        attachType === 'sheets' ||
+                                        attachType === 'excel' ||
+                                        /\.(xlsx|xls|csv)$/i.test(fileName);
+                                    const isExternalLink =
+                                        Boolean(docRec.pdf?.isExternalLink) || attachType === 'sheets';
 
-                                        <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-auto">
-                                            {docRec.pdf?.data && (
-                                                <>
-                                                    <a
-                                                        href={docRec.pdf.data}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-hotel-blue transition-colors border border-slate-100 bg-white"
-                                                        title="Visualizar"
-                                                    >
-                                                        <Eye size={14} />
-                                                    </a>
-                                                    <a
-                                                        href={docRec.pdf.data}
-                                                        download={docRec.pdf.name || 'documento'}
-                                                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-hotel-blue transition-colors border border-slate-100 bg-white"
-                                                        title="Baixar"
-                                                    >
-                                                        <Download size={14} />
-                                                    </a>
-                                                </>
-                                            )}
-                                            {canDeleteDocument(docRec) && (
-                                                <button
-                                                    onClick={() => setDeleteDocId(docRec.id)}
-                                                    className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors border border-slate-100 bg-white"
-                                                    title="Excluir Documento"
+                                    return (
+                                        <div
+                                            key={docRec.id}
+                                            className="rounded-2xl border border-slate-150 bg-white p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4 sm:flex-row sm:items-start"
+                                        >
+                                            <div className="flex items-start gap-3 min-w-0">
+                                                <div
+                                                    className={`rounded-xl p-2.5 flex-shrink-0 ${
+                                                        isSpreadsheet
+                                                            ? 'bg-emerald-50 text-emerald-600'
+                                                            : 'bg-indigo-50 text-indigo-600'
+                                                    }`}
                                                 >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            )}
+                                                    {isSpreadsheet ? <FileSpreadsheet size={20} /> : <FileText size={20} />}
+                                                </div>
+                                                <div className="min-w-0 space-y-1">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <h4 className="font-heading font-extrabold text-sm text-slate-800 truncate" title={docRec.titulo}>
+                                                            {docRec.titulo}
+                                                        </h4>
+                                                        {isSpreadsheet && (
+                                                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200/70">
+                                                                {isExternalLink ? 'Planilha Compartilhada' : 'Planilha Excel'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {docRec.descricao && (
+                                                        <p className="text-xs text-slate-500 font-body line-clamp-2 leading-relaxed">
+                                                            {docRec.descricao}
+                                                        </p>
+                                                    )}
+                                                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] text-slate-400 font-semibold pt-1">
+                                                        <span className="flex items-center gap-1">
+                                                            <User size={12} /> {docRec.criadoPorNome}
+                                                        </span>
+                                                        <span>•</span>
+                                                        <span className="flex items-center gap-1">
+                                                            <Calendar size={12} /> {new Date(docRec.createdAt).toLocaleDateString('pt-BR')}
+                                                        </span>
+                                                    </div>
+                                                    {docRec.pdf?.name && (
+                                                        <p className={`text-[10px] font-mono truncate mt-1 ${isSpreadsheet ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                                                            {docRec.pdf.name}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-auto">
+                                                {docRec.pdf?.data && (
+                                                    <>
+                                                        <a
+                                                            href={docRec.pdf.data}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className={`rounded-lg p-2 transition-colors border bg-white inline-flex items-center gap-1 text-xs font-bold ${
+                                                                isExternalLink
+                                                                    ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-2.5 py-1.5'
+                                                                    : 'border-slate-100 text-slate-400 hover:bg-slate-50 hover:text-hotel-blue'
+                                                            }`}
+                                                            title={isExternalLink ? 'Abrir Planilha Compartilhada' : 'Visualizar'}
+                                                        >
+                                                            {isExternalLink ? (
+                                                                <>
+                                                                    <ExternalLink size={13} /> Abrir
+                                                                </>
+                                                            ) : (
+                                                                <Eye size={14} />
+                                                            )}
+                                                        </a>
+                                                        {!isExternalLink && (
+                                                            <a
+                                                                href={docRec.pdf.data}
+                                                                download={docRec.pdf.name || 'documento'}
+                                                                className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-hotel-blue transition-colors border border-slate-100 bg-white"
+                                                                title="Baixar"
+                                                            >
+                                                                <Download size={14} />
+                                                            </a>
+                                                        )}
+                                                    </>
+                                                )}
+                                                {canDeleteDocument(docRec) && (
+                                                    <button
+                                                        onClick={() => setDeleteDocId(docRec.id)}
+                                                        className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors border border-slate-100 bg-white"
+                                                        title="Excluir Documento"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -605,7 +701,7 @@ export default function Documentacoes() {
                             <button
                                 onClick={() => {
                                     setShowDocModal(false);
-                                    setDocForm({ titulo: '', descricao: '', file: null });
+                                    setDocForm({ titulo: '', descricao: '', attachmentMode: 'file', file: null, linkUrl: '' });
                                 }}
                                 className="text-white/50 hover:text-white transition-colors"
                             >
@@ -640,29 +736,79 @@ export default function Documentacoes() {
                                         maxLength={250}
                                     />
                                 </div>
+
                                 <div>
-                                    <label className="label mb-1">Selecionar Arquivo</label>
-                                    <label
-                                        htmlFor="doc-file-input"
-                                        className="mt-1 block rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-hotel-blue/40 px-4 py-6 transition-all text-center cursor-pointer"
-                                    >
-                                        <div className="flex flex-col items-center gap-2">
-                                            <UploadCloud size={28} className="text-slate-400 group-hover:text-hotel-blue" />
-                                            <span className="text-xs font-bold text-slate-600 block">
-                                                {docForm.file ? 'Arquivo selecionado' : 'Clique para anexar arquivo'}
-                                            </span>
-                                            <span className="text-[10px] text-slate-400 font-normal">
-                                                {docForm.file ? docForm.file.name : 'PDF, Imagens, Documentos até 10MB'}
-                                            </span>
+                                    <label className="label mb-1.5">Formato do Documento</label>
+                                    <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1 mb-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setDocForm((prev) => ({ ...prev, attachmentMode: 'file' }))}
+                                            className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+                                                docForm.attachmentMode === 'file'
+                                                    ? 'bg-white text-hotel-blue shadow-sm'
+                                                    : 'text-slate-500 hover:text-slate-800'
+                                            }`}
+                                        >
+                                            <UploadCloud size={14} /> Enviar Arquivo
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setDocForm((prev) => ({ ...prev, attachmentMode: 'link' }))}
+                                            className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+                                                docForm.attachmentMode === 'link'
+                                                    ? 'bg-emerald-600 text-white shadow-sm'
+                                                    : 'text-slate-500 hover:text-slate-800'
+                                            }`}
+                                        >
+                                            <FileSpreadsheet size={14} /> Link Planilha
+                                        </button>
+                                    </div>
+
+                                    {docForm.attachmentMode === 'file' ? (
+                                        <>
+                                            <label
+                                                htmlFor="doc-file-input"
+                                                className="mt-1 block rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-hotel-blue/40 px-4 py-6 transition-all text-center cursor-pointer"
+                                            >
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <UploadCloud size={26} className="text-slate-400" />
+                                                        <FileSpreadsheet size={24} className="text-emerald-600" />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-slate-600 block">
+                                                        {docForm.file ? 'Arquivo selecionado' : 'Clique para anexar arquivo ou planilha'}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 font-normal">
+                                                        {docForm.file ? docForm.file.name : 'PDF, Excel (.xlsx, .xls, .csv), Imagens até 10MB'}
+                                                    </span>
+                                                </div>
+                                            </label>
+                                            <input
+                                                type="file"
+                                                id="doc-file-input"
+                                                accept="image/*,application/pdf,.pdf,.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,.doc,.docx"
+                                                className="sr-only"
+                                                onChange={handleFileChange}
+                                            />
+                                        </>
+                                    ) : (
+                                        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-2.5 animate-fadeIn">
+                                            <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold">
+                                                <Link2 size={15} className="text-emerald-600 shrink-0" />
+                                                <span>Link de Planilha Compartilhada (Google Sheets / Excel)</span>
+                                            </div>
+                                            <input
+                                                type="url"
+                                                placeholder="https://docs.google.com/spreadsheets/d/..."
+                                                value={docForm.linkUrl}
+                                                onChange={(e) => setDocForm((prev) => ({ ...prev, linkUrl: e.target.value }))}
+                                                className="w-full rounded-xl border border-emerald-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/15"
+                                            />
+                                            <p className="text-[11px] text-emerald-700/80 leading-relaxed">
+                                                Cole o link compartilhado do Google Sheets, Excel Online ou OneDrive para acesso colaborativo da equipe.
+                                            </p>
                                         </div>
-                                    </label>
-                                    <input
-                                        type="file"
-                                        id="doc-file-input"
-                                        className="sr-only"
-                                        onChange={handleFileChange}
-                                        required
-                                    />
+                                    )}
                                 </div>
                             </div>
 
@@ -671,7 +817,7 @@ export default function Documentacoes() {
                                     type="button"
                                     onClick={() => {
                                         setShowDocModal(false);
-                                        setDocForm({ titulo: '', descricao: '', file: null });
+                                        setDocForm({ titulo: '', descricao: '', attachmentMode: 'file', file: null, linkUrl: '' });
                                     }}
                                     className="btn-secondary text-xs"
                                     disabled={saving}
@@ -681,9 +827,16 @@ export default function Documentacoes() {
                                 <button
                                     type="submit"
                                     className="btn-primary text-xs flex items-center gap-1.5"
-                                    disabled={saving || !docForm.file}
+                                    disabled={
+                                        saving ||
+                                        (docForm.attachmentMode === 'file' ? !docForm.file : !docForm.linkUrl.trim())
+                                    }
                                 >
-                                    {saving ? 'Publicando...' : 'Anexar Arquivo'}
+                                    {saving
+                                        ? 'Publicando...'
+                                        : docForm.attachmentMode === 'link'
+                                            ? 'Vincular Planilha'
+                                            : 'Anexar Arquivo'}
                                 </button>
                             </div>
                         </form>
