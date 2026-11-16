@@ -34,6 +34,36 @@ import {
 } from '../../services/documentacoesStorage';
 import { uploadDocumentoFile } from '../../services/storage';
 
+function ExpandableText({ text, maxChars = 100, className = '' }) {
+    const [expanded, setExpanded] = useState(false);
+
+    if (!text) return null;
+    const cleanText = String(text).trim();
+    const isLong = cleanText.length > maxChars;
+
+    if (!isLong) {
+        return <p className={className}>{cleanText}</p>;
+    }
+
+    const truncated = cleanText.slice(0, maxChars).replace(/\s+\S*$/, '');
+
+    return (
+        <p className={className}>
+            {expanded ? cleanText : `${truncated}...`}
+            <button
+                type="button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setExpanded((prev) => !prev);
+                }}
+                className="ml-1 inline text-[11px] font-semibold text-slate-400 hover:text-hotel-blue hover:underline transition-colors cursor-pointer"
+            >
+                {expanded ? 'ler menos' : 'ler mais'}
+            </button>
+        </p>
+    );
+}
+
 export default function Documentacoes() {
     const { user } = useAuth();
     const { currentUserProfile } = useUsers();
@@ -426,9 +456,11 @@ export default function Documentacoes() {
                                                     <h3 className="font-heading text-base font-extrabold text-slate-800 group-hover:text-hotel-blue transition-colors duration-200 truncate">
                                                         {cat.titulo}
                                                     </h3>
-                                                    <p className="mt-1.5 text-xs text-slate-400 leading-relaxed font-body line-clamp-2 min-h-[32px]">
-                                                        {cat.descricao || 'Sem descrição cadastrada.'}
-                                                    </p>
+                                                    <ExpandableText
+                                                        text={cat.descricao || 'Sem descrição cadastrada.'}
+                                                        maxChars={95}
+                                                        className="mt-1.5 text-xs text-slate-400 leading-relaxed font-body min-h-[32px]"
+                                                    />
                                                 </div>
                                             </div>
 
@@ -468,9 +500,11 @@ export default function Documentacoes() {
                                             {selectedCategory.titulo}
                                         </h2>
                                     </div>
-                                    <p className="text-xs text-slate-400 font-body truncate max-w-[180px] sm:max-w-md mt-0.5">
-                                        {selectedCategory.descricao || 'Diretório de documentos.'}
-                                    </p>
+                                    <ExpandableText
+                                        text={selectedCategory.descricao || 'Diretório de documentos.'}
+                                        maxChars={110}
+                                        className="text-xs text-slate-400 font-body max-w-[260px] sm:max-w-xl mt-0.5 leading-relaxed"
+                                    />
                                 </div>
                             </div>
                             
@@ -543,9 +577,11 @@ export default function Documentacoes() {
                                                         )}
                                                     </div>
                                                     {docRec.descricao && (
-                                                        <p className="text-xs text-slate-500 font-body line-clamp-2 leading-relaxed">
-                                                            {docRec.descricao}
-                                                        </p>
+                                                        <ExpandableText
+                                                            text={docRec.descricao}
+                                                            maxChars={100}
+                                                            className="text-xs text-slate-500 font-body leading-relaxed"
+                                                        />
                                                     )}
                                                     <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] text-slate-400 font-semibold pt-1">
                                                         <span className="flex items-center gap-1">
